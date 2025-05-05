@@ -10,9 +10,9 @@ import (
 
 func init() {
 	cmd.Commands = []*cmd.Command{
-		cmd.CmdLink,
-		cmd.CmdUnlink,
-		cmd.CmdHelp,
+		&cmd.Link,
+		&cmd.Unlink,
+		&cmd.Help,
 	}
 }
 

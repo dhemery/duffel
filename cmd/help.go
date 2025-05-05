@@ -5,7 +5,7 @@ import (
 	"os"
 )
 
-var CmdHelp = &Command{
+var Help = Command{
 	Name:            "help",
 	Run:             runHelp,
 	ArgList:         "command",

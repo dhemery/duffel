@@ -6,7 +6,7 @@ corresponding items within the named packages.
 `
 
 var (
-	CmdUnlink = &Command{
+	Unlink = Command{
 		Name:            "unlink",
 		Run:             runUnlink,
 		ArgList:         "pkg...",

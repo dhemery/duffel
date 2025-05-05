@@ -23,7 +23,7 @@ option to preview the plan.
 `
 
 var (
-	CmdLink = &Command{
+	Link = Command{
 		Name:            "link",
 		Run:             runLink,
 		ArgList:         "pkg...",
