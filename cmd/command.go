@@ -4,11 +4,19 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 )
 
 var (
 	Commands = []*Command{}
+	CommandsByName = map[string]*Command{}
 )
+
+func init() {
+	addCommand(&Link)
+	addCommand(&Unlink)
+	addCommand(&Help)
+}
 
 type Command struct {
 	Name            string
@@ -19,6 +27,11 @@ type Command struct {
 	Flags           *flag.FlagSet
 }
 
+func addCommand(c *Command) {
+	Commands = append(Commands, c)
+	CommandsByName[c.Name] = c
+}
+
 func Execute() {
 	if len(os.Args) < 2 {
 		Usage()
@@ -26,7 +39,7 @@ func Execute() {
 	}
 
 	cmdName := os.Args[1]
-	cmd, ok := FindCommand(cmdName)
+	cmd, ok := CommandsByName[cmdName]
 	if !ok {
 		fmt.Fprintln(os.Stderr, "no such command:", cmdName)
 		Usage()
@@ -54,14 +67,6 @@ func (cmd *Command) Help() {
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "DESCRIPTION")
 	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, cmd.FullDescription)
+	fmt.Fprintln(os.Stderr, strings.TrimSpace(cmd.FullDescription))
 }
 
-func FindCommand(name string) (*Command, bool) {
-	for _, cmd := range Commands {
-		if cmd.Name == name {
-			return cmd, true
-		}
-	}
-	return nil, false
-}

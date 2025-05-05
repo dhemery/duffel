@@ -8,7 +8,7 @@ import (
 var Help = Command{
 	Name:            "help",
 	Run:             runHelp,
-	ArgList:         "command",
+	ArgList:         "<command>",
 	Summary:         "Show help for a command",
 	FullDescription: "Show help for a command",
 	Flags:           nil,
@@ -41,7 +41,7 @@ func runHelp(_ *Command, args []string) error {
 	}
 
 	cmdName := args[0]
-	cmd, ok := FindCommand(cmdName)
+	cmd, ok := CommandsByName[cmdName]
 	if !ok {
 		return fmt.Errorf("no such command: %s", cmdName)
 	}
