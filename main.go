@@ -5,21 +5,19 @@ import (
 	"fmt"
 	"os"
 
-	"dhemery.com/duffel/cmd/base"
-	"dhemery.com/duffel/cmd/help"
-	"dhemery.com/duffel/cmd/link"
+	"dhemery.com/duffel/cmd"
 )
 
 func init() {
-	base.Commands = []*base.Command{
-		link.CmdLink,
-		link.CmdUnlink,
-		help.CmdHelp,
+	cmd.Commands = []*cmd.Command{
+		cmd.CmdLink,
+		cmd.CmdUnlink,
+		cmd.CmdHelp,
 	}
 }
 
 func main() {
-	flag.Usage = help.Usage
+	flag.Usage = cmd.Usage
 	flag.Parse()
 
 	args := flag.Args()
@@ -30,7 +28,7 @@ func main() {
 	}
 
 	cmdName := args[0]
-	cmd, ok := base.FindCommand(cmdName)
+	cmd, ok := cmd.FindCommand(cmdName)
 	if !ok {
 		fmt.Fprintln(os.Stderr, "no such command:", cmdName)
 		flag.Usage()

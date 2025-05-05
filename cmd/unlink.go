@@ -1,16 +1,12 @@
-package link
-
-import (
-	"dhemery.com/duffel/cmd/base"
-)
+package cmd
 
 const unlinkDescription = `
 duffel unlink removes links in the target directory that point to
-corresponding entries in the file trees of the named packages.
+corresponding items within the named packages.
 `
 
 var (
-	CmdUnlink = &base.Command{
+	CmdUnlink = &Command{
 		Name:            "unlink",
 		Run:             runUnlink,
 		ArgList:         "pkg...",
@@ -20,6 +16,6 @@ var (
 	}
 )
 
-func runUnlink(cmd *base.Command, args []string) error {
+func runUnlink(cmd *Command, args []string) error {
 	return nil
 }

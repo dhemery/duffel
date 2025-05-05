@@ -1,14 +1,12 @@
-package link
+package cmd
 
 import (
 	"flag"
-
-	"dhemery.com/duffel/cmd/base"
 )
 
 const linkDescription = `
 duffel link creates links in the target directory that point to
-corresponding entries in the file trees of the named packages.
+corresponding items in the named packages.
 
 The default target directory is the parent of the current
 working directory. To specify a different target directory, use
@@ -25,7 +23,7 @@ option to preview the plan.
 `
 
 var (
-	CmdLink = &base.Command{
+	CmdLink = &Command{
 		Name:            "link",
 		Run:             runLink,
 		ArgList:         "pkg...",
@@ -48,6 +46,6 @@ func init() {
 	verbose = linkFlags.Bool("verbose", false, "print each action immediately before executing it")
 }
 
-func runLink(cmd *base.Command, args []string) error {
+func runLink(cmd *Command, args []string) error {
 	return nil
 }

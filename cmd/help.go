@@ -1,13 +1,11 @@
-package help
+package cmd
 
 import (
 	"fmt"
 	"os"
-
-	"dhemery.com/duffel/cmd/base"
 )
 
-var CmdHelp = &base.Command{
+var CmdHelp = &Command{
 	Name:            "help",
 	Run:             runHelp,
 	ArgList:         "command",
@@ -25,14 +23,14 @@ func Usage() {
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "COMMANDS")
 	fmt.Fprintln(os.Stderr)
-	for _, cmd := range base.Commands {
+	for _, cmd := range Commands {
 		fmt.Fprintf(os.Stderr, "  %-8s %s\n", cmd.Name, cmd.Summary)
 	}
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, `Use "duffel help <command>" for more information`)
 }
 
-func runHelp(cmd *base.Command, args []string) error {
+func runHelp(cmd *Command, args []string) error {
 	if len(args) == 0 {
 		Usage()
 		return nil
@@ -43,7 +41,7 @@ func runHelp(cmd *base.Command, args []string) error {
 	}
 
 	targetName := args[0]
-	targetCommand, ok := base.FindCommand(targetName)
+	targetCommand, ok := FindCommand(targetName)
 	if !ok {
 		return fmt.Errorf("no such command: %s", targetName)
 	}
