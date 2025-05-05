@@ -30,7 +30,7 @@ func Usage() {
 	fmt.Fprintln(os.Stderr, `Use "duffel help <command>" for more information`)
 }
 
-func runHelp(cmd *Command, args []string) error {
+func runHelp(_ *Command, args []string) error {
 	if len(args) == 0 {
 		Usage()
 		return nil
@@ -40,20 +40,20 @@ func runHelp(cmd *Command, args []string) error {
 		return fmt.Errorf("too many commands: %s", args)
 	}
 
-	targetName := args[0]
-	targetCommand, ok := FindCommand(targetName)
+	cmdName := args[0]
+	cmd, ok := FindCommand(cmdName)
 	if !ok {
-		return fmt.Errorf("no such command: %s", targetName)
+		return fmt.Errorf("no such command: %s", cmdName)
 	}
 
-	targetCommand.Usage()
+	cmd.Usage()
 	fmt.Fprintln(os.Stderr)
-	if targetCommand.Flags != nil {
+	if cmd.Flags != nil {
 		fmt.Fprintln(os.Stderr, "OPTIONS")
 		fmt.Fprintln(os.Stderr)
-		targetCommand.Flags.PrintDefaults()
+		cmd.Flags.PrintDefaults()
 	}
-	targetCommand.Help()
+	cmd.Help()
 
 	return nil
 }

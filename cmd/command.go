@@ -10,8 +10,6 @@ var (
 	Commands = []*Command{}
 )
 
-const ()
-
 type Command struct {
 	Name            string
 	Run             func(cmd *Command, args []string) error
@@ -19,6 +17,27 @@ type Command struct {
 	Summary         string
 	FullDescription string
 	Flags           *flag.FlagSet
+}
+
+func Execute() {
+	if len(os.Args) < 2 {
+		Usage()
+		os.Exit(2)
+	}
+
+	cmdName := os.Args[1]
+	cmd, ok := FindCommand(cmdName)
+	if !ok {
+		fmt.Fprintln(os.Stderr, "no such command:", cmdName)
+		Usage()
+		os.Exit(2)
+	}
+
+	err := cmd.Run(cmd, os.Args[2:])
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(2)
+	}
 }
 
 func (cmd *Command) Usage() {
