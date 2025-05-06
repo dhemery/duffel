@@ -24,12 +24,12 @@ option to preview the plan.
 
 var (
 	Link = Command{
-		Name:            "link",
-		Run:             runLink,
-		ArgList:         "pkg...",
-		Summary:         "Create links to packages",
-		FullDescription: linkDescription,
-		Flags:           linkFlags,
+		Name:        "link",
+		Run:         runLink,
+		ArgList:     "pkg...",
+		Summary:     "Create links to packages",
+		Description: linkDescription,
+		Flags:       linkFlags,
 	}
 
 	linkFlags = flag.NewFlagSet("", flag.ExitOnError)
@@ -46,6 +46,6 @@ func init() {
 	verbose = linkFlags.Bool("verbose", false, "print each action immediately before executing it")
 }
 
-func runLink(cmd *Command, args []string) error {
+func runLink(args []string) error {
 	return nil
 }
