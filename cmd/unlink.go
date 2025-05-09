@@ -14,6 +14,6 @@ var Unlink = Command{
 	Flags:       linkFlags,
 }
 
-func runUnlink(args []string) error {
+func runUnlink(c *Command, args []string) error {
 	return nil
 }

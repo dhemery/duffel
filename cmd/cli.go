@@ -57,10 +57,10 @@ func Execute() {
 	if flags == nil {
 		flags = flag.NewFlagSet("", flag.ExitOnError)
 	}
-	flags.Usage = cmd.Help
+	flags.Usage = cmd.PrintHelp
 	flags.Parse(args[2:])
 
-	err := cmd.Run(flags.Args())
+	err := cmd.Run(cmd, flags.Args())
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)

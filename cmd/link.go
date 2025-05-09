@@ -46,6 +46,6 @@ func init() {
 	verbose = linkFlags.Bool("verbose", false, "print each action immediately before executing it")
 }
 
-func runLink(args []string) error {
+func runLink(c *Command, args []string) error {
 	return nil
 }

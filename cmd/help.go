@@ -12,7 +12,7 @@ var Help = Command{
 	Description: "Show help for a command",
 }
 
-func runHelp(args []string) error {
+func runHelp(c *Command, args []string) error {
 	if len(args) == 0 {
 		Usage()
 		return nil
@@ -28,8 +28,7 @@ func runHelp(args []string) error {
 		return fmt.Errorf("no such command: %s", cmdName)
 	}
 
-	cmd.Help()
-	cmd.ExtraHelp()
+	cmd.Usage()
 
 	return nil
 }

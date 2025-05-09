@@ -9,14 +9,14 @@ import (
 
 type Command struct {
 	Name        string
-	Run         func(args []string) error
+	Run         func(cmd *Command, args []string) error
 	ArgList     string
 	Summary     string
 	Description string
 	Flags       *flag.FlagSet
 }
 
-func (cmd *Command) Help() {
+func (cmd *Command) PrintHelp() {
 	fmt.Fprintln(os.Stderr, "USAGE")
 	fmt.Fprintln(os.Stderr)
 	if cmd.Flags != nil {
@@ -33,9 +33,14 @@ func (cmd *Command) Help() {
 	}
 }
 
-func (cmd *Command) ExtraHelp() {
+func (cmd *Command) PrintExtraHelp() {
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, "DESCRIPTION")
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, strings.TrimSpace(cmd.Description))
+}
+
+func (cmd *Command) Usage() {
+	cmd.PrintHelp()
+	cmd.PrintExtraHelp()
 }
