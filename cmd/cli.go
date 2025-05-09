@@ -38,14 +38,13 @@ func Usage() {
 	fmt.Fprintln(os.Stderr, `Use "duffel help <command>" for more information`)
 }
 
-func Execute() {
-	args := os.Args
-	if len(args) < 2 {
+func Execute(args []string) {
+	if len(args) < 1 {
 		Usage()
 		os.Exit(2)
 	}
 
-	cmdName := args[1]
+	cmdName := args[0]
 	cmd, ok := CommandsByName[cmdName]
 	if !ok {
 		fmt.Fprintln(os.Stderr, "no such command:", cmdName)
@@ -58,7 +57,7 @@ func Execute() {
 		flags = flag.NewFlagSet("", flag.ExitOnError)
 	}
 	flags.Usage = cmd.PrintHelp
-	flags.Parse(args[2:])
+	flags.Parse(args[1:])
 
 	err := cmd.Run(cmd, flags.Args())
 	if err != nil {
