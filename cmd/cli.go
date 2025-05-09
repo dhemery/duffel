@@ -22,7 +22,6 @@ func init() {
 	addCommand(&Help)
 }
 
-
 func Usage() {
 	fmt.Fprintln(os.Stderr, "Maintain dotfiles")
 	fmt.Fprintln(os.Stderr)

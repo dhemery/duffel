@@ -5,10 +5,10 @@ import (
 )
 
 var Help = Command{
-	Name:            "help",
-	Run:             runHelp,
-	ArgList:         "<command>",
-	Summary:         "Show help for a command",
+	Name:        "help",
+	Run:         runHelp,
+	ArgList:     "<command>",
+	Summary:     "Show help for a command",
 	Description: "Show help for a command",
 }
 

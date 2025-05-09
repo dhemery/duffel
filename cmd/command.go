@@ -7,8 +7,6 @@ import (
 	"strings"
 )
 
-
-
 type Command struct {
 	Name        string
 	Run         func(args []string) error
@@ -41,4 +39,3 @@ func (cmd *Command) ExtraHelp() {
 	fmt.Fprintln(os.Stderr)
 	fmt.Fprintln(os.Stderr, strings.TrimSpace(cmd.Description))
 }
-
