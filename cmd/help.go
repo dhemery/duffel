@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"os"
 )
 
 var Help = Command{
@@ -14,8 +15,8 @@ var Help = Command{
 
 func runHelp(c *Command, args []string) error {
 	if len(args) == 0 {
-		Usage()
-		return nil
+		Usage(os.Stdout)
+		os.Exit(0)
 	}
 
 	if len(args) != 1 {

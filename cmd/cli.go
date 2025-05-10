@@ -3,6 +3,7 @@ package cmd
 import (
 	"flag"
 	"fmt"
+	"io"
 	"os"
 )
 
@@ -22,25 +23,25 @@ func init() {
 	addCommand(&Help)
 }
 
-func Usage() {
-	fmt.Fprintln(os.Stderr, "Maintain dotfiles")
-	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, "USAGE")
-	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, "  duffel <command> [arguments]")
-	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, "COMMANDS")
-	fmt.Fprintln(os.Stderr)
+func Usage(w io.Writer) {
+	fmt.Fprintln(w, "Maintain dotfiles")
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "USAGE")
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "  duffel <command> [arguments]")
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "COMMANDS")
+	fmt.Fprintln(w)
 	for _, cmd := range Commands {
-		fmt.Fprintf(os.Stderr, "  %-8s %s\n", cmd.Name, cmd.Summary)
+		fmt.Fprintf(w, "  %-8s %s\n", cmd.Name, cmd.Summary)
 	}
-	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, `Use "duffel help <command>" for more information`)
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, `Use "duffel help <command>" for more information`)
 }
 
 func Execute(args []string) {
 	if len(args) < 1 {
-		Usage()
+		Usage(os.Stderr)
 		os.Exit(2)
 	}
 
@@ -48,7 +49,7 @@ func Execute(args []string) {
 	cmd, ok := CommandsByName[cmdName]
 	if !ok {
 		fmt.Fprintln(os.Stderr, "no such command:", cmdName)
-		Usage()
+		Usage(os.Stderr)
 		os.Exit(2)
 	}
 
