@@ -7,10 +7,13 @@ import (
 
 var Help = Command{
 	Name:        "help",
-	Run:         runHelp,
 	ArgList:     "<command>",
 	Summary:     "Show help for a command",
 	Description: "Show help for a command",
+}
+
+func init() {
+	Help.Run = runHelp
 }
 
 func runHelp(c *Command, args []string) error {

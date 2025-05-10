@@ -7,11 +7,14 @@ corresponding items within the named packages.
 
 var Unlink = Command{
 	Name:        "unlink",
-	Run:         runUnlink,
 	ArgList:     "pkg...",
 	Summary:     "Remove links to packages",
 	Description: unlinkDescription,
 	Flags:       linkFlags,
+}
+
+func init() {
+	Unlink.Run = runUnlink
 }
 
 func runUnlink(c *Command, args []string) error {

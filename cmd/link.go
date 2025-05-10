@@ -25,14 +25,13 @@ option to preview the plan.
 var (
 	Link = Command{
 		Name:        "link",
-		Run:         runLink,
 		ArgList:     "pkg...",
 		Summary:     "Create links to packages",
 		Description: linkDescription,
 		Flags:       linkFlags,
 	}
 
-	linkFlags = flag.NewFlagSet("", flag.ExitOnError)
+	linkFlags = flag.NewFlagSet("link", flag.ExitOnError)
 	onlyPlan  *bool
 	sourceDir *string
 	targetDir *string
@@ -40,6 +39,7 @@ var (
 )
 
 func init() {
+	Link.Run = runLink
 	onlyPlan = linkFlags.Bool("plan", true, "print the planned actions without executing them")
 	sourceDir = linkFlags.String("source", ".", "set source directory to `dir`")
 	targetDir = linkFlags.String("target", "..", "set target directory to `dir`")

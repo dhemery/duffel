@@ -8,19 +8,18 @@ import (
 )
 
 var (
-	Commands       = []*Command{}
+	Commands = []*Command{
+		&Link,
+		&Unlink,
+		&Help,
+	}
 	CommandsByName = map[string]*Command{}
 )
 
-func addCommand(c *Command) {
-	Commands = append(Commands, c)
-	CommandsByName[c.Name] = c
-}
-
 func init() {
-	addCommand(&Link)
-	addCommand(&Unlink)
-	addCommand(&Help)
+	for _, c := range Commands {
+		CommandsByName[c.Name] = c
+	}
 }
 
 func Usage(w io.Writer) {
