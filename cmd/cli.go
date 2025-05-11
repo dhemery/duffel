@@ -12,7 +12,6 @@ var (
 	Commands = []*Command{
 		&Link,
 		&Unlink,
-		&Help,
 	}
 	CommandsByName = map[string]*Command{}
 	CmdDuffel      = Command{
@@ -54,12 +53,16 @@ func PrintHelp(w io.Writer) {
 }
 
 func Execute(args []string) {
-	if len(args) < 1 {
+	if len(args) < 2 {
 		CmdDuffel.PrintHelp(os.Stderr)
 		os.Exit(2)
 	}
 
-	cmdName := args[0]
+	cmdName := args[1]
+	if cmdName == "help" {
+		showHelp(args[2:])
+	}
+
 	cmd, ok := CommandsByName[cmdName]
 	if !ok {
 		fmt.Fprintf(os.Stderr, "duffel %s: no such command\n", cmdName)
@@ -79,4 +82,32 @@ func Execute(args []string) {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
 	}
+}
+
+func showHelp(topics []string) {
+	switch len(topics) {
+	case 0:
+		CmdDuffel.PrintHelp(os.Stdout)
+		os.Exit(0)
+	case 1:
+		showCommandHelp(topics[0])
+	default:
+		badHelpRequest(strings.Join(topics, " "))
+	}
+}
+
+func showCommandHelp(name string) {
+	c, ok := CommandsByName[name]
+	if !ok {
+		badHelpRequest(name)
+	}
+
+	c.PrintHelp(os.Stdout)
+	os.Exit(0)
+}
+
+func badHelpRequest(topic string) {
+	fmt.Fprintf(os.Stderr, "duffel help %s: unknown help topic\n", topic)
+	fmt.Fprintln(os.Stderr, "Run 'duffel help'.")
+	os.Exit(2)
 }
