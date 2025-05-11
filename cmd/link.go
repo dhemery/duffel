@@ -31,7 +31,7 @@ var (
 		Flags:       linkFlags,
 	}
 
-	linkFlags = flag.NewFlagSet("link", flag.ExitOnError)
+	linkFlags = flag.NewFlagSet("duffel link", flag.ExitOnError)
 	onlyPlan  *bool
 	sourceDir *string
 	targetDir *string

@@ -22,7 +22,7 @@ func init() {
 	}
 }
 
-func Usage(w io.Writer) {
+func PrintHelp(w io.Writer) {
 	fmt.Fprintln(w, "Maintain dotfiles")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "USAGE")
@@ -40,7 +40,7 @@ func Usage(w io.Writer) {
 
 func Execute(args []string) {
 	if len(args) < 1 {
-		Usage(os.Stderr)
+		PrintHelp(os.Stderr)
 		os.Exit(2)
 	}
 
@@ -48,15 +48,15 @@ func Execute(args []string) {
 	cmd, ok := CommandsByName[cmdName]
 	if !ok {
 		fmt.Fprintln(os.Stderr, "no such command:", cmdName)
-		Usage(os.Stderr)
+		PrintHelp(os.Stderr)
 		os.Exit(2)
 	}
 
 	flags := cmd.Flags
 	if flags == nil {
-		flags = flag.NewFlagSet("", flag.ExitOnError)
+		flags = flag.NewFlagSet("duffel "+cmd.Name, flag.ExitOnError)
 	}
-	flags.Usage = cmd.PrintHelp
+	flags.Usage = cmd.Usage
 	flags.Parse(args[1:])
 
 	err := cmd.Run(cmd, flags.Args())

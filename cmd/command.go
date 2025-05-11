@@ -3,6 +3,7 @@ package cmd
 import (
 	"flag"
 	"fmt"
+	"io"
 	"os"
 	"strings"
 )
@@ -16,31 +17,33 @@ type Command struct {
 	Flags       *flag.FlagSet
 }
 
-func (cmd *Command) PrintHelp() {
-	fmt.Fprintln(os.Stderr, "USAGE")
-	fmt.Fprintln(os.Stderr)
-	if cmd.Flags != nil {
-		fmt.Fprintln(os.Stderr, "  duffel", cmd.Name, "[options]", cmd.ArgList)
-	} else {
-		fmt.Fprintln(os.Stderr, "  duffel", cmd.Name, cmd.ArgList)
+func (c *Command) usageLine() string {
+	opts := ""
+	if c.Flags != nil {
+		opts = " [options]"
 	}
-	fmt.Fprintln(os.Stderr)
+	return fmt.Sprintf("duffel %s%s %s", c.Name, opts, c.ArgList)
+}
+
+func (c *Command) Usage() {
+	fmt.Fprintln(os.Stderr, "usage:", c.usageLine())
+	fmt.Fprintf(os.Stderr, "Run 'duffel help %s' for details.\n", c.Name)
+}
+
+func (cmd *Command) PrintHelp(w io.Writer) {
+	fmt.Fprintln(w, "USAGE")
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, " ", cmd.usageLine())
 
 	if cmd.Flags != nil {
-		fmt.Fprintln(os.Stderr, "OPTIONS")
-		fmt.Fprintln(os.Stderr)
+		fmt.Fprintln(w)
+		fmt.Fprintln(w, "OPTIONS")
+		fmt.Fprintln(w)
+		cmd.Flags.SetOutput(w)
 		cmd.Flags.PrintDefaults()
 	}
-}
-
-func (cmd *Command) PrintExtraHelp() {
-	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, "DESCRIPTION")
-	fmt.Fprintln(os.Stderr)
-	fmt.Fprintln(os.Stderr, strings.TrimSpace(cmd.Description))
-}
-
-func (cmd *Command) Usage() {
-	cmd.PrintHelp()
-	cmd.PrintExtraHelp()
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, "DESCRIPTION")
+	fmt.Fprintln(w)
+	fmt.Fprintln(w, strings.TrimSpace(cmd.Description))
 }

@@ -18,7 +18,7 @@ func init() {
 
 func runHelp(c *Command, args []string) error {
 	if len(args) == 0 {
-		Usage(os.Stdout)
+		PrintHelp(os.Stdout)
 		os.Exit(0)
 	}
 
@@ -32,7 +32,7 @@ func runHelp(c *Command, args []string) error {
 		return fmt.Errorf("no such command: %s", cmdName)
 	}
 
-	cmd.Usage()
+	cmd.PrintHelp(os.Stdout)
 
 	return nil
 }

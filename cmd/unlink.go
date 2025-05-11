@@ -6,7 +6,7 @@ corresponding items within the named packages.
 `
 
 var Unlink = Command{
-	Name:        "unlink",
+	Name:        "duffel unlink",
 	ArgList:     "pkg...",
 	Summary:     "Remove links to packages",
 	Description: unlinkDescription,
