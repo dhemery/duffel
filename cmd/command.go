@@ -19,10 +19,14 @@ type Command struct {
 
 func (c *Command) usageLine() string {
 	opts := ""
+	var name = c.Name
+	if name != "duffel" {
+		name = "duffel " + c.Name
+	}
 	if c.Flags != nil {
 		opts = " [options]"
 	}
-	return fmt.Sprintf("duffel %s%s %s", c.Name, opts, c.ArgList)
+	return fmt.Sprintf("%s%s %s", name, opts, c.ArgList)
 }
 
 func (c *Command) Usage() {

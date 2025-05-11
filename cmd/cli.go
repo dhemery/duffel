@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strings"
 )
 
 var (
@@ -14,12 +15,26 @@ var (
 		&Help,
 	}
 	CommandsByName = map[string]*Command{}
+	CmdDuffel      = Command{
+		Name:    "duffel",
+		ArgList: "<command> [arguments]",
+		Summary: "Maintain dotfiles",
+	}
 )
 
 func init() {
 	for _, c := range Commands {
 		CommandsByName[c.Name] = c
 	}
+	b := &strings.Builder{}
+	fmt.Fprintln(b, "COMMANDS")
+	fmt.Fprintln(b)
+	for _, c := range Commands {
+		fmt.Fprintf(b, "  %-8s %s\n", c.Name, c.Summary)
+	}
+	fmt.Fprintln(b)
+	fmt.Fprintln(b, `Use "duffel help <command>" for more information`)
+	CmdDuffel.Description = b.String()
 }
 
 func PrintHelp(w io.Writer) {
@@ -31,8 +46,8 @@ func PrintHelp(w io.Writer) {
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "COMMANDS")
 	fmt.Fprintln(w)
-	for _, cmd := range Commands {
-		fmt.Fprintf(w, "  %-8s %s\n", cmd.Name, cmd.Summary)
+	for _, c := range Commands {
+		fmt.Fprintf(w, "  %-8s %s\n", c.Name, c.Summary)
 	}
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, `Use "duffel help <command>" for more information`)
@@ -40,7 +55,7 @@ func PrintHelp(w io.Writer) {
 
 func Execute(args []string) {
 	if len(args) < 1 {
-		PrintHelp(os.Stderr)
+		CmdDuffel.PrintHelp(os.Stderr)
 		os.Exit(2)
 	}
 
