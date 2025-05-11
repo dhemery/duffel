@@ -1,6 +1,8 @@
 package cmd
 
 const unlinkDescription = `
+DESCRIPTION
+
 duffel unlink removes links in the target directory that point to
 corresponding items within the named packages.
 `

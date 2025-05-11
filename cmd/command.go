@@ -19,7 +19,7 @@ type Command struct {
 
 func (c *Command) usageLine() string {
 	opts := ""
-	var name = c.Name
+	name := c.Name
 	if name != "duffel" {
 		name = "duffel " + c.Name
 	}
@@ -34,20 +34,22 @@ func (c *Command) Usage() {
 	fmt.Fprintf(os.Stderr, "Run 'duffel help %s' for details.\n", c.Name)
 }
 
-func (cmd *Command) PrintHelp(w io.Writer) {
+func (c *Command) PrintHelp(w io.Writer) {
+	fmt.Fprintln(w, c.Summary)
+	fmt.Fprintln(w)
 	fmt.Fprintln(w, "USAGE")
 	fmt.Fprintln(w)
-	fmt.Fprintln(w, " ", cmd.usageLine())
+	fmt.Fprintln(w, " ", c.usageLine())
 
-	if cmd.Flags != nil {
+	if c.Flags != nil {
 		fmt.Fprintln(w)
 		fmt.Fprintln(w, "OPTIONS")
 		fmt.Fprintln(w)
-		cmd.Flags.SetOutput(w)
-		cmd.Flags.PrintDefaults()
+		c.Flags.SetOutput(w)
+		c.Flags.PrintDefaults()
 	}
-	fmt.Fprintln(w)
-	fmt.Fprintln(w, "DESCRIPTION")
-	fmt.Fprintln(w)
-	fmt.Fprintln(w, strings.TrimSpace(cmd.Description))
+	if c.Description != "" {
+		fmt.Fprintln(w)
+		fmt.Fprintln(w, strings.TrimSpace(c.Description))
+	}
 }

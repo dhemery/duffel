@@ -9,7 +9,6 @@ var Help = Command{
 	Name:        "help",
 	ArgList:     "<command>",
 	Summary:     "Show help for a command",
-	Description: "Show help for a command",
 }
 
 func init() {

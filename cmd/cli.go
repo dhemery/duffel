@@ -33,7 +33,7 @@ func init() {
 		fmt.Fprintf(b, "  %-8s %s\n", c.Name, c.Summary)
 	}
 	fmt.Fprintln(b)
-	fmt.Fprintln(b, `Use "duffel help <command>" for more information`)
+	fmt.Fprintln(b, `Run 'duffel help <command>' for more information`)
 	CmdDuffel.Description = b.String()
 }
 
@@ -50,7 +50,7 @@ func PrintHelp(w io.Writer) {
 		fmt.Fprintf(w, "  %-8s %s\n", c.Name, c.Summary)
 	}
 	fmt.Fprintln(w)
-	fmt.Fprintln(w, `Use "duffel help <command>" for more information`)
+	fmt.Fprintln(w, `Run 'duffel help <command>' for more information`)
 }
 
 func Execute(args []string) {

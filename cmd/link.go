@@ -5,6 +5,8 @@ import (
 )
 
 const linkDescription = `
+DESCRIPTION
+
 duffel link creates links in the target directory that point to
 corresponding items in the named packages.
 
