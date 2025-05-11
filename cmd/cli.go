@@ -50,7 +50,7 @@ func PrintHelp(w io.Writer) {
 		fmt.Fprintf(w, "  %-8s %s\n", c.Name, c.Summary)
 	}
 	fmt.Fprintln(w)
-	fmt.Fprintln(w, `Run 'duffel help <command>' for more information`)
+	fmt.Fprintln(w, "Run 'duffel help <command>' for more information about a command.")
 }
 
 func Execute(args []string) {
@@ -62,8 +62,8 @@ func Execute(args []string) {
 	cmdName := args[0]
 	cmd, ok := CommandsByName[cmdName]
 	if !ok {
-		fmt.Fprintln(os.Stderr, "no such command:", cmdName)
-		PrintHelp(os.Stderr)
+		fmt.Fprintf(os.Stderr, "duffel %s: no such command\n", cmdName)
+		fmt.Fprintln(os.Stderr, "Run 'duffel help' for usage.")
 		os.Exit(2)
 	}
 
