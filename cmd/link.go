@@ -27,7 +27,7 @@ option to preview the plan.
 var (
 	Link = Command{
 		Name:        "link",
-		Run: runLink,
+		Run:         runLink,
 		UsageLine:   "duffel link [options] package...",
 		Summary:     "Create links to package items",
 		Description: linkDescription,
@@ -47,6 +47,5 @@ func init() {
 	verbose = Link.Flags.Bool("verbose", false, "Print each action before executing it.")
 }
 
-func runLink(c *Command, args []string) error {
-	return nil
+func runLink(args []string) {
 }

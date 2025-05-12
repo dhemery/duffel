@@ -8,7 +8,7 @@ corresponding items within the named packages.
 `
 
 var Unlink = Command{
-	Name: "unlink",
+	Name:        "unlink",
 	Run:         runUnlink,
 	UsageLine:   "duffel unlink [options] package...",
 	Summary:     "Remove links to package items",
@@ -16,6 +16,5 @@ var Unlink = Command{
 	Flags:       Link.Flags, // Same flags as LinkCmd for now
 }
 
-func runUnlink(c *Command, args []string) error {
-	return nil
+func runUnlink(args []string) {
 }

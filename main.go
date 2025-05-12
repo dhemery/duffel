@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
 	"strings"
@@ -41,16 +40,10 @@ func main() {
 	}
 
 	flags := c.Flags
-	if flags == nil {
-		flags = flag.NewFlagSet("duffel "+c.Name, flag.ExitOnError)
-	}
 	flags.Usage = c.Usage
 	flags.Parse(os.Args[2:])
 
-	if err := c.Run(c, flags.Args()); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(2)
-	}
+	c.Run(flags.Args())
 }
 
 func lookup(name string) *cmd.Command {

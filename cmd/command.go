@@ -10,7 +10,7 @@ import (
 
 type Command struct {
 	Name        string
-	Run         func(cmd *Command, args []string) error
+	Run         func(args []string)
 	UsageLine   string
 	Summary     string
 	Description string
