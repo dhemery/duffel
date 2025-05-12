@@ -14,20 +14,13 @@ var (
 		&cmd.Link,
 		&cmd.Unlink,
 	}
-	CommandsByName = map[string]*cmd.Command{}
-	CmdDuffel      = cmd.Command{
+	CmdDuffel = cmd.Command{
 		Name:        "duffel",
 		ArgList:     "<command> [arguments]",
 		Summary:     "Maintain dotfiles",
 		Description: duffelDescription(),
 	}
 )
-
-func init() {
-	for _, c := range Commands {
-		CommandsByName[c.Name] = c
-	}
-}
 
 func main() {
 	if len(os.Args) < 2 {
@@ -40,25 +33,33 @@ func main() {
 		showHelp(os.Args[2:])
 	}
 
-	cmd, ok := CommandsByName[cmdName]
-	if !ok {
+	c := lookup(cmdName)
+	if c == nil {
 		fmt.Fprintf(os.Stderr, "duffel %s: no such command\n", cmdName)
 		fmt.Fprintln(os.Stderr, "Run 'duffel help' for usage.")
 		os.Exit(2)
 	}
 
-	flags := cmd.Flags
+	flags := c.Flags
 	if flags == nil {
-		flags = flag.NewFlagSet("duffel "+cmd.Name, flag.ExitOnError)
+		flags = flag.NewFlagSet("duffel "+c.Name, flag.ExitOnError)
 	}
-	flags.Usage = cmd.Usage
+	flags.Usage = c.Usage
 	flags.Parse(os.Args[1:])
 
-	err := cmd.Run(cmd, flags.Args())
-	if err != nil {
+	if err := c.Run(c, flags.Args()); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(2)
 	}
+}
+
+func lookup(name string) *cmd.Command {
+	for _, c := range Commands {
+		if c.Name == name {
+			return c
+		}
+	}
+	return nil
 }
 
 func showHelp(topics []string) {
@@ -74,8 +75,8 @@ func showHelp(topics []string) {
 }
 
 func showCommandHelp(name string) {
-	c, ok := CommandsByName[name]
-	if !ok {
+	c := lookup(name)
+	if c == nil {
 		badHelpRequest(name)
 	}
 
