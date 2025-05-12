@@ -8,15 +8,12 @@ corresponding items within the named packages.
 `
 
 var Unlink = Command{
-	Name:        "unlink",
-	ArgList:     "pkg...",
-	Summary:     "Remove links to packages",
+	Name: "unlink",
+	Run:         runUnlink,
+	UsageLine:   "duffel unlink [options] package...",
+	Summary:     "Remove links to package items",
 	Description: unlinkDescription,
-	Flags:       linkFlags,
-}
-
-func init() {
-	Unlink.Run = runUnlink
+	Flags:       Link.Flags, // Same flags as LinkCmd for now
 }
 
 func runUnlink(c *Command, args []string) error {

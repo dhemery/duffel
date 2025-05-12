@@ -11,26 +11,14 @@ import (
 type Command struct {
 	Name        string
 	Run         func(cmd *Command, args []string) error
-	ArgList     string
+	UsageLine   string
 	Summary     string
 	Description string
 	Flags       *flag.FlagSet
 }
 
-func (c *Command) usageLine() string {
-	opts := ""
-	name := c.Name
-	if name != "duffel" {
-		name = "duffel " + c.Name
-	}
-	if c.Flags != nil {
-		opts = " [options]"
-	}
-	return fmt.Sprintf("%s%s %s", name, opts, c.ArgList)
-}
-
 func (c *Command) Usage() {
-	fmt.Fprintln(os.Stderr, "usage:", c.usageLine())
+	fmt.Fprintln(os.Stderr, "usage:", c.UsageLine)
 	fmt.Fprintf(os.Stderr, "Run 'duffel help %s' for details.\n", c.Name)
 }
 
@@ -39,7 +27,7 @@ func (c *Command) PrintHelp(w io.Writer) {
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "USAGE")
 	fmt.Fprintln(w)
-	fmt.Fprintln(w, " ", c.usageLine())
+	fmt.Fprintln(w, " ", c.UsageLine)
 
 	if c.Flags != nil {
 		fmt.Fprintln(w)

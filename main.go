@@ -16,7 +16,7 @@ var (
 	}
 	CmdDuffel = cmd.Command{
 		Name:        "duffel",
-		ArgList:     "<command> [arguments]",
+		UsageLine:   "duffel <command> [arguments]",
 		Summary:     "Maintain dotfiles",
 		Description: duffelDescription(),
 	}
@@ -45,7 +45,7 @@ func main() {
 		flags = flag.NewFlagSet("duffel "+c.Name, flag.ExitOnError)
 	}
 	flags.Usage = c.Usage
-	flags.Parse(os.Args[1:])
+	flags.Parse(os.Args[2:])
 
 	if err := c.Run(c, flags.Args()); err != nil {
 		fmt.Fprintln(os.Stderr, err)

@@ -27,13 +27,13 @@ option to preview the plan.
 var (
 	Link = Command{
 		Name:        "link",
-		ArgList:     "pkg...",
-		Summary:     "Create links to packages",
+		Run: runLink,
+		UsageLine:   "duffel link [options] package...",
+		Summary:     "Create links to package items",
 		Description: linkDescription,
-		Flags:       linkFlags,
+		Flags:       flag.NewFlagSet("", flag.ExitOnError),
 	}
 
-	linkFlags = flag.NewFlagSet("duffel link", flag.ExitOnError)
 	onlyPlan  *bool
 	sourceDir *string
 	targetDir *string
@@ -41,11 +41,10 @@ var (
 )
 
 func init() {
-	Link.Run = runLink
-	onlyPlan = linkFlags.Bool("plan", true, "print the planned actions without executing them")
-	sourceDir = linkFlags.String("source", ".", "set source directory to `dir`")
-	targetDir = linkFlags.String("target", "..", "set target directory to `dir`")
-	verbose = linkFlags.Bool("verbose", false, "print each action immediately before executing it")
+	onlyPlan = Link.Flags.Bool("plan", true, "Print planned actions without executing them.")
+	sourceDir = Link.Flags.String("source", ".", "Set source directory to `dir`.")
+	targetDir = Link.Flags.String("target", "..", "Set target directory to `dir`.")
+	verbose = Link.Flags.Bool("verbose", false, "Print each action before executing it.")
 }
 
 func runLink(c *Command, args []string) error {
