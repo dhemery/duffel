@@ -33,8 +33,10 @@ func (c *Command) PrintHelp(w io.Writer) {
 		fmt.Fprintln(w)
 		fmt.Fprintln(w, "OPTIONS")
 		fmt.Fprintln(w)
+		ow := c.Flags.Output()
 		c.Flags.SetOutput(w)
 		c.Flags.PrintDefaults()
+		c.Flags.SetOutput(ow)
 	}
 	if c.Description != "" {
 		fmt.Fprintln(w)
