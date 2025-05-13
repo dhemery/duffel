@@ -1,20 +1,28 @@
 package cmd
 
-const unlinkDescription = `
+import "flag"
+
+const uninstallDescription = `
 DESCRIPTION
 
-duffel unlink removes links in the target directory that point to
-corresponding items within the named packages.
+'duffel uninstall' removes items in the target directory that
+correspond to items within the named packages.
 `
 
-var Unlink = Command{
-	Name:        "unlink",
-	Run:         runUnlink,
-	UsageLine:   "duffel unlink [options] package...",
-	Summary:     "Remove links to package items",
-	Description: unlinkDescription,
-	Flags:       Link.Flags, // Same flags as LinkCmd for now
+var Uninstall = Command{
+	Name:        "uninstall",
+	Run:         runUninstall,
+	UsageLine:   "duffel uninstall [options] package...",
+	Summary:     "Uninstall packages",
+	Description: uninstallDescription,
+	Flags:       flag.NewFlagSet("", flag.ExitOnError),
 }
 
-func runUnlink(args []string) {
+func init() {
+	Uninstall.Flags.StringVar(&Config.DuffelDir, "source", ".", "Find packages in `dir`.")
+	Uninstall.Flags.StringVar(&Config.TargetDir, "target", "..", "Uninstall packages from `dir`.")
+	Uninstall.Flags.BoolVar(&Config.DryRun, "n", false, "Print planned actions but do not execute them.")
+}
+
+func runUninstall(args []string) {
 }

@@ -8,6 +8,12 @@ import (
 	"strings"
 )
 
+var Config struct {
+	DuffelDir string
+	TargetDir string
+	DryRun    bool
+}
+
 type Command struct {
 	Name        string
 	Run         func(args []string)
@@ -15,6 +21,12 @@ type Command struct {
 	Summary     string
 	Description string
 	Flags       *flag.FlagSet
+}
+
+func (c *Command) Execute(args []string) {
+	c.Flags.Usage = c.Usage
+	c.Flags.Parse(args)
+	c.Run(c.Flags.Args())
 }
 
 func (c *Command) Usage() {

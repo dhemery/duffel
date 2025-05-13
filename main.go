@@ -10,8 +10,8 @@ import (
 
 var (
 	Commands = []*cmd.Command{
-		&cmd.Link,
-		&cmd.Unlink,
+		&cmd.Install,
+		&cmd.Uninstall,
 	}
 	CmdDuffel = cmd.Command{
 		Name:        "duffel",
@@ -39,11 +39,7 @@ func main() {
 		os.Exit(2)
 	}
 
-	flags := c.Flags
-	flags.Usage = c.Usage
-	flags.Parse(os.Args[2:])
-
-	c.Run(flags.Args())
+	c.Execute(os.Args[2:])
 }
 
 func lookup(name string) *cmd.Command {
@@ -88,7 +84,7 @@ func duffelDescription() string {
 	fmt.Fprintln(b, "COMMANDS")
 	fmt.Fprintln(b)
 	for _, c := range Commands {
-		fmt.Fprintf(b, "  %-8s %s\n", c.Name, c.Summary)
+		fmt.Fprintf(b, "  %-10s %s\n", c.Name, c.Summary)
 	}
 	fmt.Fprintln(b)
 	fmt.Fprintln(b, `Run 'duffel help <command>' for more information`)
