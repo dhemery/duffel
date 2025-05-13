@@ -32,13 +32,14 @@ var Install = Command{
 	UsageLine:   "duffel install [options] package...",
 	Summary:     "Install packages",
 	Description: installDescription,
-	Flags:       flag.NewFlagSet("", flag.ExitOnError),
 }
 
 func init() {
-	Install.Flags.StringVar(&plan.Config.DuffelDir, "source", ".", "Find packages in `dir`.")
-	Install.Flags.StringVar(&plan.Config.TargetDir, "target", "..", "Install packages into `dir`.")
-	Install.Flags.BoolVar(&plan.Config.DryRun, "n", false, "Print planned actions but do not execute them.")
+	f := flag.NewFlagSet("", flag.ExitOnError)
+	f.StringVar(&plan.Config.DuffelDir, "source", ".", "Find packages in `dir`.")
+	f.StringVar(&plan.Config.TargetDir, "target", "..", "Install packages into `dir`.")
+	f.BoolVar(&plan.Config.DryRun, "n", false, "Print planned actions but do not execute them.")
+	Install.Flags = f
 }
 
 func runInstall(args []string) {

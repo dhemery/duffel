@@ -19,13 +19,14 @@ var Uninstall = Command{
 	UsageLine:   "duffel uninstall [options] package...",
 	Summary:     "Uninstall packages",
 	Description: uninstallDescription,
-	Flags:       flag.NewFlagSet("", flag.ExitOnError),
 }
 
 func init() {
-	Uninstall.Flags.StringVar(&plan.Config.DuffelDir, "source", ".", "Find packages in `dir`.")
-	Uninstall.Flags.StringVar(&plan.Config.TargetDir, "target", "..", "Uninstall packages from `dir`.")
-	Uninstall.Flags.BoolVar(&plan.Config.DryRun, "n", false, "Print planned actions but do not execute them.")
+	f := flag.NewFlagSet("", flag.ExitOnError)
+	f.StringVar(&plan.Config.DuffelDir, "source", ".", "Find packages in `dir`.")
+	f.StringVar(&plan.Config.TargetDir, "target", "..", "Uninstall packages from `dir`.")
+	f.BoolVar(&plan.Config.DryRun, "n", false, "Print planned actions but do not execute them.")
+	Uninstall.Flags = f
 }
 
 func runUninstall(args []string) {
