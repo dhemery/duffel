@@ -1,6 +1,10 @@
 package cmd
 
-import "flag"
+import (
+	"flag"
+
+	"dhemery.com/duffel/plan"
+)
 
 const uninstallDescription = `
 DESCRIPTION
@@ -19,9 +23,9 @@ var Uninstall = Command{
 }
 
 func init() {
-	Uninstall.Flags.StringVar(&Config.DuffelDir, "source", ".", "Find packages in `dir`.")
-	Uninstall.Flags.StringVar(&Config.TargetDir, "target", "..", "Uninstall packages from `dir`.")
-	Uninstall.Flags.BoolVar(&Config.DryRun, "n", false, "Print planned actions but do not execute them.")
+	Uninstall.Flags.StringVar(&plan.Config.DuffelDir, "source", ".", "Find packages in `dir`.")
+	Uninstall.Flags.StringVar(&plan.Config.TargetDir, "target", "..", "Uninstall packages from `dir`.")
+	Uninstall.Flags.BoolVar(&plan.Config.DryRun, "n", false, "Print planned actions but do not execute them.")
 }
 
 func runUninstall(args []string) {

@@ -2,6 +2,8 @@ package cmd
 
 import (
 	"flag"
+
+	"dhemery.com/duffel/plan"
 )
 
 const installDescription = `
@@ -34,9 +36,9 @@ var Install = Command{
 }
 
 func init() {
-	Install.Flags.StringVar(&Config.DuffelDir, "source", ".", "Find packages in `dir`.")
-	Install.Flags.StringVar(&Config.TargetDir, "target", "..", "Install packages into `dir`.")
-	Install.Flags.BoolVar(&Config.DryRun, "n", false, "Print planned actions but do not execute them.")
+	Install.Flags.StringVar(&plan.Config.DuffelDir, "source", ".", "Find packages in `dir`.")
+	Install.Flags.StringVar(&plan.Config.TargetDir, "target", "..", "Install packages into `dir`.")
+	Install.Flags.BoolVar(&plan.Config.DryRun, "n", false, "Print planned actions but do not execute them.")
 }
 
 func runInstall(args []string) {
