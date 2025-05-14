@@ -1,0 +1,28 @@
+package dirfs
+
+type DirFS struct {
+	fs.ReadDirFS
+	Dir string
+}
+
+func NewDirFS(dir string) FS {
+	dirFS := os.DirFS(dir).(fs.ReadDirFS)
+	return &DirFS{
+		ReadDirFS: dirFS,
+		Dir:       dir,
+	}
+}
+
+func (fsys *DirFS) Lstat(name string) (fs.FileInfo, error) {
+	path := filepath.Join(fsys.Dir, name)
+	return os.Lstat(path)
+}
+
+func (fsys *DirFS) ReadLink(name string) (string, error) {
+	path := filepath.Join(fsys.Dir, name)
+	return os.Readlink(path)
+}
+
+func (f *DirFS) String() string {
+	return f.Dir
+}

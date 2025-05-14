@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"dhemery.com/duffel/cmd"
+	"dhemery.com/duffel/cmd/preview"
 	"dhemery.com/duffel/plan"
 )
 
@@ -39,33 +40,36 @@ var (
 		Flags:       flag.NewFlagSet("", flag.ExitOnError),
 	}
 
-	duffelDir string
-	targetDir string
-	dryRun    bool
+	sourceOpt string
+	targetOpt string
+	dryRunOpt bool
 )
 
 func init() {
-	Cmd.Flags.StringVar(&duffelDir, "source", ".", "Find packages in `dir`.")
-	Cmd.Flags.StringVar(&targetDir, "target", "..", "Install packages into `dir`.")
-	Cmd.Flags.BoolVar(&dryRun, "n", false, "Print planned actions but do not execute them.")
+	Cmd.Flags.StringVar(&sourceOpt, "source", ".", "Find packages in `dir`.")
+	Cmd.Flags.StringVar(&targetOpt, "target", "..", "Install packages into `dir`.")
+	Cmd.Flags.BoolVar(&dryRunOpt, "n", false, "Print planned actions but do not execute them.")
 }
 
 func runInstall(packages []string) {
-	targetDir, err := filepath.Abs(targetDir)
+	absTarget, err := filepath.Abs(targetOpt)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	duffelDir, err = filepath.Abs(duffelDir)
+	absSource, err := filepath.Abs(sourceOpt)
 	if err != nil {
 		log.Fatal(err)
 	}
-	duffelDir, err = filepath.Rel(targetDir, duffelDir)
+	linkPrefix, err := filepath.Rel(absTarget, absSource)
 	if err != nil {
 		log.Fatal(err)
 	}
-	targetFS := plan.NewDirFS(targetDir)
-	duffelFS := plan.NewDirFS(duffelDir)
 
-	plan.Plan(targetFS, duffelFS, nil, packages)
+	targetFS := preview.DirFS(targetOpt).(plan.FS)
+	duffelFS := preview.DirFS(sourceOpt).(plan.FS)
+
+	advisor := plan.NewInstallAdvisor(duffelFS, targetFS, linkPrefix)
+
+	plan.Build(duffelFS, advisor, packages)
 }
