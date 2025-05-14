@@ -2,8 +2,11 @@ package install
 
 import (
 	"flag"
+	"log"
+	"path/filepath"
 
 	"dhemery.com/duffel/cmd"
+	"dhemery.com/duffel/plan"
 )
 
 const installDescription = `
@@ -36,10 +39,33 @@ var (
 		Flags:       flag.NewFlagSet("", flag.ExitOnError),
 	}
 
-	duffelDir = Cmd.Flags.String("source", ".", "Find packages in `dir`.")
-	targetDir = Cmd.Flags.String("target", "..", "Install packages into `dir`.")
-	dryRun    = Cmd.Flags.Bool("n", false, "Print planned actions but do not execute them.")
+	duffelDir string
+	targetDir string
+	dryRun    bool
 )
 
-func runInstall(args []string) {
+func init() {
+	Cmd.Flags.StringVar(&duffelDir, "source", ".", "Find packages in `dir`.")
+	Cmd.Flags.StringVar(&targetDir, "target", "..", "Install packages into `dir`.")
+	Cmd.Flags.BoolVar(&dryRun, "n", false, "Print planned actions but do not execute them.")
+}
+
+func runInstall(packages []string) {
+	targetDir, err := filepath.Abs(targetDir)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	duffelDir, err = filepath.Abs(duffelDir)
+	if err != nil {
+		log.Fatal(err)
+	}
+	duffelDir, err = filepath.Rel(targetDir, duffelDir)
+	if err != nil {
+		log.Fatal(err)
+	}
+	targetFS := plan.NewDirFS(targetDir)
+	duffelFS := plan.NewDirFS(duffelDir)
+
+	plan.Plan(targetFS, duffelFS, nil, packages)
 }
