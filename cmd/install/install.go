@@ -1,9 +1,9 @@
-package cmd
+package install
 
 import (
 	"flag"
 
-	"dhemery.com/duffel/plan"
+	"dhemery.com/duffel/cmd"
 )
 
 const installDescription = `
@@ -26,21 +26,20 @@ message and exits without performing any actions. Use the -n
 option to print the planned actions without executing them.
 `
 
-var Install = Command{
-	Name:        "install",
-	Run:         runInstall,
-	UsageLine:   "duffel install [options] package...",
-	Summary:     "Install packages",
-	Description: installDescription,
-}
+var (
+	Cmd = cmd.Command{
+		Name:        "install",
+		Run:         runInstall,
+		UsageLine:   "duffel install [options] package...",
+		Summary:     "Install packages",
+		Description: installDescription,
+		Flags:       flag.NewFlagSet("", flag.ExitOnError),
+	}
 
-func init() {
-	f := flag.NewFlagSet("", flag.ExitOnError)
-	f.StringVar(&plan.Config.DuffelDir, "source", ".", "Find packages in `dir`.")
-	f.StringVar(&plan.Config.TargetDir, "target", "..", "Install packages into `dir`.")
-	f.BoolVar(&plan.Config.DryRun, "n", false, "Print planned actions but do not execute them.")
-	Install.Flags = f
-}
+	duffelDir = Cmd.Flags.String("source", ".", "Find packages in `dir`.")
+	targetDir = Cmd.Flags.String("target", "..", "Install packages into `dir`.")
+	dryRun    = Cmd.Flags.Bool("n", false, "Print planned actions but do not execute them.")
+)
 
 func runInstall(args []string) {
 }
