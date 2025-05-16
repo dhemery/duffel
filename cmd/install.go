@@ -5,7 +5,6 @@ import (
 	"log"
 	"path/filepath"
 
-	"dhemery.com/duffel/cmd/preview"
 	"dhemery.com/duffel/plan"
 )
 
@@ -65,8 +64,8 @@ func runInstall(packages []string) {
 		log.Fatal(err)
 	}
 
-	targetFS := preview.DirFS(installTarget).(plan.FS)
-	duffelFS := preview.DirFS(installSource).(plan.FS)
+	targetFS := DirFS(installTarget).(plan.FS)
+	duffelFS := DirFS(installSource).(plan.FS)
 
 	advisor := plan.NewInstallAdvisor(duffelFS, targetFS, linkPrefix)
 

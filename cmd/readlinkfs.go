@@ -1,6 +1,4 @@
-// Package preview implements functions that return results
-// compatible with certain types to be introduced in go 1.25.
-package preview
+package cmd
 
 import (
 	"io/fs"
