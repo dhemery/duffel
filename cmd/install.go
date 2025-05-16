@@ -1,11 +1,10 @@
-package install
+package cmd
 
 import (
 	"flag"
 	"log"
 	"path/filepath"
 
-	"dhemery.com/duffel/cmd"
 	"dhemery.com/duffel/cmd/preview"
 	"dhemery.com/duffel/plan"
 )
@@ -31,7 +30,7 @@ option to print the planned actions without executing them.
 `
 
 var (
-	Cmd = cmd.Command{
+	Install = Command{
 		Name:        "install",
 		Run:         runInstall,
 		UsageLine:   "duffel install [options] package...",
@@ -40,24 +39,24 @@ var (
 		Flags:       flag.NewFlagSet("", flag.ExitOnError),
 	}
 
-	sourceOpt string
-	targetOpt string
-	dryRunOpt bool
+	installSource string
+	installTarget string
+	installDryRun bool
 )
 
 func init() {
-	Cmd.Flags.StringVar(&sourceOpt, "source", ".", "Find packages in `dir`.")
-	Cmd.Flags.StringVar(&targetOpt, "target", "..", "Install packages into `dir`.")
-	Cmd.Flags.BoolVar(&dryRunOpt, "n", false, "Print planned actions but do not execute them.")
+	Install.Flags.StringVar(&installSource, "source", ".", "Find packages in `dir`.")
+	Install.Flags.StringVar(&installTarget, "target", "..", "Install packages into `dir`.")
+	Install.Flags.BoolVar(&installDryRun, "n", false, "Print planned actions but do not execute them.")
 }
 
 func runInstall(packages []string) {
-	absTarget, err := filepath.Abs(targetOpt)
+	absTarget, err := filepath.Abs(installTarget)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	absSource, err := filepath.Abs(sourceOpt)
+	absSource, err := filepath.Abs(installSource)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -66,8 +65,8 @@ func runInstall(packages []string) {
 		log.Fatal(err)
 	}
 
-	targetFS := preview.DirFS(targetOpt).(plan.FS)
-	duffelFS := preview.DirFS(sourceOpt).(plan.FS)
+	targetFS := preview.DirFS(installTarget).(plan.FS)
+	duffelFS := preview.DirFS(installSource).(plan.FS)
 
 	advisor := plan.NewInstallAdvisor(duffelFS, targetFS, linkPrefix)
 

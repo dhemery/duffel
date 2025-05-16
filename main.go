@@ -6,14 +6,12 @@ import (
 	"strings"
 
 	"dhemery.com/duffel/cmd"
-	"dhemery.com/duffel/cmd/install"
-	"dhemery.com/duffel/cmd/uninstall"
 )
 
 var (
 	Commands = []*cmd.Command{
-		&install.Cmd,
-		&uninstall.Cmd,
+		&cmd.Install,
+		&cmd.Uninstall,
 	}
 	CmdDuffel = cmd.Command{
 		Name:        "duffel",

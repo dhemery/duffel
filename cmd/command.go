@@ -8,12 +8,6 @@ import (
 	"strings"
 )
 
-var Config struct {
-	DuffelDir string
-	TargetDir string
-	DryRun    bool
-}
-
 type Command struct {
 	Name        string
 	Run         func(args []string)
