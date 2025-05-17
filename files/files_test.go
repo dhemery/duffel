@@ -1,4 +1,4 @@
-package rules
+package files
 
 import (
 	"io/fs"
