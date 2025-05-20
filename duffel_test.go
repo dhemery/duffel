@@ -26,7 +26,7 @@ var dirOptTests = map[string]dirOptTest{
 	"Default target, given source": {
 		wd:             "home/user/target/wd",
 		pkgItem:        "home/user/source/pkg/pkgItem",
-		args:           []string{"-source", "../source", "pkg"},
+		args:           []string{"-source", "../../source", "pkg"},
 		wantTargetPath: "home/user/target/pkgItem",
 		wantTargetDest: "../source/pkg/pkgItem",
 	},
@@ -57,7 +57,10 @@ func TestDirOptions(t *testing.T) {
 
 			t.Chdir(wd)
 
-			run(test.args)
+			err := run(test.args)
+			if err != nil {
+				t.Fatal("run returned error:", err)
+			}
 
 			wantTargetPath := filepath.Join(tmpDir, test.wantTargetPath)
 			gotDest := mustReadLink(t, wantTargetPath)
