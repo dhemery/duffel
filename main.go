@@ -13,7 +13,7 @@ func main() {
 }
 
 type duffelFS interface {
-	fs.ReadDirFS
+	ReadDir(path string) ([]fs.DirEntry, error)
 	Lstat(path string) (fs.FileInfo, error)
 	MkdirAll(path string, perm fs.FileMode) error
 	Symlink(old, new string) error
@@ -26,30 +26,6 @@ type request struct {
 	pkgs   []string
 }
 
-type duffelDirFS struct {
-	fs.ReadDirFS
-	Dir string
-}
-
-func NewDuffelFS(dir string) *duffelDirFS {
-	return &duffelDirFS{
-		ReadDirFS: os.DirFS(dir).(fs.ReadDirFS),
-		Dir:       dir,
-	}
-}
-
-func (f *duffelDirFS) Lstat(path string) (fs.FileInfo, error) {
-	return os.Lstat(filepath.Join(f.Dir, path))
-}
-
-func (f *duffelDirFS) MkdirAll(path string, perm fs.FileMode) error {
-	return os.MkdirAll(filepath.Join(f.Dir, path), perm)
-}
-
-func (f *duffelDirFS) Symlink(oldname, newname string) error {
-	return os.Symlink(oldname, filepath.Join(f.Dir, newname))
-}
-
 func run(args []string) error {
 	flags := flag.NewFlagSet("duffel", flag.ExitOnError)
 	source := flags.String("source", ".", "The source `dir`")
@@ -58,7 +34,7 @@ func run(args []string) error {
 	flags.Parse(args)
 	root := "/"
 
-	fsys := NewDuffelFS(root)
+	fsys := dirFS(root)
 
 	absTarget, err := filepath.Abs(*target)
 	if err != nil {
