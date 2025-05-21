@@ -1,8 +1,6 @@
 package main
 
 import (
-	"io/fs"
-	"os"
 	"path/filepath"
 	"testing"
 )
@@ -52,8 +50,8 @@ func TestDirOptions(t *testing.T) {
 			tmpDir := t.TempDir()
 			wd := filepath.Join(tmpDir, test.wd)
 
-			mustMkDir(t, filepath.Join(tmpDir, test.pkgItem))
-			mustMkDir(t, wd)
+			mustMkdirAll(t, filepath.Join(tmpDir, test.pkgItem), 0o755)
+			mustMkdirAll(t, wd, 0o755)
 
 			t.Chdir(wd)
 
@@ -63,37 +61,11 @@ func TestDirOptions(t *testing.T) {
 			}
 
 			wantTargetPath := filepath.Join(tmpDir, test.wantTargetPath)
-			gotDest := mustReadLink(t, wantTargetPath)
+			gotDest := mustReadlink(t, wantTargetPath)
 
 			if gotDest != test.wantTargetDest {
 				t.Errorf("want link dest %q, got %q\n", test.wantTargetDest, gotDest)
 			}
 		})
 	}
-}
-
-func mustMkDir(t *testing.T, dir string) {
-	t.Helper()
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		t.Fatal(err)
-	}
-}
-
-func mustReadLink(t *testing.T, path string) string {
-	t.Helper()
-	entry, err := os.Lstat(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	gotType := entry.Mode() & fs.ModeType
-	if gotType != fs.ModeSymlink {
-		t.Fatalf("want a link (file type %O), got file %q is type %O\n", fs.ModeSymlink, path, gotType)
-	}
-
-	gotDest, err := os.Readlink(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	return gotDest
 }
