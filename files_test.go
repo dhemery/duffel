@@ -46,10 +46,43 @@ func TestDirFSLstat(t *testing.T) {
 	}
 }
 
+func TestDirFSMkdirAll(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "root")
+	f := dirFS(root)
+
+	existingPerm := fs.FileMode(0o755)
+	existingDir := "existing-dir"
+	mustMkdirAll(t, filepath.Join(root, existingDir), existingPerm)
+
+	newPerm := fs.FileMode(0o700)
+	newDir := "existing-dir/new-parent/new-dir"
+	err := f.MkdirAll(newDir, newPerm)
+	if err != nil {
+		t.Fatal("unexpected error:", err)
+	}
+
+	newParent := "existing-dir/new-parent"
+	e := mustStat(t, filepath.Join(root, newParent))
+	if !e.IsDir() {
+		t.Errorf("%q want dir, got %s", newParent, fs.FormatFileInfo(e))
+	}
+	if e.Mode().Perm() != newPerm {
+		t.Errorf("%q want permission %O, got %s", newParent, newPerm, fs.FormatFileInfo(e))
+	}
+
+	e = mustStat(t, filepath.Join(root, newDir))
+	if !e.IsDir() {
+		t.Errorf("%q want dir, got %s", newDir, fs.FormatFileInfo(e))
+	}
+	if e.Mode().Perm() != newPerm {
+		t.Errorf("%q want permission, got %s", newDir, fs.FormatFileInfo(e))
+	}
+}
+
 func mustMkdirAll(t *testing.T, dir string, perm fs.FileMode) {
 	t.Helper()
 	if err := os.MkdirAll(dir, perm); err != nil {
-		t.Fatal(err)
+		t.Fatal("must mkdir all", err)
 	}
 }
 
@@ -57,7 +90,7 @@ func mustReadlink(t *testing.T, path string) string {
 	t.Helper()
 	entry, err := os.Lstat(path)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatal("must read lin", err)
 	}
 
 	gotType := entry.Mode() & fs.ModeType
@@ -67,21 +100,30 @@ func mustReadlink(t *testing.T, path string) string {
 
 	gotDest, err := os.Readlink(path)
 	if err != nil {
-		t.Fatal(err)
+		t.Fatal("must read lin", err)
 	}
 	return gotDest
+}
+
+func mustStat(t *testing.T, path string) fs.FileInfo {
+	t.Helper()
+	e, err := os.Stat(path)
+	if err != nil {
+		t.Fatal("must stat", err)
+	}
+	return e
 }
 
 func mustSymlink(t *testing.T, oldname, newname string) {
 	t.Helper()
 	if err := os.Symlink(oldname, newname); err != nil {
-		t.Fatal(err)
+		t.Fatal("must symlink", err)
 	}
 }
 
 func mustWriteFile(t *testing.T, path string, data []byte, perm fs.FileMode) {
 	t.Helper()
 	if err := os.WriteFile(path, data, perm); err != nil {
-		t.Fatal(err)
+		t.Fatal("must write file", err)
 	}
 }
