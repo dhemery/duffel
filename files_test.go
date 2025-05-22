@@ -62,7 +62,7 @@ func TestDirFSMkdirAll(t *testing.T) {
 	}
 
 	newParent := "existing-dir/new-parent"
-	e := mustStat(t, filepath.Join(root, newParent))
+	e := mustLstat(t, filepath.Join(root, newParent))
 	if !e.IsDir() {
 		t.Errorf("%q want dir, got %s", newParent, fs.FormatFileInfo(e))
 	}
@@ -70,7 +70,7 @@ func TestDirFSMkdirAll(t *testing.T) {
 		t.Errorf("%q want permission %O, got %s", newParent, newPerm, fs.FormatFileInfo(e))
 	}
 
-	e = mustStat(t, filepath.Join(root, newDir))
+	e = mustLstat(t, filepath.Join(root, newDir))
 	if !e.IsDir() {
 		t.Errorf("%q want dir, got %s", newDir, fs.FormatFileInfo(e))
 	}
@@ -108,7 +108,7 @@ func TestDirFSReadDir(t *testing.T) {
 	}
 
 	if e, ok := entryNamed["file"]; ok {
-		if  !e.Type().IsRegular() {
+		if !e.Type().IsRegular() {
 			t.Errorf("%q want regular file, got %s", "file", fs.FormatDirEntry(e))
 		}
 		assertEntryMode(t, e, filePerm) // No other mode bits on for regular files
@@ -122,6 +122,34 @@ func TestDirFSReadDir(t *testing.T) {
 		}
 	} else {
 		t.Error("no entry for", "link")
+	}
+}
+
+func TestDirFSSymlink(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "root")
+	mustMkdirAll(t, filepath.Join(root, "sub"), 0o755)
+
+	f := dirFS(root)
+	linkDest := "../../some/link/dest"
+
+	goodPath := "sub/link"
+	err := f.Symlink(linkDest, goodPath)
+
+	if err == nil {
+		e := mustLstat(t, filepath.Join(root, goodPath))
+		gotType := e.Mode().Type()
+		if gotType != fs.ModeSymlink {
+			t.Errorf("%q want symlink, got %s", e.Name(), &gotType)
+		}
+	} else {
+		t.Error("unexpected error:", err)
+	}
+
+	badPath := "nonexistent-parent/link"
+	err = f.Symlink(linkDest, badPath)
+	wantErr := fs.ErrNotExist
+	if !errors.Is(err, wantErr) {
+		t.Errorf("%q want error %q, got %q", badPath, wantErr, err)
 	}
 }
 
@@ -165,11 +193,11 @@ func mustReadlink(t *testing.T, path string) string {
 	return gotDest
 }
 
-func mustStat(t *testing.T, path string) fs.FileInfo {
+func mustLstat(t *testing.T, path string) fs.FileInfo {
 	t.Helper()
-	e, err := os.Stat(path)
+	e, err := os.Lstat(path)
 	if err != nil {
-		t.Fatal("must stat", err)
+		t.Fatal("must lstat", err)
 	}
 	return e
 }
