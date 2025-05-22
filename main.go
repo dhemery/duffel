@@ -6,6 +6,8 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+
+	"github.com/dhemery/duffel/internal/files"
 )
 
 func main() {
@@ -34,7 +36,7 @@ func run(args []string) error {
 	flags.Parse(args)
 	root := "/"
 
-	fsys := dirFS(root)
+	fsys := files.DirFS(root)
 
 	absTarget, err := filepath.Abs(*target)
 	if err != nil {

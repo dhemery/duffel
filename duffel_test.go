@@ -3,6 +3,8 @@ package main
 import (
 	"path/filepath"
 	"testing"
+
+	"github.com/dhemery/duffel/internal/files/filestest"
 )
 
 type dirOptTest struct {
@@ -45,13 +47,14 @@ var dirOptTests = map[string]dirOptTest{
 }
 
 func TestDirOptions(t *testing.T) {
+	must := filestest.Must(t)
 	for name, test := range dirOptTests {
 		t.Run(name, func(t *testing.T) {
 			tmpDir := t.TempDir()
 			wd := filepath.Join(tmpDir, test.wd)
 
-			mustMkdirAll(t, filepath.Join(tmpDir, test.pkgItem), 0o755)
-			mustMkdirAll(t, wd, 0o755)
+			must.MkdirAll(filepath.Join(tmpDir, test.pkgItem), 0o755)
+			must.MkdirAll(wd, 0o755)
 
 			t.Chdir(wd)
 
@@ -61,7 +64,7 @@ func TestDirOptions(t *testing.T) {
 			}
 
 			wantTargetPath := filepath.Join(tmpDir, test.wantTargetPath)
-			gotDest := mustReadlink(t, wantTargetPath)
+			gotDest := must.Readlink(wantTargetPath)
 
 			if gotDest != test.wantTargetDest {
 				t.Errorf("want link dest %q, got %q\n", test.wantTargetDest, gotDest)

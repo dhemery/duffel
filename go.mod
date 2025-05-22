@@ -1,3 +1,3 @@
-module dhemery.com/duffel
+module github.com/dhemery/duffel
 
 go 1.24

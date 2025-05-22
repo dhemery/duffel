@@ -1,18 +1,20 @@
-package main
+package files
 
 import (
 	"errors"
 	"io/fs"
-	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/dhemery/duffel/internal/files/filestest"
 )
 
 func TestDirFSLstat(t *testing.T) {
+	must := filestest.Must(t)
 	root := filepath.Join(t.TempDir(), "root")
-	mustMkdirAll(t, filepath.Join(root, "sub/dir"), 0o755)
-	mustWriteFile(t, filepath.Join(root, "sub/file"), []byte{}, 0o644)
-	mustSymlink(t, "../ignored/dest", filepath.Join(root, "sub/link"))
+	must.MkdirAll(filepath.Join(root, "sub/dir"), 0o755)
+	must.WriteFile(filepath.Join(root, "sub/file"), []byte{}, 0o644)
+	must.Symlink("../ignored/dest", filepath.Join(root, "sub/link"))
 
 	f := dirFS(root)
 
@@ -47,12 +49,13 @@ func TestDirFSLstat(t *testing.T) {
 }
 
 func TestDirFSMkdirAll(t *testing.T) {
+	must := filestest.Must(t)
 	root := filepath.Join(t.TempDir(), "root")
 	f := dirFS(root)
 
 	existingPerm := fs.FileMode(0o755)
 	existingDir := "existing-dir"
-	mustMkdirAll(t, filepath.Join(root, existingDir), existingPerm)
+	must.MkdirAll(filepath.Join(root, existingDir), existingPerm)
 
 	newPerm := fs.FileMode(0o700)
 	newDir := "existing-dir/new-parent/new-dir"
@@ -62,7 +65,7 @@ func TestDirFSMkdirAll(t *testing.T) {
 	}
 
 	newParent := "existing-dir/new-parent"
-	e := mustLstat(t, filepath.Join(root, newParent))
+	e := must.Lstat(filepath.Join(root, newParent))
 	if !e.IsDir() {
 		t.Errorf("%q want dir, got %s", newParent, fs.FormatFileInfo(e))
 	}
@@ -70,7 +73,7 @@ func TestDirFSMkdirAll(t *testing.T) {
 		t.Errorf("%q want permission %O, got %s", newParent, newPerm, fs.FormatFileInfo(e))
 	}
 
-	e = mustLstat(t, filepath.Join(root, newDir))
+	e = must.Lstat(filepath.Join(root, newDir))
 	if !e.IsDir() {
 		t.Errorf("%q want dir, got %s", newDir, fs.FormatFileInfo(e))
 	}
@@ -80,12 +83,13 @@ func TestDirFSMkdirAll(t *testing.T) {
 }
 
 func TestDirFSReadDir(t *testing.T) {
+	must := filestest.Must(t)
 	root := filepath.Join(t.TempDir(), "root")
 	dirPerm := fs.FileMode(0o755)
-	mustMkdirAll(t, filepath.Join(root, "sub/dir"), dirPerm)
+	must.MkdirAll(filepath.Join(root, "sub/dir"), dirPerm)
 	filePerm := fs.FileMode(0o644)
-	mustWriteFile(t, filepath.Join(root, "sub/file"), []byte{}, filePerm)
-	mustSymlink(t, "../ignored/dest", filepath.Join(root, "sub/link"))
+	must.WriteFile(filepath.Join(root, "sub/file"), []byte{}, filePerm)
+	must.Symlink("../ignored/dest", filepath.Join(root, "sub/link"))
 
 	f := dirFS(root)
 
@@ -126,8 +130,9 @@ func TestDirFSReadDir(t *testing.T) {
 }
 
 func TestDirFSSymlink(t *testing.T) {
+	must := filestest.Must(t)
 	root := filepath.Join(t.TempDir(), "root")
-	mustMkdirAll(t, filepath.Join(root, "sub"), 0o755)
+	must.MkdirAll(filepath.Join(root, "sub"), 0o755)
 
 	f := dirFS(root)
 	linkDest := "../../some/link/dest"
@@ -136,7 +141,7 @@ func TestDirFSSymlink(t *testing.T) {
 	err := f.Symlink(linkDest, goodPath)
 
 	if err == nil {
-		e := mustLstat(t, filepath.Join(root, goodPath))
+		e := must.Lstat(filepath.Join(root, goodPath))
 		gotType := e.Mode().Type()
 		if gotType != fs.ModeSymlink {
 			t.Errorf("%q want symlink, got %s", e.Name(), &gotType)
@@ -164,54 +169,5 @@ func assertEntryMode(t *testing.T, entry fs.DirEntry, wantMode fs.FileMode) {
 	if gotMode != wantMode {
 		t.Errorf("%q want mode %O, got %O",
 			fs.FormatDirEntry(entry), wantMode, gotMode)
-	}
-}
-
-func mustMkdirAll(t *testing.T, dir string, perm fs.FileMode) {
-	t.Helper()
-	if err := os.MkdirAll(dir, perm); err != nil {
-		t.Fatal("must mkdir all", err)
-	}
-}
-
-func mustReadlink(t *testing.T, path string) string {
-	t.Helper()
-	item, err := os.Lstat(path)
-	if err != nil {
-		t.Fatal("must read link", err)
-	}
-
-	gotType := item.Mode().Type()
-	if gotType != fs.ModeSymlink {
-		t.Fatalf("%q want symlink, got %s", path, gotType)
-	}
-
-	gotDest, err := os.Readlink(path)
-	if err != nil {
-		t.Fatal("must read link", err)
-	}
-	return gotDest
-}
-
-func mustLstat(t *testing.T, path string) fs.FileInfo {
-	t.Helper()
-	e, err := os.Lstat(path)
-	if err != nil {
-		t.Fatal("must lstat", err)
-	}
-	return e
-}
-
-func mustSymlink(t *testing.T, oldname, newname string) {
-	t.Helper()
-	if err := os.Symlink(oldname, newname); err != nil {
-		t.Fatal("must symlink", err)
-	}
-}
-
-func mustWriteFile(t *testing.T, path string, data []byte, perm fs.FileMode) {
-	t.Helper()
-	if err := os.WriteFile(path, data, perm); err != nil {
-		t.Fatal("must write file", err)
 	}
 }
