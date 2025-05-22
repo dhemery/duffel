@@ -100,44 +100,42 @@ func TestDirFSReadDir(t *testing.T) {
 
 	if e, ok := entryNamed["dir"]; ok {
 		if !e.IsDir() {
-			t.Errorf("entry %q want dir", fs.FormatDirEntry(e))
+			t.Errorf("%q want dir", fs.FormatDirEntry(e))
 		}
-		info, err := e.Info()
-		if err == nil {
-			if info.Mode().Perm() != dirPerm {
-				t.Errorf("entry %q want permission %s, got %s",
-					fs.FormatDirEntry(e), dirPerm, info.Mode())
-			}
-		} else {
-			t.Errorf("getting info for %q entry: %s", "dir", err)
-		}
+		assertEntryMode(t, e, fs.ModeDir|dirPerm)
 	} else {
-		t.Error("no entry for sub/dir")
+		t.Error("no entry for", "dir")
 	}
 
 	if e, ok := entryNamed["file"]; ok {
-		if !e.Type().IsRegular() {
-			t.Errorf("%q entry want regular file, got %s", "file", fs.FormatDirEntry(e))
+		if  !e.Type().IsRegular() {
+			t.Errorf("%q want regular file, got %s", "file", fs.FormatDirEntry(e))
 		}
-		info, err := e.Info()
-		if err == nil {
-			if info.Mode().Perm() != filePerm {
-				t.Errorf("entry %q want permission %O, got %s",
-					fs.FormatDirEntry(e), filePerm, info.Mode())
-			}
-		} else {
-			t.Errorf("getting info for entry %q: %s", fs.FormatDirEntry(e), err)
-		}
+		assertEntryMode(t, e, filePerm) // No other mode bits on for regular files
 	} else {
-		t.Error("no entry for sub/file")
+		t.Error("no entry for", "file")
 	}
 
 	if e, ok := entryNamed["link"]; ok {
 		if e.Type()&fs.ModeType != fs.ModeSymlink {
-			t.Errorf("entry %q entry want symlink", fs.FormatDirEntry(e))
+			t.Errorf("%q want symlink", fs.FormatDirEntry(e))
 		}
 	} else {
-		t.Error("no entry for sub/file")
+		t.Error("no entry for", "link")
+	}
+}
+
+func assertEntryMode(t *testing.T, entry fs.DirEntry, wantMode fs.FileMode) {
+	t.Helper()
+	info, err := entry.Info()
+	if err != nil {
+		t.Errorf("%q.Info(): %s", entry, err)
+		return
+	}
+	gotMode := info.Mode()
+	if gotMode != wantMode {
+		t.Errorf("%q want mode %O, got %O",
+			fs.FormatDirEntry(entry), wantMode, gotMode)
 	}
 }
 
@@ -150,19 +148,19 @@ func mustMkdirAll(t *testing.T, dir string, perm fs.FileMode) {
 
 func mustReadlink(t *testing.T, path string) string {
 	t.Helper()
-	entry, err := os.Lstat(path)
+	item, err := os.Lstat(path)
 	if err != nil {
-		t.Fatal("must read lin", err)
+		t.Fatal("must read link", err)
 	}
 
-	gotType := entry.Mode() & fs.ModeType
+	gotType := item.Mode().Type()
 	if gotType != fs.ModeSymlink {
-		t.Fatalf("want a link (file type %O), got file %q is type %O\n", fs.ModeSymlink, path, gotType)
+		t.Fatalf("%q want symlink, got %s", path, gotType)
 	}
 
 	gotDest, err := os.Readlink(path)
 	if err != nil {
-		t.Fatal("must read lin", err)
+		t.Fatal("must read link", err)
 	}
 	return gotDest
 }
