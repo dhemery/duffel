@@ -79,6 +79,68 @@ func TestDirFSMkdirAll(t *testing.T) {
 	}
 }
 
+func TestDirFSReadDir(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "root")
+	dirPerm := fs.FileMode(0o755)
+	mustMkdirAll(t, filepath.Join(root, "sub/dir"), dirPerm)
+	filePerm := fs.FileMode(0o644)
+	mustWriteFile(t, filepath.Join(root, "sub/file"), []byte{}, filePerm)
+	mustSymlink(t, "../ignored/dest", filepath.Join(root, "sub/link"))
+
+	f := dirFS(root)
+
+	entries, err := f.ReadDir("sub")
+	if err != nil {
+		t.Error("unexpected error:", err)
+	}
+	entryNamed := map[string]fs.DirEntry{}
+	for _, e := range entries {
+		entryNamed[e.Name()] = e
+	}
+
+	if e, ok := entryNamed["dir"]; ok {
+		if !e.IsDir() {
+			t.Errorf("entry %q want dir", fs.FormatDirEntry(e))
+		}
+		info, err := e.Info()
+		if err == nil {
+			if info.Mode().Perm() != dirPerm {
+				t.Errorf("entry %q want permission %s, got %s",
+					fs.FormatDirEntry(e), dirPerm, info.Mode())
+			}
+		} else {
+			t.Errorf("getting info for %q entry: %s", "dir", err)
+		}
+	} else {
+		t.Error("no entry for sub/dir")
+	}
+
+	if e, ok := entryNamed["file"]; ok {
+		if !e.Type().IsRegular() {
+			t.Errorf("%q entry want regular file, got %s", "file", fs.FormatDirEntry(e))
+		}
+		info, err := e.Info()
+		if err == nil {
+			if info.Mode().Perm() != filePerm {
+				t.Errorf("entry %q want permission %O, got %s",
+					fs.FormatDirEntry(e), filePerm, info.Mode())
+			}
+		} else {
+			t.Errorf("getting info for entry %q: %s", fs.FormatDirEntry(e), err)
+		}
+	} else {
+		t.Error("no entry for sub/file")
+	}
+
+	if e, ok := entryNamed["link"]; ok {
+		if e.Type()&fs.ModeType != fs.ModeSymlink {
+			t.Errorf("entry %q entry want symlink", fs.FormatDirEntry(e))
+		}
+	} else {
+		t.Error("no entry for sub/file")
+	}
+}
+
 func mustMkdirAll(t *testing.T, dir string, perm fs.FileMode) {
 	t.Helper()
 	if err := os.MkdirAll(dir, perm); err != nil {
