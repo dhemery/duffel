@@ -8,8 +8,8 @@ import (
 
 type dirFS string
 
-// DirFS returns a file system [an fs.FS] for the tree of files rooted at dir.
-// It implements methods for every file system operation that Duffel needs.
+// DirFS returns a file system for the tree of files rooted at dir.
+// It implements [duffel.FS].
 func DirFS(dir string) dirFS {
 	return dirFS(dir)
 }

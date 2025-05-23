@@ -46,6 +46,8 @@ var dirOptTests = map[string]dirOptTest{
 	},
 }
 
+// TestDirOptions exercises how run() applies its -source and -target options
+// to the actual file system.
 func TestDirOptions(t *testing.T) {
 	must := filestest.Must(t)
 	for name, test := range dirOptTests {
