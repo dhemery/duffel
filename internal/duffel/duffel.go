@@ -18,6 +18,7 @@ type Request struct {
 	Source string
 	Target string
 	Pkgs   []string
+	DryRun bool
 }
 
 func Install(r Request) error {

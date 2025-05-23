@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"errors"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -96,5 +98,31 @@ func TestDirOptions(t *testing.T) {
 				t.Errorf("want link dest %q, got %q\n", test.wantTargetDest, gotDest)
 			}
 		})
+	}
+}
+
+func TestDryRun(t *testing.T) {
+	tmpDir := t.TempDir()
+	pkgItem := filepath.Join(tmpDir, "home/user/source/pkg/pkgItem")
+	wd := filepath.Join(pkgItem, "../..")
+
+	must := filestest.Must(t)
+	must.MkdirAll(pkgItem, 0o755) // Creates wd but not target dir
+
+	t.Chdir(wd)
+
+	target := "../target"
+	err := run([]string{"-target", target, "-n", "pkg"}) // -n: dry run
+	if err != nil {
+		t.Fatal("run: unexpected error:", err)
+	}
+
+	targetDir := filepath.Join(wd, target)
+	info, err := os.Stat(targetDir)
+	if !errors.Is(err, fs.ErrNotExist) {
+		t.Errorf("stat %q want error %q, got %v", targetDir, fs.ErrNotExist, err)
+	}
+	if info != nil {
+		t.Errorf("stat %q want error, got %q", targetDir, fs.FormatFileInfo(info))
 	}
 }

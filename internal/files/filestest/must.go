@@ -52,6 +52,15 @@ func (m must) Lstat(path string) fs.FileInfo {
 	return e
 }
 
+func (m must) ReadDir(name string) []fs.DirEntry {
+	m.Helper()
+	ee, err := os.ReadDir(name)
+	if err != nil {
+		m.Fatal("must read dir", err)
+	}
+	return ee
+}
+
 func (m must) Symlink(oldname, newname string) {
 	m.Helper()
 	if err := os.Symlink(oldname, newname); err != nil {

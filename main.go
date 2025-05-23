@@ -16,6 +16,7 @@ func main() {
 
 func run(args []string) error {
 	flags := flag.NewFlagSet("duffel", flag.ExitOnError)
+	dryRun := flags.Bool("n", false, "Print planned actions without executing them.")
 	source := flags.String("source", ".", "The source `dir`")
 	target := flags.String("target", "..", "The target `dir`")
 
@@ -41,6 +42,7 @@ func run(args []string) error {
 		Source: sourcePath,
 		Target: targetPath,
 		Pkgs:   flags.Args(),
+		DryRun: *dryRun,
 	}
 	return duffel.Install(req)
 }
