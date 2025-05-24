@@ -3,10 +3,12 @@ package main
 import (
 	"bytes"
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/dhemery/duffel/internal/files/filestest"
@@ -135,5 +137,13 @@ func TestDryRun(t *testing.T) {
 	}
 	if err == nil && info != nil {
 		t.Error("created target item:", fs.FormatFileInfo(info))
+	}
+
+	output := td.stdout.String()
+	targetItemDest, _ := filepath.Rel(targetDir, pkgItem)
+	want := fmt.Sprintf("%s --> %s", targetItemPath, targetItemDest)
+	if !strings.Contains(output, want) {
+		t.Error("output missing:", want)
+		t.Log("output was", output)
 	}
 }

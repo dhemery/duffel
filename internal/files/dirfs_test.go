@@ -9,6 +9,17 @@ import (
 	"github.com/dhemery/duffel/internal/files/filestest"
 )
 
+func TestDirFSJoin(t *testing.T) {
+	d := DirFS("/root/sub1/sub2")
+	path := "path1/path2/path3"
+	got := d.Join(path)
+
+	want := "/root/sub1/sub2/path1/path2/path3"
+	if got != want {
+		t.Errorf("want %q, got %q", want, got)
+	}
+}
+
 func TestDirFSLstat(t *testing.T) {
 	must := filestest.Must(t)
 	root := filepath.Join(t.TempDir(), "root")
