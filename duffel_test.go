@@ -24,6 +24,21 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
+type testDuffelData struct {
+	*exec.Cmd
+	stdout bytes.Buffer
+	stderr bytes.Buffer
+}
+
+func testDuffel(dir string, args ...string) *testDuffelData {
+	cmd := exec.Command(os.Args[0], args...)
+	td := testDuffelData{Cmd: cmd}
+	cmd.Dir = dir
+	cmd.Stdout = &td.stdout
+	cmd.Stderr = &td.stderr
+	return &td
+}
+
 type dirOptTest struct {
 	pkgItem        string
 	wd             string
@@ -76,14 +91,9 @@ func TestDirOptions(t *testing.T) {
 			must.MkdirAll(pkgItem, 0o755)
 			must.MkdirAll(wd, 0o755)
 
-			stdout := &bytes.Buffer{}
-			stderr := &bytes.Buffer{}
-			cmd := exec.Command(os.Args[0], test.args...)
-			cmd.Dir = wd
-			cmd.Stdout = stdout
-			cmd.Stderr = stderr
+			td := testDuffel(wd, test.args...)
 
-			if err := cmd.Run(); err != nil {
+			if err := td.Run(); err != nil {
 				t.Error(err)
 				return
 			}
@@ -103,32 +113,27 @@ func TestDirOptions(t *testing.T) {
 
 func TestDryRun(t *testing.T) {
 	tmpDir := t.TempDir()
-	wd := filepath.Join(tmpDir, "home/user/source")
-	pkgItem := filepath.Join(tmpDir, "home/user/source/pkg/pkgItem")
+	targetDir := filepath.Join(tmpDir, "home/user")
+	sourceDir := filepath.Join(targetDir, "source")
+	pkgItem := filepath.Join(sourceDir, "pkg/pkgItem")
 
 	must := filestest.Must(t)
-	must.MkdirAll(pkgItem, 0o755) // Creates wd but not target dir
+	must.MkdirAll(pkgItem, 0o755) // Also creates target and source, which are ancestors
 
-	stdout := &bytes.Buffer{}
-	stderr := &bytes.Buffer{}
-	target := "../target"
-	// -n: dry run
-	cmd := exec.Command(os.Args[0], "-target", target, "-n", "pkg")
-	cmd.Dir = wd
-	cmd.Stdout = stdout
-	cmd.Stderr = stderr
+	// default source (.) and target (..)
+	td := testDuffel(sourceDir, "-n", "pkg")
 
-	if err := cmd.Run(); err != nil {
+	if err := td.Run(); err != nil {
 		t.Error(err)
 		return
 	}
 
-	targetDir := filepath.Join(wd, target)
-	info, err := os.Stat(targetDir)
+	targetItemPath := filepath.Join(targetDir, "pkgItem")
+	info, err := os.Stat(targetItemPath)
 	if !errors.Is(err, fs.ErrNotExist) {
 		t.Errorf("want error %q, got %v", fs.ErrNotExist, err)
 	}
 	if err == nil && info != nil {
-		t.Error("created target dir:", fs.FormatFileInfo(info))
+		t.Error("created target item:", fs.FormatFileInfo(info))
 	}
 }
