@@ -1,11 +1,24 @@
 package main
 
 import (
+	"os"
 	"path/filepath"
 	"testing"
 
 	"github.com/dhemery/duffel/internal/files/filestest"
 )
+
+// TestMain executes the test binary as the duffel command if
+// DUFFEL_TEST_RUN_MAIN is set, and runs the tests otherwise.
+func TestMain(m *testing.M) {
+	if os.Getenv("DUFFEL_TEST_RUN_MAIN") != "" {
+		main()
+		os.Exit(0)
+	}
+
+	os.Setenv("DUFFEL_TEST_RUN_MAIN", "1") // Set for subprocesses to inherit.
+	os.Exit(m.Run())
+}
 
 type dirOptTest struct {
 	pkgItem        string
