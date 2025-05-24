@@ -27,7 +27,7 @@ func TestDirFSLstat(t *testing.T) {
 	must.WriteFile(filepath.Join(root, "sub/file"), []byte{}, 0o644)
 	must.Symlink("../ignored/dest", filepath.Join(root, "sub/link"))
 
-	f := dirFS(root)
+	f := DirFS(root)
 
 	e, err := f.Lstat("sub/dir")
 	if err != nil {
@@ -62,7 +62,7 @@ func TestDirFSLstat(t *testing.T) {
 func TestDirFSMkdirAll(t *testing.T) {
 	must := filestest.Must(t)
 	root := filepath.Join(t.TempDir(), "root")
-	f := dirFS(root)
+	f := DirFS(root)
 
 	existingPerm := fs.FileMode(0o755)
 	existingDir := "existing-dir"
@@ -102,7 +102,7 @@ func TestDirFSReadDir(t *testing.T) {
 	must.WriteFile(filepath.Join(root, "sub/file"), []byte{}, filePerm)
 	must.Symlink("../ignored/dest", filepath.Join(root, "sub/link"))
 
-	f := dirFS(root)
+	f := DirFS(root)
 
 	entries, err := f.ReadDir("sub")
 	if err != nil {
@@ -145,7 +145,7 @@ func TestDirFSSymlink(t *testing.T) {
 	root := filepath.Join(t.TempDir(), "root")
 	must.MkdirAll(filepath.Join(root, "sub"), 0o755)
 
-	f := dirFS(root)
+	f := DirFS(root)
 	linkDest := "../../some/link/dest"
 
 	goodPath := "sub/link"

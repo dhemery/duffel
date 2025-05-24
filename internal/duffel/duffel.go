@@ -9,8 +9,8 @@ import (
 )
 
 type FS interface {
+	fs.ReadDirFS
 	Join(path string) string
-	ReadDir(path string) ([]fs.DirEntry, error)
 	Lstat(path string) (fs.FileInfo, error)
 	MkdirAll(path string, perm fs.FileMode) error
 	Symlink(old, new string) error
