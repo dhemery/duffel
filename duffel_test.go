@@ -63,16 +63,17 @@ var dirOptTests = map[string]dirOptTest{
 	},
 }
 
-// TestDirOptions exercises how run() applies its -source and -target options
-// to the actual file system.
+// TestDirOptions tests how the duffel command maps the -source and -target options
+// to file system entries.
 func TestDirOptions(t *testing.T) {
 	must := filestest.Must(t)
 	for name, test := range dirOptTests {
 		t.Run(name, func(t *testing.T) {
 			tmpDir := t.TempDir()
+			pkgItem := filepath.Join(tmpDir, test.pkgItem)
 			wd := filepath.Join(tmpDir, test.wd)
 
-			must.MkdirAll(filepath.Join(tmpDir, test.pkgItem), 0o755)
+			must.MkdirAll(pkgItem, 0o755)
 			must.MkdirAll(wd, 0o755)
 
 			stdout := &bytes.Buffer{}
@@ -82,9 +83,8 @@ func TestDirOptions(t *testing.T) {
 			cmd.Stdout = stdout
 			cmd.Stderr = stderr
 
-			err := cmd.Run()
-			if err != nil {
-				t.Error("duffel exited with error:", err)
+			if err := cmd.Run(); err != nil {
+				t.Error(err)
 				return
 			}
 
@@ -103,26 +103,32 @@ func TestDirOptions(t *testing.T) {
 
 func TestDryRun(t *testing.T) {
 	tmpDir := t.TempDir()
+	wd := filepath.Join(tmpDir, "home/user/source")
 	pkgItem := filepath.Join(tmpDir, "home/user/source/pkg/pkgItem")
-	wd := filepath.Join(pkgItem, "../..")
 
 	must := filestest.Must(t)
 	must.MkdirAll(pkgItem, 0o755) // Creates wd but not target dir
 
-	t.Chdir(wd)
-
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
 	target := "../target"
-	err := run([]string{"-target", target, "-n", "pkg"}) // -n: dry run
-	if err != nil {
-		t.Fatal("run: unexpected error:", err)
+	// -n: dry run
+	cmd := exec.Command(os.Args[0], "-target", target, "-n", "pkg")
+	cmd.Dir = wd
+	cmd.Stdout = stdout
+	cmd.Stderr = stderr
+
+	if err := cmd.Run(); err != nil {
+		t.Error(err)
+		return
 	}
 
 	targetDir := filepath.Join(wd, target)
 	info, err := os.Stat(targetDir)
 	if !errors.Is(err, fs.ErrNotExist) {
-		t.Errorf("stat %q want error %q, got %v", targetDir, fs.ErrNotExist, err)
+		t.Errorf("want error %q, got %v", fs.ErrNotExist, err)
 	}
-	if info != nil {
-		t.Errorf("stat %q want error, got %q", targetDir, fs.FormatFileInfo(info))
+	if err == nil && info != nil {
+		t.Error("created target dir:", fs.FormatFileInfo(info))
 	}
 }

@@ -11,29 +11,25 @@ import (
 )
 
 func main() {
-	run(os.Args[1:])
-}
-
-func run(args []string) error {
 	flags := flag.NewFlagSet("duffel", flag.ExitOnError)
 	dryRun := flags.Bool("n", false, "Print planned actions without executing them.")
 	source := flags.String("source", ".", "The source `dir`")
 	target := flags.String("target", "..", "The target `dir`")
 
-	flags.Parse(args)
+	flags.Parse(os.Args[1:])
 	root := "/"
 
 	fsys := files.DirFS(root)
 
 	absTarget, err := filepath.Abs(*target)
 	if err != nil {
-		return fmt.Errorf("making target absolute: %w", err)
+		fatal(fmt.Errorf("making target absolute: %w", err))
 	}
 	targetPath, _ := filepath.Rel(root, absTarget)
 
 	absSource, err := filepath.Abs(*source)
 	if err != nil {
-		return fmt.Errorf("making source absolute: %w", err)
+		fatal(fmt.Errorf("making source absolute: %w", err))
 	}
 	sourcePath, _ := filepath.Rel(root, absSource)
 
@@ -44,5 +40,14 @@ func run(args []string) error {
 		Pkgs:   flags.Args(),
 		DryRun: *dryRun,
 	}
-	return duffel.Install(req)
+
+	err = duffel.Install(req)
+	if err != nil {
+		fatal(fmt.Errorf("installing: %w", err))
+	}
+}
+
+func fatal(err error) {
+	fmt.Fprint(os.Stderr, err)
+	os.Exit(1)
 }
