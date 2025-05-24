@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -71,15 +73,24 @@ func TestDirOptions(t *testing.T) {
 			must.MkdirAll(filepath.Join(tmpDir, test.pkgItem), 0o755)
 			must.MkdirAll(wd, 0o755)
 
-			t.Chdir(wd)
+			stdout := &bytes.Buffer{}
+			stderr := &bytes.Buffer{}
+			cmd := exec.Command(os.Args[0], test.args...)
+			cmd.Dir = wd
+			cmd.Stdout = stdout
+			cmd.Stderr = stderr
 
-			err := run(test.args)
+			err := cmd.Run()
 			if err != nil {
-				t.Fatal("run returned error:", err)
+				t.Error("duffel exited with error:", err)
+				return
 			}
 
 			wantTargetPath := filepath.Join(tmpDir, test.wantTargetPath)
-			gotDest := must.Readlink(wantTargetPath)
+			gotDest, err := os.Readlink(wantTargetPath)
+			if err != nil {
+				t.Error(err)
+			}
 
 			if gotDest != test.wantTargetDest {
 				t.Errorf("want link dest %q, got %q\n", test.wantTargetDest, gotDest)
