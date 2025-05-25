@@ -4,26 +4,25 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"os"
 	"path/filepath"
 )
 
 type FS interface {
 	fs.ReadDirFS
 	Join(path string) string
-	Lstat(path string) (fs.FileInfo, error)
-	MkdirAll(path string, perm fs.FileMode) error
+	// Lstat(path string) (fs.FileInfo, error)
+	// Mkdir(path string, perm fs.FileMode) error
 	Symlink(old, new string) error
 }
 
 type Request struct {
+	Stdout io.Writer
+	Stderr io.Writer
 	FS     FS
 	Source string
 	Target string
 	Pkgs   []string
 	DryRun bool
-	Stdout io.Writer
-	Stderr io.Writer
 }
 
 func Install(r Request) error {
@@ -43,12 +42,8 @@ func Install(r Request) error {
 			linkPath := filepath.Join(r.Target, e.Name())
 			linkDest := filepath.Join(pkgLinkDest, e.Name())
 			if r.DryRun {
-				fmt.Fprintln(os.Stdout, r.FS.Join(linkPath), "-->", linkDest)
+				fmt.Fprintln(r.Stdout, r.FS.Join(linkPath), "-->", linkDest)
 				continue
-			}
-			err := r.FS.MkdirAll(filepath.Dir(linkPath), 0o755)
-			if err != nil {
-				return fmt.Errorf("making link parent: %w", err)
 			}
 			err = r.FS.Symlink(linkDest, linkPath)
 			if err != nil {

@@ -28,8 +28,8 @@ func (f dirFS) Lstat(path string) (fs.FileInfo, error) {
 	return os.Lstat(f.Join(path))
 }
 
-func (f dirFS) MkdirAll(path string, perm fs.FileMode) error {
-	return os.MkdirAll(f.Join(path), perm)
+func (f dirFS) Mkdir(path string, perm fs.FileMode) error {
+	return os.Mkdir(f.Join(path), perm)
 }
 
 func (f dirFS) Symlink(oldname, newname string) error {

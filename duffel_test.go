@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"cmp"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -42,41 +43,43 @@ func testDuffel(dir string, args ...string) *testDuffelData {
 }
 
 type dirOptTest struct {
-	pkgItem        string
-	wd             string
-	args           []string
-	wantTargetPath string
-	wantTargetDest string
+	wd        string // The working directory in which duffel is run.
+	sourceOpt string // The value for the -source option.
+	targetOpt string // The value for the -target option.
+	wantDest  string // The desired destination for the target link.
 }
+
+const (
+	pkgName       = "pkg"
+	itemName      = "pkgItem"
+	defaultSource = "."
+	defaultTarget = ".."
+)
 
 var dirOptTests = map[string]dirOptTest{
 	"Default source and target": {
-		wd:             "home/user/source",
-		pkgItem:        "home/user/source/pkg/pkgItem",
-		args:           []string{"pkg"},
-		wantTargetPath: "home/user/pkgItem",
-		wantTargetDest: "source/pkg/pkgItem",
+		wd:        "home/user/wd",
+		sourceOpt: "", // home/user/wd
+		targetOpt: "", // home/user
+		wantDest:  filepath.Join("wd", pkgName, itemName),
 	},
 	"Default target, given source": {
-		wd:             "home/user/target/wd",
-		pkgItem:        "home/user/source/pkg/pkgItem",
-		args:           []string{"-source", "../../source", "pkg"},
-		wantTargetPath: "home/user/target/pkgItem",
-		wantTargetDest: "../source/pkg/pkgItem",
+		wd:        "home/user/target/wd",
+		sourceOpt: "../../source", // home/user/source
+		targetOpt: "",             // home/user/target
+		wantDest:  filepath.Join("../source", pkgName, itemName),
 	},
 	"Default source, given target": {
-		wd:             "home/user/source",
-		pkgItem:        "home/user/source/pkg/pkgItem",
-		args:           []string{"-target", "../target", "pkg"},
-		wantTargetPath: "home/user/target/pkgItem",
-		wantTargetDest: "../source/pkg/pkgItem",
+		wd:        "home/user/wd",
+		sourceOpt: "",          // home/user/source
+		targetOpt: "../target", // home/user/target
+		wantDest:  filepath.Join("../wd", pkgName, itemName),
 	},
 	"Given source and target": {
-		wd:             "home/user/wd",
-		pkgItem:        "home/user/source/pkg/pkgItem",
-		args:           []string{"-source", "../source", "-target", "../target", "pkg"},
-		wantTargetPath: "home/user/target/pkgItem",
-		wantTargetDest: "../source/pkg/pkgItem",
+		wd:        "home/user/wd",
+		sourceOpt: "../source", // home/user/source
+		targetOpt: "../target", // home/user/target
+		wantDest:  filepath.Join("../source", pkgName, itemName),
 	},
 }
 
@@ -87,27 +90,44 @@ func TestDirOptions(t *testing.T) {
 	for name, test := range dirOptTests {
 		t.Run(name, func(t *testing.T) {
 			tmpDir := t.TempDir()
-			pkgItem := filepath.Join(tmpDir, test.pkgItem)
 			wd := filepath.Join(tmpDir, test.wd)
+			sourceDir := filepath.Join(wd, cmp.Or(test.sourceOpt, defaultSource))
+			targetDir := filepath.Join(wd, cmp.Or(test.targetOpt, defaultTarget))
 
-			must.MkdirAll(pkgItem, 0o755)
+			itemPath := filepath.Join(sourceDir, pkgName, itemName)
 			must.MkdirAll(wd, 0o755)
+			must.MkdirAll(itemPath, 0o755) // Makes srcDir as ancestor
+			must.MkdirAll(targetDir, 0o755)
 
-			td := testDuffel(wd, test.args...)
+			args := []string{}
+			if test.sourceOpt != "" {
+				args = append(args, "-source", test.sourceOpt)
+			}
+			if test.targetOpt != "" {
+				args = append(args, "-target", test.targetOpt)
+			}
+			args = append(args, pkgName)
+
+			td := testDuffel(wd, args...)
+
+			wantTargetPath := filepath.Join(targetDir, itemName)
 
 			if err := td.Run(); err != nil {
 				t.Error(err)
+				if info, err := os.Lstat(wantTargetPath); err == nil {
+					t.Log(wantTargetPath, fs.FormatFileInfo(info))
+				}
+				t.Log("stderr:", td.stderr.String())
 				return
 			}
 
-			wantTargetPath := filepath.Join(tmpDir, test.wantTargetPath)
 			gotDest, err := os.Readlink(wantTargetPath)
 			if err != nil {
 				t.Error(err)
 			}
 
-			if gotDest != test.wantTargetDest {
-				t.Errorf("want link dest %q, got %q\n", test.wantTargetDest, gotDest)
+			if gotDest != test.wantDest {
+				t.Errorf("want link dest %q, got %q\n", test.wantDest, gotDest)
 			}
 		})
 	}

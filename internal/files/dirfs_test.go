@@ -59,7 +59,7 @@ func TestDirFSLstat(t *testing.T) {
 	}
 }
 
-func TestDirFSMkdirAll(t *testing.T) {
+func TestDirFSMkdir(t *testing.T) {
 	must := filestest.Must(t)
 	root := filepath.Join(t.TempDir(), "root")
 	f := DirFS(root)
@@ -69,27 +69,25 @@ func TestDirFSMkdirAll(t *testing.T) {
 	must.MkdirAll(filepath.Join(root, existingDir), existingPerm)
 
 	newPerm := fs.FileMode(0o700)
-	newDir := "existing-dir/new-parent/new-dir"
-	err := f.MkdirAll(newDir, newPerm)
+	newDir := "existing-dir/new-dir"
+	err := f.Mkdir(newDir, newPerm)
 	if err != nil {
 		t.Fatal("unexpected error:", err)
 	}
 
-	newParent := "existing-dir/new-parent"
-	e := must.Lstat(filepath.Join(root, newParent))
-	if !e.IsDir() {
-		t.Errorf("%q want dir, got %s", newParent, fs.FormatFileInfo(e))
-	}
-	if e.Mode().Perm() != newPerm {
-		t.Errorf("%q want permission %O, got %s", newParent, newPerm, fs.FormatFileInfo(e))
-	}
-
-	e = must.Lstat(filepath.Join(root, newDir))
+	e := must.Lstat(filepath.Join(root, newDir))
 	if !e.IsDir() {
 		t.Errorf("%q want dir, got %s", newDir, fs.FormatFileInfo(e))
 	}
 	if e.Mode().Perm() != newPerm {
-		t.Errorf("%q want permission, got %s", newDir, fs.FormatFileInfo(e))
+		t.Errorf("%q want permission %s, got %s", newDir, newPerm, fs.FormatFileInfo(e))
+	}
+
+	badDir := "no-such-parent/new-dir"
+	gotErr := f.Mkdir(badDir, 0o755)
+	wantErr := fs.ErrNotExist
+	if !errors.Is(gotErr, wantErr) {
+		t.Errorf("%s want error %s, got %v", badDir, wantErr, gotErr)
 	}
 }
 
