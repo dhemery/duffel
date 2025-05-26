@@ -25,7 +25,7 @@ type Request struct {
 	DryRun bool
 }
 
-func Install(r Request) error {
+func Install(r *Request) error {
 	sourceLinkDest, err := filepath.Rel(r.Target, r.Source)
 	if err != nil {
 		return fmt.Errorf("making source link dest: %w", err)

@@ -34,7 +34,7 @@ func main() {
 	sourcePath, _ := filepath.Rel(root, absSource)
 
 	fmt.Println("Dry run:", *dryRun)
-	req := duffel.Request{
+	req := &duffel.Request{
 		Stdout: os.Stdout,
 		Stderr: os.Stderr,
 		FS:     fsys,
