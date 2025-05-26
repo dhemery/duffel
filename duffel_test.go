@@ -11,8 +11,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	"github.com/dhemery/duffel/internal/files/filestest"
 )
 
 // TestMain executes the test binary as the duffel command if
@@ -86,18 +84,19 @@ var dirOptTests = map[string]dirOptTest{
 // TestDirOptions tests how the duffel command maps the -source and -target options
 // to file system entries.
 func TestDirOptions(t *testing.T) {
-	must := filestest.Must(t)
 	for name, test := range dirOptTests {
 		t.Run(name, func(t *testing.T) {
 			tmpDir := t.TempDir()
 			wd := filepath.Join(tmpDir, test.wd)
 			sourceDir := filepath.Join(wd, cmp.Or(test.sourceOpt, defaultSource))
 			targetDir := filepath.Join(wd, cmp.Or(test.targetOpt, defaultTarget))
-
 			itemPath := filepath.Join(sourceDir, pkgName, itemName)
-			must.MkdirAll(wd, 0o755)
-			must.MkdirAll(itemPath, 0o755) // Makes srcDir as ancestor
-			must.MkdirAll(targetDir, 0o755)
+
+			// Making itemPath necessarily makes sourceDir
+			if err := mkAllDirs(wd, itemPath, targetDir); err != nil {
+				t.Error(err)
+				return
+			}
 
 			args := []string{}
 			if test.sourceOpt != "" {
@@ -139,8 +138,9 @@ func TestDryRun(t *testing.T) {
 	sourceDir := filepath.Join(targetDir, "source")
 	pkgItem := filepath.Join(sourceDir, "pkg/pkgItem")
 
-	must := filestest.Must(t)
-	must.MkdirAll(pkgItem, 0o755) // Also creates target and source, which are ancestors
+	// Also creates target and source, which are ancestors
+	if err := os.MkdirAll(pkgItem, 0o755); err != nil {
+	}
 
 	// default source (.) and target (..)
 	td := testDuffel(sourceDir, "-n", "pkg")
@@ -166,4 +166,13 @@ func TestDryRun(t *testing.T) {
 		t.Error("output missing:", want)
 		t.Log("output was", output)
 	}
+}
+
+func mkAllDirs(paths ...string) error {
+	for _, p := range paths {
+		if err := os.MkdirAll(p, 0o755); err != nil {
+			return err
+		}
+	}
+	return nil
 }
