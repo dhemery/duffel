@@ -8,7 +8,7 @@ import (
 	"testing"
 )
 
-func TestDirFSLstat(t *testing.T) {
+func TestLstat(t *testing.T) {
 	must := Must(t)
 	root := filepath.Join(t.TempDir(), "root")
 	must.MkdirAll(filepath.Join(root, "sub/dir"), 0o755)
@@ -47,7 +47,7 @@ func TestDirFSLstat(t *testing.T) {
 	}
 }
 
-func TestDirFSMkdir(t *testing.T) {
+func TestMkdir(t *testing.T) {
 	must := Must(t)
 	root := filepath.Join(t.TempDir(), "root")
 	f := DirFS(root)
@@ -79,7 +79,7 @@ func TestDirFSMkdir(t *testing.T) {
 	}
 }
 
-func TestDirFSReadDir(t *testing.T) {
+func TestReadDir(t *testing.T) {
 	must := Must(t)
 	root := filepath.Join(t.TempDir(), "root")
 	dirPerm := fs.FileMode(0o755)
@@ -126,7 +126,7 @@ func TestDirFSReadDir(t *testing.T) {
 	}
 }
 
-func TestDirFSSymlink(t *testing.T) {
+func TestSymlink(t *testing.T) {
 	must := Must(t)
 	root := filepath.Join(t.TempDir(), "root")
 	must.MkdirAll(filepath.Join(root, "sub"), 0o755)
@@ -152,6 +152,27 @@ func TestDirFSSymlink(t *testing.T) {
 	wantErr := fs.ErrNotExist
 	if !errors.Is(err, wantErr) {
 		t.Errorf("%q want error %q, got %q", badPath, wantErr, err)
+	}
+}
+
+func TestValidatesPath(t *testing.T) {
+	root := t.TempDir()
+
+	f := DirFS(root)
+
+	_, err := f.Lstat("foo/../lstat")
+	if !errors.Is(err, fs.ErrInvalid) {
+		t.Errorf("lstat want %v, got %v", fs.ErrInvalid, err)
+	}
+
+	err = f.Mkdir("foo/../mkdir", 0o755)
+	if !errors.Is(err, fs.ErrInvalid) {
+		t.Errorf("mkdir want %v, got %v", fs.ErrInvalid, err)
+	}
+
+	err = f.Symlink("link/dest", "foo/../symlink")
+	if !errors.Is(err, fs.ErrInvalid) {
+		t.Errorf("symlink want %v, got %v", fs.ErrInvalid, err)
 	}
 }
 
