@@ -161,7 +161,7 @@ func TestDryRun(t *testing.T) {
 
 	output := td.stdout.String()
 	targetItemDest, _ := filepath.Rel(targetDir, pkgItem)
-	want := fmt.Sprintf("%s --> %s", targetItemPath, targetItemDest)
+	want := fmt.Sprintf("%s --> %s", targetItemPath[1:], targetItemDest)
 	if !strings.Contains(output, want) {
 		t.Error("output missing:", want)
 		t.Log("output was", output)

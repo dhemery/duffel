@@ -9,7 +9,6 @@ import (
 
 type FS interface {
 	fs.ReadDirFS
-	Join(path string) string
 	// Lstat(path string) (fs.FileInfo, error)
 	// Mkdir(path string, perm fs.FileMode) error
 	Symlink(old, new string) error
@@ -36,13 +35,13 @@ func Install(r *Request) error {
 		pkgLinkDest := filepath.Join(sourceLinkDest, pkg)
 		entries, err := r.FS.ReadDir(pkgDir)
 		if err != nil {
-			return fmt.Errorf("reading entries of %q: %w", pkgDir, err)
+			return fmt.Errorf("reading package %s: %w", pkg, err)
 		}
 		for _, e := range entries {
 			linkPath := filepath.Join(r.Target, e.Name())
 			linkDest := filepath.Join(pkgLinkDest, e.Name())
 			if r.DryRun {
-				fmt.Fprintln(r.Stdout, r.FS.Join(linkPath), "-->", linkDest)
+				fmt.Fprintln(r.Stdout, linkPath, "-->", linkDest)
 				continue
 			}
 			err = r.FS.Symlink(linkDest, linkPath)

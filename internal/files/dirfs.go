@@ -20,18 +20,18 @@ func DirFS(dir string) dirFS {
 	}
 }
 
-func (f dirFS) Join(path string) string {
+func (f dirFS) join(path string) string {
 	return filepath.Join(f.Dir, path)
 }
 
 func (f dirFS) Lstat(path string) (fs.FileInfo, error) {
-	return os.Lstat(f.Join(path))
+	return os.Lstat(f.join(path))
 }
 
 func (f dirFS) Mkdir(path string, perm fs.FileMode) error {
-	return os.Mkdir(f.Join(path), perm)
+	return os.Mkdir(f.join(path), perm)
 }
 
 func (f dirFS) Symlink(oldname, newname string) error {
-	return os.Symlink(oldname, f.Join(newname))
+	return os.Symlink(oldname, f.join(newname))
 }
