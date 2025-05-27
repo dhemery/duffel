@@ -1,7 +1,9 @@
 package testfs
 
 import (
+	"fmt"
 	"io/fs"
+	"path"
 	"testing/fstest"
 )
 
@@ -14,8 +16,23 @@ type FS struct {
 }
 
 func (fsys FS) Symlink(oldname, newname string) error {
-	entry := LinkEntry(oldname)
-	fsys.MapFS[newname] = entry
+	if !fs.ValidPath(newname) {
+		return &fs.PathError{Op: "symlink", Path: newname, Err: fs.ErrInvalid}
+	}
+	if _, ok := fsys.MapFS[newname]; ok {
+		return &fs.PathError{Op: "symlink", Path: newname, Err: fs.ErrExist}
+	}
+	p, ok := fsys.MapFS[path.Dir(newname)]
+	if !ok {
+		err := fmt.Errorf("parent %w", fs.ErrNotExist)
+		return &fs.PathError{Op: "symlink", Path: newname, Err: err}
+	}
+	if !p.Mode.IsDir() {
+		err := fmt.Errorf("parent %w", fs.ErrInvalid)
+		return &fs.PathError{Op: "symlink", Path: newname, Err: err}
+	}
+	// TODO: Check permission to create the link
+	fsys.MapFS[newname] = LinkEntry(oldname)
 	return nil
 }
 

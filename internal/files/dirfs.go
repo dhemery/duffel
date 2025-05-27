@@ -12,6 +12,10 @@ type dirFS struct {
 	Dir string
 }
 
+type LinkError = os.LinkError
+
+
+
 // DirFS returns a file system for the tree of files rooted at dir.
 // It implements [duffel.FS].
 func DirFS(dir string) dirFS {
@@ -39,7 +43,7 @@ func (f dirFS) Lstat(path string) (fs.FileInfo, error) {
 func (f dirFS) Mkdir(path string, perm fs.FileMode) error {
 	full, err := f.join(path)
 	if err != nil {
-		return  &fs.PathError{Op: "mkdir", Path: path, Err: err}
+		return &fs.PathError{Op: "mkdir", Path: path, Err: err}
 	}
 	return os.Mkdir(full, perm)
 }
@@ -47,7 +51,7 @@ func (f dirFS) Mkdir(path string, perm fs.FileMode) error {
 func (f dirFS) Symlink(oldname, newname string) error {
 	full, err := f.join(newname)
 	if err != nil {
-		return  &os.LinkError{Op: "symlink", Old: oldname, New: newname, Err: err}
+		return &LinkError{Op: "symlink", Old: oldname, New: newname, Err: err}
 	}
 	return os.Symlink(oldname, full)
 }
