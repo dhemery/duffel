@@ -43,8 +43,8 @@ func TestInstallFreshTargetOnePackage(t *testing.T) {
 
 	tfs := testfs.New()
 	tfs.MapFS[target] = testfs.DirEntry(0o755)
-	for _, items := range items {
-		tfs.MapFS[items.source] = items.info
+	for _, item := range items {
+		tfs.MapFS[item.source] = item.info
 	}
 
 	req := &Request{
