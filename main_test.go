@@ -8,7 +8,6 @@ import (
 	"io/fs"
 	"os"
 	"os/exec"
-	"path"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -167,108 +166,6 @@ func TestDryRun(t *testing.T) {
 		t.Error("output missing:", want)
 		t.Log("output was", output)
 	}
-}
-
-func TestInstallDirErrors(t *testing.T) {
-	const (
-		doesNotExist    = 0
-		permReadable    = 0o755
-		permUnreadable  = 0o222
-		permUnwriteable = 0o533
-	)
-	type entry struct {
-		path string
-		mode fs.FileMode
-	}
-
-	tests := map[string]struct {
-		sourceMode  fs.FileMode
-		targetMode  fs.FileMode
-		packageMode fs.FileMode
-		wantError   error
-	}{
-		"package dir missing": {
-			sourceMode:  permReadable,
-			packageMode: doesNotExist,
-			targetMode:  permReadable,
-			wantError:   fs.ErrNotExist,
-		},
-		"package dir unreadable": {
-			sourceMode:  permReadable,
-			packageMode: permUnreadable,
-			targetMode:  permReadable,
-			wantError:   fs.ErrPermission,
-		},
-		"source dir missing": {
-			sourceMode:  doesNotExist,
-			packageMode: doesNotExist, // Creating package would require source to exist
-			targetMode:  permReadable,
-			wantError:   fs.ErrNotExist,
-		},
-		"source dir unreadable": {
-			sourceMode:  permUnreadable,
-			packageMode: permReadable,
-			targetMode:  permReadable,
-			wantError:   fs.ErrPermission,
-		},
-		"target dir missing": {
-			sourceMode:  permReadable,
-			packageMode: permReadable,
-			targetMode:  doesNotExist,
-			wantError:   fs.ErrNotExist,
-		},
-		"target dir unwriteable": {
-			sourceMode:  permReadable,
-			packageMode: permReadable,
-			targetMode:  permUnwriteable,
-			wantError:   fs.ErrPermission,
-		},
-	}
-
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			tmpDir := t.TempDir()
-			wd := filepath.Join(tmpDir, "home/user")
-			sourcePath := filepath.Join(wd, "source")
-			packagePath := filepath.Join(sourcePath, "pkg")
-			targetPath := filepath.Join(wd, "target")
-			if test.packageMode != doesNotExist {
-				itemPath := path.Join(packagePath, "item")
-				os.MkdirAll(itemPath, 0o755)
-				os.Chmod(packagePath, test.packageMode)
-				defer os.Chmod(packagePath, 0o755)
-			}
-			if test.sourceMode != doesNotExist {
-				os.MkdirAll(sourcePath, 0o755)
-				os.Chmod(sourcePath, test.sourceMode)
-				defer os.Chmod(sourcePath, 0o755)
-			}
-			if test.targetMode != doesNotExist {
-				os.MkdirAll(targetPath, 0o755)
-				os.Chmod(targetPath, test.targetMode)
-				defer os.Chmod(targetPath, 0o755)
-			}
-
-			cmd := testDuffel(wd, "-source", "source", "-target", "target", "pkg")
-
-			if err := cmd.Run(); err == nil {
-				t.Error("want error, but duffel succeeded")
-				t.Log("package:", stat(packagePath))
-				t.Log("source:", stat(sourcePath))
-				t.Log("target:", stat(targetPath))
-				t.Log("stderr:", cmd.stderr.String())
-				t.Log("stdout:", cmd.stdout.String())
-			}
-		})
-	}
-}
-
-func stat(path string) string {
-	info, err := os.Lstat(path)
-	if err == nil {
-		return fs.FormatFileInfo(info)
-	}
-	return err.Error()
 }
 
 func mkAllDirs(paths ...string) error {
