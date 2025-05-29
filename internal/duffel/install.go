@@ -19,8 +19,8 @@ func Execute(r *Request) error {
 		Plan:       Plan{},
 	}
 	installer := &Installer{
-		FS: r.FS,
-		Source: r.Source,
+		FS:      r.FS,
+		Source:  r.Source,
 		Planner: planner,
 	}
 	err = installer.PlanPackages(r.Pkgs)
@@ -37,8 +37,8 @@ func Execute(r *Request) error {
 }
 
 type Installer struct {
-	FS FS
-	Source string
+	FS      FS
+	Source  string
 	Planner *Planner
 }
 

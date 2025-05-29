@@ -14,7 +14,6 @@ type FS interface {
 
 type Request struct {
 	Stdout io.Writer
-	Stderr io.Writer
 	FS     FS
 	Source string
 	Target string

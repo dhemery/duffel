@@ -14,8 +14,6 @@ type dirFS struct {
 
 type LinkError = os.LinkError
 
-
-
 // DirFS returns a file system for the tree of files rooted at dir.
 // It implements [duffel.FS].
 func DirFS(dir string) dirFS {

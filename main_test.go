@@ -35,7 +35,6 @@ func testDuffel(dir string, args ...string) *testDuffelData {
 	td := testDuffelData{Cmd: cmd}
 	cmd.Dir = dir
 	cmd.Stdout = &td.stdout
-	cmd.Stderr = &td.stderr
 	return &td
 }
 

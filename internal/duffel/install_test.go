@@ -52,7 +52,6 @@ func TestInstallFreshTargetOnePackage(t *testing.T) {
 	req := &Request{
 		FS:     files,
 		Stdout: &bytes.Buffer{},
-		Stderr: &bytes.Buffer{},
 		Source: source,
 		Target: target,
 		Pkgs:   []string{pkgName},
@@ -162,7 +161,6 @@ func TestInstallDirErrors(t *testing.T) {
 
 			r := &Request{
 				Stdout: &bytes.Buffer{},
-				Stderr: &bytes.Buffer{},
 				FS:     files,
 				Source: sourcePath,
 				Target: targetPath,

@@ -36,7 +36,6 @@ func main() {
 
 	req := &duffel.Request{
 		Stdout: os.Stdout,
-		Stderr: os.Stderr,
 		FS:     fsys,
 		Source: sourcePath,
 		Target: targetPath,
