@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 
@@ -45,11 +46,11 @@ func main() {
 
 	err = duffel.Execute(req)
 	if err != nil {
-		fatal(fmt.Errorf("installing: %w", err))
+		fatal(err)
 	}
 }
 
 func fatal(err error) {
-	fmt.Fprint(os.Stderr, err)
+	slog.Error(err.Error())
 	os.Exit(1)
 }

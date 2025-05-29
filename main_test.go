@@ -115,6 +115,7 @@ func TestDirOptions(t *testing.T) {
 				if info, err := os.Lstat(wantTargetPath); err == nil {
 					t.Log(wantTargetPath, fs.FormatFileInfo(info))
 				}
+				t.Log("stdout:", td.stdout.String())
 				t.Log("stderr:", td.stderr.String())
 				return
 			}
@@ -133,12 +134,15 @@ func TestDirOptions(t *testing.T) {
 
 func TestDryRun(t *testing.T) {
 	tmpDir := t.TempDir()
+	pkgName := "pkg"
+	itemName := "pkgItem"
 	targetDir := filepath.Join(tmpDir, "home/user")
 	sourceDir := filepath.Join(targetDir, "source")
-	pkgItem := filepath.Join(sourceDir, "pkg/pkgItem")
+	pkgPath := filepath.Join(sourceDir, pkgName)
+	itemPath := filepath.Join(pkgPath, itemName)
 
 	// Also creates target and source, which are ancestors
-	if err := os.MkdirAll(pkgItem, 0o755); err != nil {
+	if err := os.MkdirAll(itemPath, 0o755); err != nil {
 	}
 
 	// default source (.) and target (..)
@@ -160,9 +164,12 @@ func TestDryRun(t *testing.T) {
 
 	var plan []map[string]string
 	json.Unmarshal(td.stdout.Bytes(), &plan)
-	wantDest, _ := filepath.Rel(targetDir, pkgItem)
+	wantDest, _ := filepath.Rel(targetDir, itemPath)
 	if len(plan) == 0 {
 		t.Error("empty plan")
+		t.Log("stdout:", td.stdout.String())
+		t.Log("stderr:", td.stderr.String())
+		return
 	}
 	task := plan[0]
 
@@ -172,7 +179,7 @@ func TestDryRun(t *testing.T) {
 		t.Errorf("want action %q, got, %q", wantAction, gotAction)
 	}
 
-	wantPath := targetItemPath[1:]
+	wantPath := itemName
 	gotPath := task["Path"]
 	if gotPath != wantPath {
 		t.Errorf("want path %q, got %q", wantPath, gotPath)
