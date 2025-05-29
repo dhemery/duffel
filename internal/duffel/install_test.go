@@ -58,7 +58,7 @@ func TestInstallFreshTargetOnePackage(t *testing.T) {
 		Pkgs:   []string{pkgName},
 	}
 
-	err := Install(req)
+	err := Execute(req)
 	if err != nil {
 		t.Error(err)
 	}
@@ -169,7 +169,7 @@ func TestInstallDirErrors(t *testing.T) {
 				Pkgs:   []string{packageName},
 			}
 
-			gotError := Install(r)
+			gotError := Execute(r)
 			if !errors.Is(gotError, test.wantError) {
 				t.Errorf("want error %v, got %v", test.wantError, gotError)
 			}

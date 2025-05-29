@@ -3,35 +3,60 @@ package duffel
 import (
 	"encoding/json"
 	"fmt"
+	"path"
 	"path/filepath"
 )
 
-func Install(r *Request) error {
-	plan := Plan{}
+func Execute(r *Request) error {
+	plan := &Plan{}
 	sourceLinkDest, err := filepath.Rel(r.Target, r.Source)
 	if err != nil {
 		return fmt.Errorf("making source link dest: %w", err)
 	}
-
-	for _, pkg := range r.Pkgs {
-		pkgDir := filepath.Join(r.Source, pkg)
-		pkgLinkDest := filepath.Join(sourceLinkDest, pkg)
-		entries, err := r.FS.ReadDir(pkgDir)
-		if err != nil {
-			return fmt.Errorf("reading package %s: %w", pkg, err)
-		}
-		for _, e := range entries {
-			linkPath := filepath.Join(r.Target, e.Name())
-			linkDest := filepath.Join(pkgLinkDest, e.Name())
-			plan.CreateLink(linkPath, linkDest)
-		}
-
+	installer := &Installer{
+		Request:        r,
+		Plan:           plan,
+		SourceLinkDest: sourceLinkDest,
 	}
+	err = installer.PlanPackages(r.Pkgs)
 	if r.DryRun {
 		enc := json.NewEncoder(r.Stdout)
 		return enc.Encode(plan)
 	}
+	if err != nil {
+		return err
+	}
 	return plan.Execute(r.FS)
+}
+
+type Installer struct {
+	*Request
+	Plan           *Plan
+	SourceLinkDest string
+}
+
+func (i *Installer) PlanPackages(pkgs []string) error {
+	for _, pkg := range pkgs {
+		pkgDir := path.Join(i.Source, pkg)
+		pkgLinkDest := path.Join(i.SourceLinkDest, pkg)
+		if err := i.PlanPackage(pkgDir, pkgLinkDest); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (i *Installer) PlanPackage(pkgDir string, pkgLinkDest string) error {
+	entries, err := i.FS.ReadDir(pkgDir)
+	if err != nil {
+		return fmt.Errorf("reading package %s: %w", pkgDir, err)
+	}
+	for _, e := range entries {
+		linkPath := path.Join(i.Target, e.Name())
+		linkDest := path.Join(pkgLinkDest, e.Name())
+		i.Plan.CreateLink(linkPath, linkDest)
+	}
+	return nil
 }
 
 type Task interface {

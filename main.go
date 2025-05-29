@@ -43,7 +43,7 @@ func main() {
 		DryRun: *dryRun,
 	}
 
-	err = duffel.Install(req)
+	err = duffel.Execute(req)
 	if err != nil {
 		fatal(fmt.Errorf("installing: %w", err))
 	}
