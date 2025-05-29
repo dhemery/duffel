@@ -1,8 +1,8 @@
 package duffel
 
 import (
+	"encoding/json"
 	"fmt"
-	"io"
 	"path/filepath"
 )
 
@@ -23,55 +23,42 @@ func Install(r *Request) error {
 		for _, e := range entries {
 			linkPath := filepath.Join(r.Target, e.Name())
 			linkDest := filepath.Join(pkgLinkDest, e.Name())
-			plan = append(plan, MakeLink{Path: linkPath, Dest: linkDest})
+			plan.CreateLink(linkPath, linkDest)
 		}
 
 	}
 	if r.DryRun {
-		_, err := plan.WriteTo(r.Stdout)
-		return err
+		enc := json.NewEncoder(r.Stdout)
+		return enc.Encode(plan)
 	}
 	return plan.Execute(r.FS)
 }
 
-type Action interface {
-	io.WriterTo
+type Task interface {
 	Execute(fsys FS) error
 }
-type Plan []Action
 
-func (p Plan) Execute(fsys FS) error {
-	for _, action := range p {
-		if err := action.Execute(fsys); err != nil {
+type Plan []Task
+
+func (p *Plan) Execute(fsys FS) error {
+	for _, task := range *p {
+		if err := task.Execute(fsys); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func (p Plan) WriteTo(w io.Writer) (int64, error) {
-	var totalN int64
-	for _, action := range p {
-		n, err := action.WriteTo(w)
-		totalN += int64(n)
-		if err != nil {
-			return totalN, err
-		}
-	}
-	return totalN, nil
+func (p *Plan) CreateLink(path, dest string) {
+	(*p) = append(*p, CreateLink{Action: "link", Path: path, Dest: dest})
 }
 
-type MakeLink struct {
-	Path string
-	Dest string
+type CreateLink struct {
+	Action string
+	Path   string
+	Dest   string
 }
 
-func (a MakeLink) WriteTo(w io.Writer) (int64, error) {
-	s := fmt.Sprint(a.Path, " --> ", a.Dest)
-	n, err := w.Write([]byte(s))
-	return int64(n), err
-}
-
-func (a MakeLink) Execute(fsys FS) error {
+func (a CreateLink) Execute(fsys FS) error {
 	return fsys.Symlink(a.Dest, a.Path)
 }

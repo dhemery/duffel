@@ -3,13 +3,12 @@ package main
 import (
 	"bytes"
 	"cmp"
+	"encoding/json"
 	"errors"
-	"fmt"
 	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"testing"
 )
 
@@ -159,12 +158,33 @@ func TestDryRun(t *testing.T) {
 		t.Error("created target item:", fs.FormatFileInfo(info))
 	}
 
-	output := td.stdout.String()
-	targetItemDest, _ := filepath.Rel(targetDir, pkgItem)
-	want := fmt.Sprintf("%s --> %s", targetItemPath[1:], targetItemDest)
-	if !strings.Contains(output, want) {
-		t.Error("output missing:", want)
-		t.Log("output was", output)
+	var plan []map[string]string
+	json.Unmarshal(td.stdout.Bytes(), &plan)
+	wantDest, _ := filepath.Rel(targetDir, pkgItem)
+	if len(plan) == 0 {
+		t.Error("empty plan")
+	}
+	task := plan[0]
+
+	wantAction := "link"
+	gotAction := task["Action"]
+	if gotAction != wantAction {
+		t.Errorf("want action %q, got, %q", wantAction, gotAction)
+	}
+
+	wantPath := targetItemPath[1:]
+	gotPath := task["Path"]
+	if gotPath != wantPath {
+		t.Errorf("want path %q, got %q", wantPath, gotPath)
+	}
+
+	gotDest := task["Dest"]
+	if gotDest != wantDest {
+		t.Errorf("want dest %q, got %q", wantDest, gotDest)
+	}
+	if t.Failed() {
+		t.Log("stdout:", td.stdout.String())
+		t.Log("stderr:", td.stderr.String())
 	}
 }
 
