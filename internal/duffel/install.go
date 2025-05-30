@@ -1,8 +1,9 @@
 package duffel
 
 import (
-	"fmt"
+	"io/fs"
 	"path"
+	"path/filepath"
 )
 
 type Installer struct {
@@ -12,21 +13,25 @@ type Installer struct {
 
 func (i *Installer) PlanPackages(pkgs []string) error {
 	for _, pkg := range pkgs {
-		if err := i.PlanPackage(pkg); err != nil {
+		pkgDir := path.Join(i.Planner.Source, pkg)
+		err := fs.WalkDir(i.FS, pkgDir, func(dir string, d fs.DirEntry, err error) error {
+			if d == nil {
+				return err
+			}
+			if dir == pkgDir {
+				return nil
+			}
+			itemPath, _ := filepath.Rel(pkgDir, dir)
+			i.Planner.CreateLink(pkg, itemPath)
+
+			if d.IsDir() {
+				return fs.SkipDir
+			}
+			return nil
+		})
+		if err != nil {
 			return err
 		}
-	}
-	return nil
-}
-
-func (i *Installer) PlanPackage(pkg string) error {
-	pkgDir := path.Join(i.Planner.Source, pkg)
-	entries, err := i.FS.ReadDir(pkgDir)
-	if err != nil {
-		return fmt.Errorf("reading package dir %s: %w", pkgDir, err)
-	}
-	for _, e := range entries {
-		i.Planner.CreateLink(pkgDir, e.Name())
 	}
 	return nil
 }

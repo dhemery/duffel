@@ -6,7 +6,7 @@ import (
 )
 
 type FS interface {
-	ReadDir(path string) ([]fs.DirEntry, error)
+	fs.ReadDirFS
 	// Lstat(path string) (fs.FileInfo, error)
 	// Mkdir(path string, perm fs.FileMode) error
 	Symlink(old, new string) error

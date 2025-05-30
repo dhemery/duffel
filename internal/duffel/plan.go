@@ -2,7 +2,6 @@ package duffel
 
 import (
 	"path"
-	"path/filepath"
 )
 
 type Task interface {
@@ -27,16 +26,14 @@ type Planner struct {
 	Plan       Plan
 }
 
-func (p *Planner) CreateLink(pkgDir, item string) {
-	pkgSourcePath, _ := filepath.Rel(p.Source, pkgDir)
-	itemSourcePath := path.Join(pkgSourcePath, item)
-	destPath := path.Join(p.LinkPrefix, itemSourcePath)
+func (p *Planner) CreateLink(pkgName, item string) {
 	task := CreateLink{
 		Action: "link",
 		Path:   item,
-		Dest:   destPath,
+		Dest:   path.Join(p.LinkPrefix, pkgName, item),
 	}
 	p.Plan = append(p.Plan, task)
+
 }
 
 type CreateLink struct {
