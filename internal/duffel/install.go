@@ -6,24 +6,19 @@ import (
 	"path/filepath"
 )
 
-type Installer struct {
-	FS      FS
-	Source  string
-	Planner *Planner
-}
-
-func (i *Installer) Plan(pkgs []string) error {
+func PlanInstallPackages(fsys FS, planner *Planner, source string, pkgs []string) error {
 	for _, pkg := range pkgs {
-		pkgDir := path.Join(i.Source, pkg)
-		err := fs.WalkDir(i.FS, pkgDir, PlanInstallPackage(pkgDir, pkg, i.Planner))
+		pkgDir := path.Join(source, pkg)
+		err := fs.WalkDir(fsys, pkgDir, PlanInstallPackage(planner, pkgDir, pkg))
 		if err != nil {
 			return err
 		}
 	}
+
 	return nil
 }
 
-func PlanInstallPackage(pkgDir string, pkg string, planner *Planner) fs.WalkDirFunc {
+func PlanInstallPackage(planner *Planner, pkgDir string, pkg string) fs.WalkDirFunc {
 	return func(dir string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err

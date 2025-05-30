@@ -14,9 +14,8 @@ func Execute(r *Request) error {
 		LinkPrefix: linkPrefix,
 		Plan:       Plan{Target: r.Target},
 	}
-	installer := &Installer{FS: r.FS, Source: r.Source, Planner: planner}
 
-	err = installer.Plan(r.Pkgs)
+	err = PlanInstallPackages(r.FS, planner, r.Source, r.Pkgs)
 
 	plan := planner.Plan
 
