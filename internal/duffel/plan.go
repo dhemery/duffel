@@ -2,7 +2,6 @@ package duffel
 
 import (
 	"path"
-	"path/filepath"
 )
 
 type Task interface {
@@ -26,18 +25,6 @@ func (p *Plan) Execute(fsys FS) error {
 type Planner struct {
 	LinkPrefix string
 	Plan       Plan
-}
-
-func NewPlanner(source, target string) (*Planner, error) {
-	linkPrefix, err := filepath.Rel(target, source)
-	if err != nil {
-		return nil, err
-	}
-	p := &Planner{
-		LinkPrefix: linkPrefix,
-	}
-	p.Plan.Target = target
-	return p, nil
 }
 
 func (p *Planner) CreateLink(pkgName, item string) {

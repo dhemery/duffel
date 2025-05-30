@@ -3,13 +3,14 @@ package files
 import (
 	"errors"
 	"io/fs"
-	"os"
 	"path/filepath"
 	"testing"
+
+	"github.com/dhemery/duffel/internal/testfs"
 )
 
 func TestLstat(t *testing.T) {
-	must := Must(t)
+	must := testfs.Must(t)
 	root := filepath.Join(t.TempDir(), "root")
 	must.MkdirAll(filepath.Join(root, "sub/dir"), 0o755)
 	must.WriteFile(filepath.Join(root, "sub/file"), []byte{}, 0o644)
@@ -48,7 +49,7 @@ func TestLstat(t *testing.T) {
 }
 
 func TestMkdir(t *testing.T) {
-	must := Must(t)
+	must := testfs.Must(t)
 	root := filepath.Join(t.TempDir(), "root")
 	f := DirFS(root)
 
@@ -80,7 +81,7 @@ func TestMkdir(t *testing.T) {
 }
 
 func TestReadDir(t *testing.T) {
-	must := Must(t)
+	must := testfs.Must(t)
 	root := filepath.Join(t.TempDir(), "root")
 	dirPerm := fs.FileMode(0o755)
 	must.MkdirAll(filepath.Join(root, "sub/dir"), dirPerm)
@@ -127,7 +128,7 @@ func TestReadDir(t *testing.T) {
 }
 
 func TestSymlink(t *testing.T) {
-	must := Must(t)
+	must := testfs.Must(t)
 	root := filepath.Join(t.TempDir(), "root")
 	must.MkdirAll(filepath.Join(root, "sub"), 0o755)
 
@@ -187,73 +188,5 @@ func assertEntryMode(t *testing.T, entry fs.DirEntry, wantMode fs.FileMode) {
 	if gotMode != wantMode {
 		t.Errorf("%q want mode %O, got %O",
 			fs.FormatDirEntry(entry), wantMode, gotMode)
-	}
-}
-
-// Must returns a helper whose methods wrap file system functions
-// and report errors to t as fatal errors.
-func Must(t *testing.T) must {
-	return must{t}
-}
-
-type must struct {
-	*testing.T
-}
-
-func (m must) MkdirAll(dir string, perm fs.FileMode) {
-	m.Helper()
-	if err := os.MkdirAll(dir, perm); err != nil {
-		m.Fatal("must mkdir all", err)
-	}
-}
-
-func (m must) Readlink(path string) string {
-	m.Helper()
-	item, err := os.Lstat(path)
-	if err != nil {
-		m.Fatal("must read link", err)
-	}
-
-	gotType := item.Mode().Type()
-	if gotType != fs.ModeSymlink {
-		m.Fatalf("must read link: %q want symlink, got %s", path, gotType)
-	}
-
-	gotDest, err := os.Readlink(path)
-	if err != nil {
-		m.Fatal("must read link", err)
-	}
-	return gotDest
-}
-
-func (m must) Lstat(path string) fs.FileInfo {
-	m.Helper()
-	e, err := os.Lstat(path)
-	if err != nil {
-		m.Fatal("must lstat", err)
-	}
-	return e
-}
-
-func (m must) ReadDir(name string) []fs.DirEntry {
-	m.Helper()
-	ee, err := os.ReadDir(name)
-	if err != nil {
-		m.Fatal("must read dir", err)
-	}
-	return ee
-}
-
-func (m must) Symlink(oldname, newname string) {
-	m.Helper()
-	if err := os.Symlink(oldname, newname); err != nil {
-		m.Fatal("must symlink", err)
-	}
-}
-
-func (m must) WriteFile(path string, data []byte, perm fs.FileMode) {
-	m.Helper()
-	if err := os.WriteFile(path, data, perm); err != nil {
-		m.Fatal("must write file", err)
 	}
 }
