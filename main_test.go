@@ -26,74 +26,49 @@ func TestMain(m *testing.M) {
 	os.Exit(m.Run())
 }
 
-type testDuffelData struct {
-	t *testing.T
-	*exec.Cmd
-	stdout bytes.Buffer
-	stderr bytes.Buffer
-}
-
-func (td *testDuffelData) DumpIfTestFails() {
-	if td.t.Failed() {
-		td.t.Logf("stdout: %q", td.stdout.String())
-		td.t.Logf("stderr: %q", td.stderr.String())
-	}
-}
-
-func testDuffel(t *testing.T, dir string, args ...string) *testDuffelData {
-	cmd := exec.Command(os.Args[0], args...)
-	td := testDuffelData{t: t, Cmd: cmd}
-	cmd.Dir = dir
-	cmd.Stdout = &td.stdout
-	cmd.Stderr = &td.stderr
-	return &td
-}
-
-type dirOptTest struct {
-	wd        string // The working directory in which duffel is run.
-	sourceOpt string // The value for the -source option.
-	targetOpt string // The value for the -target option.
-	wantDest  string // The desired destination for the target link.
-}
-
-const (
-	pkgName       = "pkg"
-	itemName      = "pkgItem"
-	defaultSource = "."
-	defaultTarget = ".."
-)
-
-var dirOptTests = map[string]dirOptTest{
-	"Default source and target": {
-		wd:        "home/user/wd",
-		sourceOpt: "", // home/user/wd
-		targetOpt: "", // home/user
-		wantDest:  filepath.Join("wd", pkgName, itemName),
-	},
-	"Default target, given source": {
-		wd:        "home/user/target/wd",
-		sourceOpt: "../../source", // home/user/source
-		targetOpt: "",             // home/user/target
-		wantDest:  filepath.Join("../source", pkgName, itemName),
-	},
-	"Default source, given target": {
-		wd:        "home/user/wd",
-		sourceOpt: "",          // home/user/source
-		targetOpt: "../target", // home/user/target
-		wantDest:  filepath.Join("../wd", pkgName, itemName),
-	},
-	"Given source and target": {
-		wd:        "home/user/wd",
-		sourceOpt: "../source", // home/user/source
-		targetOpt: "../target", // home/user/target
-		wantDest:  filepath.Join("../source", pkgName, itemName),
-	},
-}
-
 // TestDirOptions tests how the duffel command maps the -source and -target options
 // to file system entries.
 func TestDirOptions(t *testing.T) {
-	for name, test := range dirOptTests {
+	const (
+		pkgName       = "pkg"
+		itemName      = "pkgItem"
+		defaultSource = "."
+		defaultTarget = ".."
+	)
+
+	tests := map[string]struct {
+		wd        string // The working directory in which duffel is run.
+		sourceOpt string // The value for the -source option.
+		targetOpt string // The value for the -target option.
+		wantDest  string // The desired destination for the target link.
+	}{
+		"Default source and target": {
+			wd:        "home/user/wd",
+			sourceOpt: "", // home/user/wd
+			targetOpt: "", // home/user
+			wantDest:  filepath.Join("wd", pkgName, itemName),
+		},
+		"Default target, given source": {
+			wd:        "home/user/target/wd",
+			sourceOpt: "../../source", // home/user/source
+			targetOpt: "",             // home/user/target
+			wantDest:  filepath.Join("../source", pkgName, itemName),
+		},
+		"Default source, given target": {
+			wd:        "home/user/wd",
+			sourceOpt: "",          // home/user/source
+			targetOpt: "../target", // home/user/target
+			wantDest:  filepath.Join("../wd", pkgName, itemName),
+		},
+		"Given source and target": {
+			wd:        "home/user/wd",
+			sourceOpt: "../source", // home/user/source
+			targetOpt: "../target", // home/user/target
+			wantDest:  filepath.Join("../source", pkgName, itemName),
+		},
+	}
+
+	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			tmpDir := t.TempDir()
 			wd := filepath.Join(tmpDir, test.wd)
@@ -197,4 +172,27 @@ func TestDryRun(t *testing.T) {
 	if gotDest != wantDest {
 		t.Errorf("want dest %q, got %q", wantDest, gotDest)
 	}
+}
+
+type testDuffelData struct {
+	t *testing.T
+	*exec.Cmd
+	stdout bytes.Buffer
+	stderr bytes.Buffer
+}
+
+func (td *testDuffelData) DumpIfTestFails() {
+	if td.t.Failed() {
+		td.t.Logf("stdout: %q", td.stdout.String())
+		td.t.Logf("stderr: %q", td.stderr.String())
+	}
+}
+
+func testDuffel(t *testing.T, dir string, args ...string) *testDuffelData {
+	cmd := exec.Command(os.Args[0], args...)
+	td := testDuffelData{t: t, Cmd: cmd}
+	cmd.Dir = dir
+	cmd.Stdout = &td.stdout
+	cmd.Stderr = &td.stderr
+	return &td
 }
