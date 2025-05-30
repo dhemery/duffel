@@ -35,8 +35,8 @@ type testDuffelData struct {
 
 func (td *testDuffelData) DumpIfTestFails() {
 	if td.t.Failed() {
-		td.t.Logf("stdout: %v", td.stdout)
-		td.t.Logf("stderr: %v", td.stderr)
+		td.t.Logf("stdout: %q", td.stdout.String())
+		td.t.Logf("stderr: %q", td.stderr.String())
 	}
 }
 
