@@ -8,12 +8,13 @@ import (
 
 type Installer struct {
 	FS      FS
+	Source  string
 	Planner *Planner
 }
 
 func (i *Installer) PlanPackages(pkgs []string) error {
 	for _, pkg := range pkgs {
-		pkgDir := path.Join(i.Planner.Source, pkg)
+		pkgDir := path.Join(i.Source, pkg)
 		err := fs.WalkDir(i.FS, pkgDir, func(dir string, d fs.DirEntry, err error) error {
 			if d == nil {
 				return err

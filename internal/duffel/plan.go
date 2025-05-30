@@ -2,17 +2,21 @@ package duffel
 
 import (
 	"path"
+	"path/filepath"
 )
 
 type Task interface {
 	Execute(fsys FS, target string) error
 }
 
-type Plan []Task
+type Plan struct {
+	Target string
+	Tasks  []Task
+}
 
-func (p *Plan) Execute(fsys FS, target string) error {
-	for _, task := range *p {
-		if err := task.Execute(fsys, target); err != nil {
+func (p *Plan) Execute(fsys FS) error {
+	for _, task := range p.Tasks {
+		if err := task.Execute(fsys, p.Target); err != nil {
 			return err
 		}
 	}
@@ -20,10 +24,20 @@ func (p *Plan) Execute(fsys FS, target string) error {
 }
 
 type Planner struct {
-	Target     string
-	Source     string
 	LinkPrefix string
 	Plan       Plan
+}
+
+func NewPlanner(source, target string) (*Planner, error) {
+	linkPrefix, err := filepath.Rel(target, source)
+	if err != nil {
+		return nil, err
+	}
+	p := &Planner{
+		LinkPrefix: linkPrefix,
+	}
+	p.Plan.Target = target
+	return p, nil
 }
 
 func (p *Planner) CreateLink(pkgName, item string) {
@@ -32,8 +46,7 @@ func (p *Planner) CreateLink(pkgName, item string) {
 		Path:   item,
 		Dest:   path.Join(p.LinkPrefix, pkgName, item),
 	}
-	p.Plan = append(p.Plan, task)
-
+	p.Plan.Tasks = append(p.Plan.Tasks, task)
 }
 
 type CreateLink struct {

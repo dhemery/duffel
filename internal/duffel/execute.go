@@ -2,22 +2,16 @@ package duffel
 
 import (
 	"encoding/json"
-	"fmt"
-	"path/filepath"
 )
 
 func Execute(r *Request) error {
-	linkPrefix, err := filepath.Rel(r.Target, r.Source)
+	planner, err := NewPlanner(r.Source, r.Target)
 	if err != nil {
-		return fmt.Errorf("making source link dest: %w", err)
-	}
-	planner := &Planner{
-		Target:     r.Target,
-		Source:     r.Source,
-		LinkPrefix: linkPrefix,
+		return err
 	}
 	installer := &Installer{
 		FS:      r.FS,
+		Source:  r.Source,
 		Planner: planner,
 	}
 	err = installer.PlanPackages(r.Pkgs)
@@ -30,5 +24,5 @@ func Execute(r *Request) error {
 	if err != nil {
 		return err
 	}
-	return plan.Execute(r.FS, r.Target)
+	return plan.Execute(r.FS)
 }

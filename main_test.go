@@ -148,9 +148,14 @@ func TestDryRun(t *testing.T) {
 	// default source (.) and target (..)
 	td := testDuffel(sourceDir, "-n", "pkg")
 
+	defer func() {
+		if t.Failed() {
+			t.Log("stdout:", td.stdout.String())
+			t.Log("stderr:", td.stderr.String())
+		}
+	}()
 	if err := td.Run(); err != nil {
-		t.Error(err)
-		return
+		t.Fatal(err)
 	}
 
 	targetItemPath := filepath.Join(targetDir, "pkgItem")
@@ -162,16 +167,21 @@ func TestDryRun(t *testing.T) {
 		t.Error("created target item:", fs.FormatFileInfo(info))
 	}
 
-	var plan []map[string]string
-	json.Unmarshal(td.stdout.Bytes(), &plan)
-	wantDest, _ := filepath.Rel(targetDir, itemPath)
-	if len(plan) == 0 {
-		t.Error("empty plan")
-		t.Log("stdout:", td.stdout.String())
-		t.Log("stderr:", td.stderr.String())
-		return
+	type plan struct {
+		Target string
+		Tasks  []map[string]string
 	}
-	task := plan[0]
+	var p plan
+	err = json.Unmarshal(td.stdout.Bytes(), &p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	tasks := p.Tasks
+	wantDest, _ := filepath.Rel(targetDir, itemPath)
+	if len(p.Tasks) == 0 {
+		t.Fatal("empty plan")
+	}
+	task := tasks[0]
 
 	wantAction := "link"
 	gotAction := task["Action"]
@@ -188,10 +198,6 @@ func TestDryRun(t *testing.T) {
 	gotDest := task["Dest"]
 	if gotDest != wantDest {
 		t.Errorf("want dest %q, got %q", wantDest, gotDest)
-	}
-	if t.Failed() {
-		t.Log("stdout:", td.stdout.String())
-		t.Log("stderr:", td.stderr.String())
 	}
 }
 
