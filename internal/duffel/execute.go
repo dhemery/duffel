@@ -16,9 +16,10 @@ func Execute(r *Request) error {
 	}
 	installer := &Installer{FS: r.FS, Source: r.Source, Planner: planner}
 
-	err = installer.PlanPackages(r.Pkgs)
+	err = installer.Plan(r.Pkgs)
 
 	plan := planner.Plan
+
 	if r.DryRun {
 		enc := json.NewEncoder(r.Stdout)
 		return enc.Encode(plan)
