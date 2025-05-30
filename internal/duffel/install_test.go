@@ -90,10 +90,6 @@ func TestInstallDirErrors(t *testing.T) {
 		permNoWrite  = permNormal ^ permWrite
 		permNoSearch = permNormal ^ permSearch
 	)
-	type entry struct {
-		path string
-		mode fs.FileMode
-	}
 
 	tests := map[string]struct {
 		sourcePerm  fs.FileMode
