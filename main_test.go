@@ -10,6 +10,8 @@ import (
 	"os/exec"
 	"path/filepath"
 	"testing"
+
+	"github.com/dhemery/duffel/internal/testfs"
 )
 
 // TestMain executes the test binary as the duffel command if
@@ -25,14 +27,22 @@ func TestMain(m *testing.M) {
 }
 
 type testDuffelData struct {
+	t *testing.T
 	*exec.Cmd
 	stdout bytes.Buffer
 	stderr bytes.Buffer
 }
 
-func testDuffel(dir string, args ...string) *testDuffelData {
+func (td *testDuffelData) DumpIfTestFails() {
+	if td.t.Failed() {
+		td.t.Logf("stdout: %v", td.stdout)
+		td.t.Logf("stderr: %v", td.stderr)
+	}
+}
+
+func testDuffel(t *testing.T, dir string, args ...string) *testDuffelData {
 	cmd := exec.Command(os.Args[0], args...)
-	td := testDuffelData{Cmd: cmd}
+	td := testDuffelData{t: t, Cmd: cmd}
 	cmd.Dir = dir
 	cmd.Stdout = &td.stdout
 	cmd.Stderr = &td.stderr
@@ -91,11 +101,10 @@ func TestDirOptions(t *testing.T) {
 			targetDir := filepath.Join(wd, cmp.Or(test.targetOpt, defaultTarget))
 			itemPath := filepath.Join(sourceDir, pkgName, itemName)
 
-			// Making itemPath necessarily makes sourceDir
-			if err := mkAllDirs(wd, itemPath, targetDir); err != nil {
-				t.Error(err)
-				return
-			}
+			must := testfs.Must(t)
+			must.MkdirAll(wd, 0o755)
+			must.MkdirAll(targetDir, 0o755)
+			must.MkdirAll(itemPath, 0o755) // Also necessarily makes sourceDir
 
 			args := []string{}
 			if test.sourceOpt != "" {
@@ -106,23 +115,17 @@ func TestDirOptions(t *testing.T) {
 			}
 			args = append(args, pkgName)
 
-			td := testDuffel(wd, args...)
-
-			wantTargetPath := filepath.Join(targetDir, itemName)
+			td := testDuffel(t, wd, args...)
+			defer td.DumpIfTestFails()
 
 			if err := td.Run(); err != nil {
-				t.Error(err)
-				if info, err := os.Lstat(wantTargetPath); err == nil {
-					t.Log(wantTargetPath, fs.FormatFileInfo(info))
-				}
-				t.Log("stdout:", td.stdout.String())
-				t.Log("stderr:", td.stderr.String())
-				return
+				t.Fatal(err)
 			}
 
-			gotDest, err := os.Readlink(wantTargetPath)
+			installedItemPath := filepath.Join(targetDir, itemName)
+			gotDest, err := os.Readlink(installedItemPath)
 			if err != nil {
-				t.Error(err)
+				t.Fatal(err)
 			}
 
 			if gotDest != test.wantDest {
@@ -141,19 +144,14 @@ func TestDryRun(t *testing.T) {
 	pkgPath := filepath.Join(sourceDir, pkgName)
 	itemPath := filepath.Join(pkgPath, itemName)
 
+	must := testfs.Must(t)
 	// Also creates target and source, which are ancestors
-	if err := os.MkdirAll(itemPath, 0o755); err != nil {
-	}
+	must.MkdirAll(itemPath, 0o755)
 
 	// default source (.) and target (..)
-	td := testDuffel(sourceDir, "-n", "pkg")
+	td := testDuffel(t, sourceDir, "-n", "pkg")
+	defer td.DumpIfTestFails()
 
-	defer func() {
-		if t.Failed() {
-			t.Log("stdout:", td.stdout.String())
-			t.Log("stderr:", td.stderr.String())
-		}
-	}()
 	if err := td.Run(); err != nil {
 		t.Fatal(err)
 	}
@@ -167,45 +165,36 @@ func TestDryRun(t *testing.T) {
 		t.Error("created target item:", fs.FormatFileInfo(info))
 	}
 
-	type plan struct {
+	var plan struct {
 		Target string
 		Tasks  []map[string]string
 	}
-	var p plan
-	err = json.Unmarshal(td.stdout.Bytes(), &p)
+	err = json.Unmarshal(td.stdout.Bytes(), &plan)
 	if err != nil {
 		t.Fatal(err)
 	}
-	tasks := p.Tasks
-	wantDest, _ := filepath.Rel(targetDir, itemPath)
-	if len(p.Tasks) == 0 {
-		t.Fatal("empty plan")
+
+	tasks := plan.Tasks
+	if len(plan.Tasks) == 0 {
+		t.Fatal("no tasks planned")
 	}
 	task := tasks[0]
 
-	wantAction := "link"
 	gotAction := task["Action"]
+	wantAction := "link"
 	if gotAction != wantAction {
 		t.Errorf("want action %q, got, %q", wantAction, gotAction)
 	}
 
-	wantPath := itemName
 	gotPath := task["Path"]
+	wantPath := itemName
 	if gotPath != wantPath {
 		t.Errorf("want path %q, got %q", wantPath, gotPath)
 	}
 
 	gotDest := task["Dest"]
+	wantDest, _ := filepath.Rel(targetDir, itemPath)
 	if gotDest != wantDest {
 		t.Errorf("want dest %q, got %q", wantDest, gotDest)
 	}
-}
-
-func mkAllDirs(paths ...string) error {
-	for _, p := range paths {
-		if err := os.MkdirAll(p, 0o755); err != nil {
-			return err
-		}
-	}
-	return nil
 }
