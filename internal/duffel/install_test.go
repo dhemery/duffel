@@ -31,7 +31,29 @@ func (d dirEntry) Type() fs.FileMode {
 	return d.mode & fs.ModeType
 }
 
-func TestInstallVisitNewItem(t *testing.T) {
+func TestInstallVisitPkgDir(t *testing.T) {
+	const linkPrefix = "../source" // Prepended by the planner onto each link dest
+	const pkgName = "pkg"
+
+	planner := &Planner{LinkPrefix: linkPrefix}
+
+	entry := dirEntry{"pkg", 0o755, nil} // Dir
+	pkgDir := path.Join("path/to/source", pkgName)
+
+	visit := PlanInstallPackage(planner, pkgDir, pkgName)
+
+	err := visit(pkgDir, entry, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	gotTasks := planner.Plan.Tasks
+	if len(gotTasks) != 0 {
+		t.Fatalf("want 0 tasks, got %d: %#v", len(gotTasks), gotTasks)
+	}
+}
+
+func TestInstallVisitItem(t *testing.T) {
 	const linkPrefix = "../source" // Prepended by the planner onto each link dest
 	const pkgName = "pkg"
 	const itemName = "item"
@@ -49,9 +71,9 @@ func TestInstallVisitNewItem(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	tasks := planner.Plan.Tasks
-	if len(tasks) < 1 {
-		t.Fatal("want 1 task, got", len(tasks))
+	gotTasks := planner.Plan.Tasks
+	if len(gotTasks) != 1 {
+		t.Fatalf("want 1 task, got %d: %#v", len(gotTasks), gotTasks)
 	}
 
 	wantTask := CreateLink{
@@ -59,7 +81,7 @@ func TestInstallVisitNewItem(t *testing.T) {
 		Path:   itemName,
 		Dest:   path.Join(linkPrefix, pkgName, itemName),
 	}
-	gotTask := tasks[0]
+	gotTask := gotTasks[0]
 	if gotTask != wantTask {
 		t.Errorf("want task %#v, got %#v", wantTask, gotTask)
 	}
