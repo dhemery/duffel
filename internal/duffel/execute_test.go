@@ -13,59 +13,55 @@ import (
 
 func TestExecuteEmptyTargetNoConflictingPackageItems(t *testing.T) {
 	const (
-		source     = "home/user/source"
-		target     = "home/user/target"
+		source = "home/user/source"
+		target = "home/user/target"
+		// Want each installed link to start with the relative path from target to source
+		wantLinkPrefix = "../source"
 	)
 	items := []struct {
-		source   string
-		target   string
-		wantDest string
-		info     *fstest.MapFile
+		source string          // path from source to package item
+		file   *fstest.MapFile // item file
+		target string          // desired path from target to installed item
 	}{
 		// pkg1 items
 		{
-			source:   "home/user/source/pkg1/dirItem1",
-			target:   "home/user/target/dirItem1",
-			wantDest: "../source/pkg1/dirItem1",
-			info:     testfs.DirEntry(0o755),
+			source: "pkg1/dirItem1",
+			file:   testfs.DirEntry(0o755),
+			target: "dirItem1",
 		},
 		{
-			source:   "home/user/source/pkg1/fileItem1",
-			target:   "home/user/target/fileItem1",
-			wantDest: "../source/pkg1/fileItem1",
-			info:     testfs.FileEntry("ignored content", 0o644),
+			source: "pkg1/fileItem1",
+			file:   testfs.FileEntry("fileItem1 content", 0o644),
+			target: "fileItem1",
 		},
 		{
-			source:   "home/user/source/pkg1/linkItem1",
-			target:   "home/user/target/linkItem1",
-			wantDest: "../source/pkg1/linkItem1",
-			info:     testfs.LinkEntry("ignored/link/dest1"),
+			source: "pkg1/linkItem1",
+			file:   testfs.LinkEntry("linkItem1/dest"),
+			target: "linkItem1",
 		},
 		// pkg2 items
 		{
-			source:   "home/user/source/pkg2/dirItem2",
-			target:   "home/user/target/dirItem2",
-			wantDest: "../source/pkg2/dirItem2",
-			info:     testfs.DirEntry(0o755),
+			source: "pkg2/dirItem2",
+			file:   testfs.DirEntry(0o755),
+			target: "dirItem2",
 		},
 		{
-			source:   "home/user/source/pkg2/fileItem2",
-			target:   "home/user/target/fileItem2",
-			wantDest: "../source/pkg2/fileItem2",
-			info:     testfs.FileEntry("ignored content", 0o644),
+			source: "pkg2/fileItem2",
+			file:   testfs.FileEntry("fileItem2 content", 0o644),
+			target: "fileItem2",
 		},
 		{
-			source:   "home/user/source/pkg2/linkItem2",
-			target:   "home/user/target/linkItem2",
-			wantDest: "../source/pkg2/linkItem2",
-			info:     testfs.LinkEntry("ignored/link/dest2"),
+			source: "pkg2/linkItem2",
+			file:   testfs.LinkEntry("linkItem2/dest"),
+			target: "linkItem2",
 		},
 	}
 
 	files := testfs.New()
 	files.M[target] = testfs.DirEntry(0o755)
 	for _, item := range items {
-		files.M[item.source] = item.info
+		source := path.Join(source, item.source)
+		files.M[source] = item.file
 	}
 
 	req := &Request{
@@ -82,19 +78,28 @@ func TestExecuteEmptyTargetNoConflictingPackageItems(t *testing.T) {
 	}
 
 	for _, item := range items {
-		installed, ok := files.M[item.target]
+		wantTargetPath := path.Join(target, item.target)
+		gotFile, ok := files.M[wantTargetPath]
 		if !ok {
-			t.Errorf("%q not installed:", item.target)
+			t.Error("not installed:", wantTargetPath)
 			continue
 		}
+
 		wantMode := fs.ModeSymlink
-		if installed.Mode != wantMode {
-			t.Errorf("%q want mode %s, got %s", item.target, wantMode, installed.Mode)
+		gotMode := gotFile.Mode
+		if gotMode != wantMode {
+			t.Errorf("%q want mode %s, got %s", wantTargetPath, wantMode, gotMode)
 		}
-		gotDest := string(installed.Data)
-		if gotDest != item.wantDest {
-			t.Errorf("%q want dest %s, got %s", item.target, item.wantDest, gotDest)
+
+		wantDest := path.Join(wantLinkPrefix, item.source)
+		gotDest := string(gotFile.Data)
+		if gotDest != wantDest {
+			t.Errorf("%q want dest %s, got %s", wantTargetPath, wantDest, gotDest)
 		}
+	}
+
+	if t.Failed() {
+		t.Log("files:", files)
 	}
 }
 
