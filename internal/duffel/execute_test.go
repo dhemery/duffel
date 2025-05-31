@@ -11,11 +11,10 @@ import (
 	"github.com/dhemery/duffel/internal/testfs"
 )
 
-func TestInstallFreshTargetOnePackage(t *testing.T) {
+func TestExecuteEmptyTargetNoConflictingPackageItems(t *testing.T) {
 	const (
-		pkgName = "pkg"
-		source  = "home/user/source"
-		target  = "home/user/target"
+		source     = "home/user/source"
+		target     = "home/user/target"
 	)
 	items := []struct {
 		source   string
@@ -23,23 +22,43 @@ func TestInstallFreshTargetOnePackage(t *testing.T) {
 		wantDest string
 		info     *fstest.MapFile
 	}{
+		// pkg1 items
 		{
-			source:   "home/user/source/pkg/dirItem",
-			target:   "home/user/target/dirItem",
-			wantDest: "../source/pkg/dirItem",
+			source:   "home/user/source/pkg1/dirItem1",
+			target:   "home/user/target/dirItem1",
+			wantDest: "../source/pkg1/dirItem1",
 			info:     testfs.DirEntry(0o755),
 		},
 		{
-			source:   "home/user/source/pkg/fileItem",
-			target:   "home/user/target/fileItem",
-			wantDest: "../source/pkg/fileItem",
+			source:   "home/user/source/pkg1/fileItem1",
+			target:   "home/user/target/fileItem1",
+			wantDest: "../source/pkg1/fileItem1",
 			info:     testfs.FileEntry("ignored content", 0o644),
 		},
 		{
-			source:   "home/user/source/pkg/linkItem",
-			target:   "home/user/target/linkItem",
-			wantDest: "../source/pkg/linkItem",
-			info:     testfs.LinkEntry("ignored/link/dest"),
+			source:   "home/user/source/pkg1/linkItem1",
+			target:   "home/user/target/linkItem1",
+			wantDest: "../source/pkg1/linkItem1",
+			info:     testfs.LinkEntry("ignored/link/dest1"),
+		},
+		// pkg2 items
+		{
+			source:   "home/user/source/pkg2/dirItem2",
+			target:   "home/user/target/dirItem2",
+			wantDest: "../source/pkg2/dirItem2",
+			info:     testfs.DirEntry(0o755),
+		},
+		{
+			source:   "home/user/source/pkg2/fileItem2",
+			target:   "home/user/target/fileItem2",
+			wantDest: "../source/pkg2/fileItem2",
+			info:     testfs.FileEntry("ignored content", 0o644),
+		},
+		{
+			source:   "home/user/source/pkg2/linkItem2",
+			target:   "home/user/target/linkItem2",
+			wantDest: "../source/pkg2/linkItem2",
+			info:     testfs.LinkEntry("ignored/link/dest2"),
 		},
 	}
 
@@ -54,7 +73,7 @@ func TestInstallFreshTargetOnePackage(t *testing.T) {
 		Stdout: &bytes.Buffer{},
 		Source: source,
 		Target: target,
-		Pkgs:   []string{pkgName},
+		Pkgs:   []string{"pkg1", "pkg2"},
 	}
 
 	err := Execute(req)
