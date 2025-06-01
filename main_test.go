@@ -30,8 +30,8 @@ func TestMain(m *testing.M) {
 // to file system entries.
 func TestDirOptions(t *testing.T) {
 	const (
-		pkgName       = "pkg"
-		itemName      = "pkgItem"
+		pkg           = "pkg"
+		item          = "item"
 		defaultSource = "."
 		defaultTarget = ".."
 	)
@@ -46,40 +46,40 @@ func TestDirOptions(t *testing.T) {
 			wd:        "home/user/wd",
 			sourceOpt: "", // home/user/wd
 			targetOpt: "", // home/user
-			wantDest:  filepath.Join("wd", pkgName, itemName),
+			wantDest:  filepath.Join("wd", pkg, item),
 		},
 		"Default target, given source": {
 			wd:        "home/user/target/wd",
 			sourceOpt: "../../source", // home/user/source
 			targetOpt: "",             // home/user/target
-			wantDest:  filepath.Join("../source", pkgName, itemName),
+			wantDest:  filepath.Join("../source", pkg, item),
 		},
 		"Default source, given target": {
 			wd:        "home/user/wd",
 			sourceOpt: "",          // home/user/source
 			targetOpt: "../target", // home/user/target
-			wantDest:  filepath.Join("../wd", pkgName, itemName),
+			wantDest:  filepath.Join("../wd", pkg, item),
 		},
 		"Given source and target": {
 			wd:        "home/user/wd",
 			sourceOpt: "../source", // home/user/source
 			targetOpt: "../target", // home/user/target
-			wantDest:  filepath.Join("../source", pkgName, itemName),
+			wantDest:  filepath.Join("../source", pkg, item),
 		},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			tmpDir := t.TempDir()
-			wd := filepath.Join(tmpDir, test.wd)
-			sourceDir := filepath.Join(wd, cmp.Or(test.sourceOpt, defaultSource))
-			targetDir := filepath.Join(wd, cmp.Or(test.targetOpt, defaultTarget))
-			itemPath := filepath.Join(sourceDir, pkgName, itemName)
+			root := t.TempDir()
+			wd := filepath.Join(root, test.wd)
+			absSource := filepath.Join(wd, cmp.Or(test.sourceOpt, defaultSource))
+			absTarget := filepath.Join(wd, cmp.Or(test.targetOpt, defaultTarget))
+			absSourcePkgItem := filepath.Join(absSource, pkg, item)
 
 			must := testfs.Must(t)
 			must.MkdirAll(wd, 0o755)
-			must.MkdirAll(targetDir, 0o755)
-			must.MkdirAll(itemPath, 0o755) // Also necessarily makes sourceDir
+			must.MkdirAll(absTarget, 0o755)
+			must.MkdirAll(absSourcePkgItem, 0o755) // Also necessarily makes sourceDir
 
 			args := []string{}
 			if test.sourceOpt != "" {
@@ -88,7 +88,7 @@ func TestDirOptions(t *testing.T) {
 			if test.targetOpt != "" {
 				args = append(args, "-target", test.targetOpt)
 			}
-			args = append(args, pkgName)
+			args = append(args, pkg)
 
 			td := testDuffel(t, wd, args...)
 			defer td.DumpIfTestFails()
@@ -97,8 +97,8 @@ func TestDirOptions(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			installedItemPath := filepath.Join(targetDir, itemName)
-			gotDest, err := os.Readlink(installedItemPath)
+			targetItem := filepath.Join(absTarget, item)
+			gotDest, err := os.Readlink(targetItem)
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -111,28 +111,28 @@ func TestDirOptions(t *testing.T) {
 }
 
 func TestDryRun(t *testing.T) {
-	tmpDir := t.TempDir()
-	pkgName := "pkg"
-	itemName := "pkgItem"
-	targetDir := filepath.Join(tmpDir, "home/user")
-	sourceDir := filepath.Join(targetDir, "source")
-	pkgPath := filepath.Join(sourceDir, pkgName)
-	itemPath := filepath.Join(pkgPath, itemName)
+	root := t.TempDir()
+	pkg := "pkg"
+	item := "item"
+	absTarget := filepath.Join(root, "home/user")
+	absSource := filepath.Join(absTarget, "source")
+	absSourcePkg := filepath.Join(absSource, pkg)
+	absSourcePkgItem := filepath.Join(absSourcePkg, item)
 
 	must := testfs.Must(t)
 	// Also creates target and source, which are ancestors
-	must.MkdirAll(itemPath, 0o755)
+	must.MkdirAll(absSourcePkgItem, 0o755)
 
 	// default source (.) and target (..)
-	td := testDuffel(t, sourceDir, "-n", "pkg")
+	td := testDuffel(t, absSource, "-n", "pkg")
 	defer td.DumpIfTestFails()
 
 	if err := td.Run(); err != nil {
 		t.Fatal(err)
 	}
 
-	targetItemPath := filepath.Join(targetDir, "pkgItem")
-	info, err := os.Stat(targetItemPath)
+	absTargetItem := filepath.Join(absTarget, item)
+	info, err := os.Stat(absTargetItem)
 	if !errors.Is(err, fs.ErrNotExist) {
 		t.Errorf("want error %q, got %v", fs.ErrNotExist, err)
 	}
@@ -162,13 +162,13 @@ func TestDryRun(t *testing.T) {
 	}
 
 	gotPath := task["Path"]
-	wantPath := itemName
+	wantPath := item
 	if gotPath != wantPath {
 		t.Errorf("want path %q, got %q", wantPath, gotPath)
 	}
 
 	gotDest := task["Dest"]
-	wantDest, _ := filepath.Rel(targetDir, itemPath)
+	wantDest, _ := filepath.Rel(absTarget, absSourcePkgItem)
 	if gotDest != wantDest {
 		t.Errorf("want dest %q, got %q", wantDest, gotDest)
 	}
