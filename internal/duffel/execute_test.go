@@ -196,9 +196,9 @@ func TestInstallDirErrors(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			files := testfs.New()
 			wd := "home/user"
-			packageName := "pkg"
+			pkg := "pkg"
 			absSource := path.Join(wd, "source")
-			absSourcePkg := path.Join(absSource, packageName)
+			absSourcePkg := path.Join(absSource, pkg)
 			absTarget := path.Join(wd, "target")
 			if test.packagePerm != doesNotExist {
 				sourcePkgItem := path.Join(absSourcePkg, "item")
@@ -217,7 +217,7 @@ func TestInstallDirErrors(t *testing.T) {
 				FS:     files,
 				Source: absSource,
 				Target: absTarget,
-				Pkgs:   []string{packageName},
+				Pkgs:   []string{pkg},
 			}
 
 			err := Execute(r)
