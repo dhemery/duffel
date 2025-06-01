@@ -124,10 +124,11 @@ func TestExecuteEmptyTargetWithConflictingPackageItems(t *testing.T) {
 		Pkgs:   []string{"pkg1", "pkg2"},
 	}
 
+	err := Execute(req)
+
 	wantErr := &Conflict{}
-	gotErr := Execute(req)
-	if !errors.Is(gotErr, wantErr) {
-		t.Errorf("want error %#v, got %#v", wantErr, gotErr)
+	if !errors.Is(err, wantErr) {
+		t.Errorf("want error %#v, got %#v", wantErr, err)
 	}
 
 	if t.Failed() {
@@ -219,9 +220,10 @@ func TestInstallDirErrors(t *testing.T) {
 				Pkgs:   []string{packageName},
 			}
 
-			gotError := Execute(r)
-			if !errors.Is(gotError, test.wantError) {
-				t.Errorf("want error %v, got %v", test.wantError, gotError)
+			err := Execute(r)
+
+			if !errors.Is(err, test.wantError) {
+				t.Errorf("want error %v, got %v", test.wantError, err)
 			}
 		})
 	}
