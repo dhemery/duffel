@@ -40,6 +40,7 @@ func TestInstallVisitInput(t *testing.T) {
 		item           = "item"
 		targetToSource = "target/to/source"
 	)
+	customError := errors.New("custom error for visit")
 
 	tests := map[string]struct {
 		walkPath  string
@@ -57,8 +58,8 @@ func TestInstallVisitInput(t *testing.T) {
 		"visit pkg dir with error": {
 			walkPath:  path.Join(source, pkg),
 			visitPath: path.Join(source, pkg),
-			visitErr:  fs.ErrExist,
-			wantErr:   fs.ErrExist,
+			visitErr:  customError,
+			wantErr:   customError,
 			wantTasks: nil,
 		},
 		"visit item": {
@@ -77,8 +78,8 @@ func TestInstallVisitInput(t *testing.T) {
 		"visit item with error": {
 			walkPath:  path.Join(source, pkg),
 			visitPath: path.Join(source, pkg, item),
-			visitErr:  fs.ErrExist,
-			wantErr:   fs.ErrExist,
+			visitErr:  customError,
+			wantErr:   customError,
 			wantTasks: nil,
 		},
 	}
