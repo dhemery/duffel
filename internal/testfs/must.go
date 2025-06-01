@@ -16,35 +16,35 @@ type must struct {
 	*testing.T
 }
 
-func (m must) MkdirAll(dir string, perm fs.FileMode) {
+func (m must) MkdirAll(name string, perm fs.FileMode) {
 	m.Helper()
-	if err := os.MkdirAll(dir, perm); err != nil {
+	if err := os.MkdirAll(name, perm); err != nil {
 		m.Fatal("must mkdir all", err)
 	}
 }
 
-func (m must) Readlink(path string) string {
+func (m must) Readlink(name string) string {
 	m.Helper()
-	item, err := os.Lstat(path)
+	item, err := os.Lstat(name)
 	if err != nil {
 		m.Fatal("must read link", err)
 	}
 
 	gotType := item.Mode().Type()
 	if gotType != fs.ModeSymlink {
-		m.Fatalf("must read link: %q want symlink, got %s", path, gotType)
+		m.Fatalf("must read link: %q want symlink, got %s", name, gotType)
 	}
 
-	gotDest, err := os.Readlink(path)
+	gotDest, err := os.Readlink(name)
 	if err != nil {
 		m.Fatal("must read link", err)
 	}
 	return gotDest
 }
 
-func (m must) Lstat(path string) fs.FileInfo {
+func (m must) Lstat(name string) fs.FileInfo {
 	m.Helper()
-	e, err := os.Lstat(path)
+	e, err := os.Lstat(name)
 	if err != nil {
 		m.Fatal("must lstat", err)
 	}
