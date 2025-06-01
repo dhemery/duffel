@@ -99,7 +99,39 @@ func TestExecuteEmptyTargetNoConflictingPackageItems(t *testing.T) {
 	}
 
 	if t.Failed() {
-		t.Log("files:", files)
+		t.Log("files:", files.M)
+	}
+}
+
+func TestExecuteEmptyTargetWithConflictingPackageItems(t *testing.T) {
+	const (
+		source = "home/user/source"
+		target = "home/user/target"
+	)
+
+	files := testfs.New()
+	files.M[target] = testfs.DirEntry(0o755)
+
+	// Conflict: pkg2/dirItem and pkg1/dirItem install to same target path
+	files.M[path.Join(source, "pkg1/dirItem")] = testfs.DirEntry(0o755)
+	files.M[path.Join(source, "pkg2/dirItem")] = testfs.DirEntry(0o755)
+
+	req := &Request{
+		FS:     files,
+		Stdout: &bytes.Buffer{},
+		Source: source,
+		Target: target,
+		Pkgs:   []string{"pkg1", "pkg2"},
+	}
+
+	wantErr := &Conflict{}
+	gotErr := Execute(req)
+	if !errors.Is(gotErr, wantErr) {
+		t.Errorf("want error %#v, got %#v", wantErr, gotErr)
+	}
+
+	if t.Failed() {
+		t.Log("files:", files.M)
 	}
 }
 

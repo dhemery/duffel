@@ -10,15 +10,11 @@ func Execute(r *Request) error {
 	if err != nil {
 		return err
 	}
-	planner := &Planner{
-		LinkPrefix: linkPrefix,
-		Plan:       Plan{Target: r.Target},
-	}
+	planner := NewPlanner(r.Target, linkPrefix)
 
 	err = PlanInstallPackages(r.FS, planner, r.Source, r.Pkgs)
 
 	plan := planner.Plan
-
 	if r.DryRun {
 		enc := json.NewEncoder(r.Stdout)
 		return enc.Encode(plan)

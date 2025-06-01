@@ -25,6 +25,20 @@ func (p *Plan) Execute(fsys FS) error {
 type Planner struct {
 	LinkPrefix string
 	Plan       Plan
+	Statuses   map[string]bool
+}
+
+func NewPlanner(target, linkPrefix string) *Planner {
+	return &Planner{
+		LinkPrefix: linkPrefix,
+		Plan:       Plan{Target: target},
+		Statuses:   map[string]bool{},
+	}
+}
+
+func (p *Planner) Exists(target string) bool {
+	_, ok := p.Statuses[target]
+	return ok
 }
 
 func (p *Planner) CreateLink(pkgName, item string) {
@@ -33,6 +47,7 @@ func (p *Planner) CreateLink(pkgName, item string) {
 		Path:   item,
 		Dest:   path.Join(p.LinkPrefix, pkgName, item),
 	}
+	p.Statuses[item] = true
 	p.Plan.Tasks = append(p.Plan.Tasks, task)
 }
 

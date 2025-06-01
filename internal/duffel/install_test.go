@@ -35,7 +35,7 @@ func (d dirEntry) Type() fs.FileMode {
 func TestInstallVisitPkgDir(t *testing.T) {
 	const pkgName = "pkg"
 
-	planner := &Planner{}
+	planner := NewPlanner("", "")
 	mode := fs.ModeDir | 0o755 // Dir
 	entry := dirEntry{pkgName, mode, nil}
 	pkgDir := path.Join("path/to/source", pkgName)
@@ -56,7 +56,7 @@ func TestInstallVisitPkgDir(t *testing.T) {
 func TestInstallVisitPkgDirWithError(t *testing.T) {
 	const pkgName = "pkg"
 
-	planner := &Planner{}
+	planner := NewPlanner("", "")
 	pkgDir := path.Join("path/to/source", pkgName)
 	givenErr := errors.New("custom error")
 
@@ -80,7 +80,7 @@ func TestInstallVisitItem(t *testing.T) {
 		itemName   = "item"
 	)
 
-	planner := &Planner{LinkPrefix: linkPrefix}
+	planner := NewPlanner("", linkPrefix)
 
 	mode := fs.FileMode(0o644) // Regular file
 	entry := dirEntry{itemName, mode, nil}
@@ -116,7 +116,7 @@ func TestInstallVisitItemWithError(t *testing.T) {
 		itemName = "item"
 	)
 
-	planner := &Planner{}
+	planner := NewPlanner("", "")
 
 	pkgDir := path.Join("path/to/source", pkgName)
 	itemPath := path.Join(pkgDir, itemName)

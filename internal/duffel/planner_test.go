@@ -10,7 +10,8 @@ func TestCreateLink(t *testing.T) {
 	item := "item"
 	linkPrefix := "../.."
 
-	planner := &Planner{LinkPrefix: linkPrefix}
+	planner := NewPlanner("", linkPrefix)
+
 	planner.CreateLink(pkg, item)
 
 	gotTasks := planner.Plan.Tasks
@@ -22,5 +23,25 @@ func TestCreateLink(t *testing.T) {
 	wantTask := CreateLink{Action: "link", Path: item, Dest: path.Join(linkPrefix, pkg, item)}
 	if gotTask != wantTask {
 		t.Fatalf("want task %#v, got %#v", wantTask, gotTask)
+	}
+}
+
+func TestTargetItemExists(t *testing.T) {
+	const (
+		pkg  = "pkg"
+		item = "item"
+	)
+	planner := NewPlanner("", "")
+
+	exists := planner.Exists(item)
+	if exists {
+		t.Errorf("before create link, %q exists want %t, got %t", item, !exists, exists)
+	}
+
+	planner.CreateLink(pkg, item)
+
+	exists = planner.Exists(item)
+	if !exists {
+		t.Errorf("after create link, %q exists want %t, got %t", item, !exists, exists)
 	}
 }

@@ -6,6 +6,12 @@ import (
 	"path/filepath"
 )
 
+type Conflict struct{}
+
+func (e *Conflict) Error() string {
+	return ""
+}
+
 func PlanInstallPackages(fsys FS, planner *Planner, source string, pkgs []string) error {
 	for _, pkg := range pkgs {
 		pkgDir := path.Join(source, pkg)
@@ -30,6 +36,9 @@ func PlanInstallPackage(planner *Planner, pkgDir string, pkg string) fs.WalkDirF
 		}
 
 		itemPath, _ := filepath.Rel(pkgDir, dir)
+		if planner.Exists(itemPath) {
+			return &Conflict{}
+		}
 		planner.CreateLink(pkg, itemPath)
 
 		return nil
