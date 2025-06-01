@@ -8,7 +8,7 @@ import (
 func TestCreateLink(t *testing.T) {
 	pkg := "pkg"
 	item := "item"
-	targetToSource := "../.."
+	targetToSource := "target/to/source"
 
 	planner := NewPlanner("", targetToSource)
 

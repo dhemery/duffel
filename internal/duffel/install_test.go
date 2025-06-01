@@ -4,6 +4,7 @@ import (
 	"errors"
 	"io/fs"
 	"path"
+	"slices"
 	"testing"
 )
 
@@ -32,114 +33,72 @@ func (d dirEntry) Type() fs.FileMode {
 	return d.mode & fs.ModeType
 }
 
-func TestInstallVisitPkgDir(t *testing.T) {
-	const (
-		pkg    = "pkg"
-		source = "path/to/source"
-	)
-
-	planner := NewPlanner("", "")
-	mode := fs.ModeDir | 0o755 // Dir
-	entry := dirEntry{pkg, mode, nil}
-	sourcePkg := path.Join(source, pkg)
-
-	visit := PlanInstallPackage(planner, sourcePkg, pkg)
-
-	err := visit(sourcePkg, entry, nil)
-	if err != nil {
-		t.Error(err)
-	}
-
-	gotTasks := planner.Plan.Tasks
-	if len(gotTasks) != 0 {
-		t.Fatalf("want 0 tasks, got %d: %#v", len(gotTasks), gotTasks)
-	}
-}
-
-func TestInstallVisitPkgDirWithError(t *testing.T) {
-	const (
-		pkg    = "pkg"
-		source = "path/to/source"
-	)
-
-	planner := NewPlanner("", "")
-	sourcePkg := path.Join(source, pkg)
-	givenErr := errors.New("custom error")
-
-	visit := PlanInstallPackage(planner, sourcePkg, pkg)
-
-	gotErr := visit(sourcePkg, nil, givenErr)
-	if !errors.Is(gotErr, givenErr) {
-		t.Errorf("want error %q, got %q", givenErr, gotErr)
-	}
-
-	gotTasks := planner.Plan.Tasks
-	if len(gotTasks) != 0 {
-		t.Fatalf("want 0 tasks, got %d: %#v", len(gotTasks), gotTasks)
-	}
-}
-
-func TestInstallVisitItem(t *testing.T) {
+func TestInstallVisitInput(t *testing.T) {
 	const (
 		source         = "path/to/source"
 		pkg            = "pkg"
 		item           = "item"
-		targetToSource = "../source" // Prepended by the planner onto each link dest
+		targetToSource = "target/to/source"
 	)
 
-	planner := NewPlanner("", targetToSource)
-
-	mode := fs.FileMode(0o644) // Regular file
-	entry := dirEntry{item, mode, nil}
-	sourcePkg := path.Join(source, pkg)
-	sourcePkgItem := path.Join(sourcePkg, item)
-
-	visit := PlanInstallPackage(planner, sourcePkg, pkg)
-
-	err := visit(sourcePkgItem, entry, nil)
-	if err != nil {
-		t.Fatal(err)
+	tests := map[string]struct {
+		walkPath  string
+		visitPath string
+		visitErr  error
+		wantTasks []Task
+		wantErr   error
+	}{
+		"visit pkg dir": {
+			walkPath:  path.Join(source, pkg),
+			visitPath: path.Join(source, pkg),
+			wantErr:   nil,
+			wantTasks: nil,
+		},
+		"visit pkg dir with error": {
+			walkPath:  path.Join(source, pkg),
+			visitPath: path.Join(source, pkg),
+			visitErr:  fs.ErrExist,
+			wantErr:   fs.ErrExist,
+			wantTasks: nil,
+		},
+		"visit item": {
+			walkPath:  path.Join(source, pkg),
+			visitPath: path.Join(source, pkg, item),
+			visitErr:  nil,
+			wantErr:   nil,
+			wantTasks: []Task{
+				CreateLink{
+					Item:   item,
+					Action: "link",
+					Dest:   path.Join(targetToSource, pkg, item),
+				},
+			},
+		},
+		"visit item with error": {
+			walkPath:  path.Join(source, pkg),
+			visitPath: path.Join(source, pkg, item),
+			visitErr:  fs.ErrExist,
+			wantErr:   fs.ErrExist,
+			wantTasks: nil,
+		},
 	}
 
-	gotTasks := planner.Plan.Tasks
-	if len(gotTasks) != 1 {
-		t.Fatalf("want 1 task, got %d: %#v", len(gotTasks), gotTasks)
-	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			planner := NewPlanner("", targetToSource)
 
-	wantTask := CreateLink{
-		Action: "link",
-		Item:   item,
-		Dest:   path.Join(targetToSource, pkg, item),
-	}
-	gotTask := gotTasks[0]
-	if gotTask != wantTask {
-		t.Errorf("want task %#v, got %#v", wantTask, gotTask)
-	}
-}
+			visit := PlanInstallPackage(planner, test.walkPath, pkg)
 
-func TestInstallVisitItemWithError(t *testing.T) {
-	const (
-		source         = "path/to/source"
-		pkg            = "pkg"
-		item           = "item"
-		targetToSource = "../source"
-	)
+			err := visit(test.visitPath, nil, test.visitErr)
 
-	planner := NewPlanner("", targetToSource)
+			if !errors.Is(err, test.wantErr) {
+				t.Errorf("want error %v, got %v", test.wantErr, err)
+			}
 
-	sourcePkg := path.Join(source, pkg)
-	sourcePkgItem := path.Join(sourcePkg, item)
-	givenErr := errors.New("custom error")
-
-	visit := PlanInstallPackage(planner, sourcePkg, pkg)
-
-	gotErr := visit(sourcePkgItem, nil, givenErr)
-	if !errors.Is(gotErr, givenErr) {
-		t.Errorf("want error %q, got %q", givenErr, gotErr)
-	}
-
-	gotTasks := planner.Plan.Tasks
-	if len(gotTasks) != 0 {
-		t.Fatalf("want 0 tasks, got %d: %#v", len(gotTasks), gotTasks)
+			gotTasks := planner.Plan.Tasks
+			if !slices.Equal(gotTasks, test.wantTasks) {
+				t.Errorf("want tasks %#v, got %#v", test.wantTasks, gotTasks)
+			}
+		})
 	}
 }

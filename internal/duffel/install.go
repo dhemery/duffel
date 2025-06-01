@@ -25,7 +25,7 @@ func PlanInstallPackages(fsys FS, planner *Planner, source string, pkgs []string
 }
 
 func PlanInstallPackage(planner *Planner, sourcePkg string, pkg string) fs.WalkDirFunc {
-	return func(sourcePkgItem string, entry fs.DirEntry, err error) error {
+	return func(sourcePkgItem string, _ fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
