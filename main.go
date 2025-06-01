@@ -13,34 +13,34 @@ import (
 
 func main() {
 	flags := flag.NewFlagSet("duffel", flag.ExitOnError)
-	dryRun := flags.Bool("n", false, "Print planned actions without executing them.")
-	source := flags.String("source", ".", "The source `dir`")
-	target := flags.String("target", "..", "The target `dir`")
+	dryRunOpt := flags.Bool("n", false, "Print planned actions without executing them.")
+	sourceOpt := flags.String("source", ".", "The source `dir`")
+	targetOpt := flags.String("target", "..", "The target `dir`")
 
 	flags.Parse(os.Args[1:])
 	root := "/"
 
 	fsys := files.DirFS(root)
 
-	absTarget, err := filepath.Abs(*target)
+	absTarget, err := filepath.Abs(*targetOpt)
 	if err != nil {
-		fatal(fmt.Errorf("making target absolute: %w", err))
+		fatal(fmt.Errorf("target: %w", err))
 	}
-	targetPath, _ := filepath.Rel(root, absTarget)
+	target, _ := filepath.Rel(root, absTarget)
 
-	absSource, err := filepath.Abs(*source)
+	absSource, err := filepath.Abs(*sourceOpt)
 	if err != nil {
-		fatal(fmt.Errorf("making source absolute: %w", err))
+		fatal(fmt.Errorf("source: %w", err))
 	}
-	sourcePath, _ := filepath.Rel(root, absSource)
+	source, _ := filepath.Rel(root, absSource)
 
 	req := &duffel.Request{
 		Stdout: os.Stdout,
 		FS:     fsys,
-		Source: sourcePath,
-		Target: targetPath,
+		Source: source,
+		Target: target,
 		Pkgs:   flags.Args(),
-		DryRun: *dryRun,
+		DryRun: *dryRunOpt,
 	}
 
 	err = duffel.Execute(req)
