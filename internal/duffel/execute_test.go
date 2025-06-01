@@ -13,55 +13,53 @@ import (
 
 func TestExecuteEmptyTargetNoConflictingPackageItems(t *testing.T) {
 	const (
-		source = "home/user/source"
-		target = "home/user/target"
-		// Want each installed link to start with the relative path from target to source
-		wantLinkPrefix = "../source"
+		source         = "home/user/source"
+		target         = "home/user/target"
+		targetToSource = "../source" // Relative path from target to source
 	)
-	items := []struct {
-		pkgItem string          // path from source to package item
-		file    *fstest.MapFile // item file
-		item    string          // desired path from target to installed item
+
+	pkgItems := map[string][]struct {
+		name  string
+		entry *fstest.MapFile
 	}{
-		// pkg1 items
-		{
-			pkgItem: "pkg1/dirItem1",
-			item:    "dirItem1",
-			file:    testfs.DirEntry(0o755),
+		"pkg1": {
+			{
+				name:  "dirItem1",
+				entry: testfs.DirEntry(0o755),
+			},
+			{
+				name:  "fileItem1",
+				entry: testfs.FileEntry("fileItem1 content", 0o644),
+			},
+			{
+				name:  "linkItem1",
+				entry: testfs.LinkEntry("linkItem1/dest"),
+			},
 		},
-		{
-			pkgItem: "pkg1/fileItem1",
-			item:    "fileItem1",
-			file:    testfs.FileEntry("fileItem1 content", 0o644),
-		},
-		{
-			pkgItem: "pkg1/linkItem1",
-			item:    "linkItem1",
-			file:    testfs.LinkEntry("linkItem1/dest"),
-		},
-		// pkg2 items
-		{
-			pkgItem: "pkg2/dirItem2",
-			item:    "dirItem2",
-			file:    testfs.DirEntry(0o755),
-		},
-		{
-			pkgItem: "pkg2/fileItem2",
-			item:    "fileItem2",
-			file:    testfs.FileEntry("fileItem2 content", 0o644),
-		},
-		{
-			pkgItem: "pkg2/linkItem2",
-			item:    "linkItem2",
-			file:    testfs.LinkEntry("linkItem2/dest"),
+		"pkg2": {
+			{
+				name:  "dirItem2",
+				entry: testfs.DirEntry(0o755),
+			},
+			{
+				name:  "fileItem2",
+				entry: testfs.FileEntry("fileItem2 content", 0o644),
+			},
+			{
+				name:  "linkItem2",
+				entry: testfs.LinkEntry("linkItem2/dest"),
+			},
 		},
 	}
 
 	fsys := testfs.New()
 	fsys.M[target] = testfs.DirEntry(0o755)
-	for _, item := range items {
-		source := path.Join(source, item.pkgItem)
-		fsys.M[source] = item.file
+	for pkg, items := range pkgItems {
+		sourcePkg := path.Join(source, pkg)
+		for _, item := range items {
+			sourcePkgItem := path.Join(sourcePkg, item.name)
+			fsys.M[sourcePkgItem] = item.entry
+		}
 	}
 
 	req := &Request{
@@ -77,24 +75,26 @@ func TestExecuteEmptyTargetNoConflictingPackageItems(t *testing.T) {
 		t.Error(err)
 	}
 
-	for _, item := range items {
-		wantTargetItem := path.Join(target, item.item)
-		gotFile, ok := fsys.M[wantTargetItem]
-		if !ok {
-			t.Error("not installed:", wantTargetItem)
-			continue
-		}
+	for pkg, items := range pkgItems {
+		for _, item := range items {
+			wantTargetItem := path.Join(target, item.name)
+			gotFile, ok := fsys.M[wantTargetItem]
+			if !ok {
+				t.Error("not installed:", wantTargetItem)
+				continue
+			}
 
-		wantMode := fs.ModeSymlink
-		gotMode := gotFile.Mode
-		if gotMode != wantMode {
-			t.Errorf("%q want mode %s, got %s", wantTargetItem, wantMode, gotMode)
-		}
+			wantMode := fs.ModeSymlink
+			gotMode := gotFile.Mode
+			if gotMode != wantMode {
+				t.Errorf("%q want mode %s, got %s", wantTargetItem, wantMode, gotMode)
+			}
 
-		wantDest := path.Join(wantLinkPrefix, item.pkgItem)
-		gotDest := string(gotFile.Data)
-		if gotDest != wantDest {
-			t.Errorf("%q want dest %s, got %s", wantTargetItem, wantDest, gotDest)
+			wantDest := path.Join(targetToSource, pkg, item.name)
+			gotDest := string(gotFile.Data)
+			if gotDest != wantDest {
+				t.Errorf("%q want dest %s, got %s", wantTargetItem, wantDest, gotDest)
+			}
 		}
 	}
 
