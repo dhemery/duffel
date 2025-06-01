@@ -23,16 +23,16 @@ func (p *Plan) Execute(fsys FS) error {
 }
 
 type Planner struct {
-	LinkPrefix string
-	Plan       Plan
-	Statuses   map[string]bool
+	TargetToSource string
+	Plan           Plan
+	Statuses       map[string]bool
 }
 
-func NewPlanner(target, linkPrefix string) *Planner {
+func NewPlanner(target, targetToSource string) *Planner {
 	return &Planner{
-		LinkPrefix: linkPrefix,
-		Plan:       Plan{Target: target},
-		Statuses:   map[string]bool{},
+		TargetToSource: targetToSource,
+		Plan:           Plan{Target: target},
+		Statuses:       map[string]bool{},
 	}
 }
 
@@ -41,11 +41,11 @@ func (p *Planner) Exists(target string) bool {
 	return ok
 }
 
-func (p *Planner) CreateLink(pkgName, item string) {
+func (p *Planner) CreateLink(pkg, item string) {
 	task := CreateLink{
 		Action: "link",
-		Path:   item,
-		Dest:   path.Join(p.LinkPrefix, pkgName, item),
+		Item:   item,
+		Dest:   path.Join(p.TargetToSource, pkg, item),
 	}
 	p.Statuses[item] = true
 	p.Plan.Tasks = append(p.Plan.Tasks, task)
@@ -53,10 +53,10 @@ func (p *Planner) CreateLink(pkgName, item string) {
 
 type CreateLink struct {
 	Action string
-	Path   string
+	Item   string
 	Dest   string
 }
 
 func (a CreateLink) Execute(fsys FS, target string) error {
-	return fsys.Symlink(a.Dest, path.Join(target, a.Path))
+	return fsys.Symlink(a.Dest, path.Join(target, a.Item))
 }

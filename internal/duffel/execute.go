@@ -6,11 +6,11 @@ import (
 )
 
 func Execute(r *Request) error {
-	linkPrefix, err := filepath.Rel(r.Target, r.Source)
+	targetToSource, err := filepath.Rel(r.Target, r.Source)
 	if err != nil {
 		return err
 	}
-	planner := NewPlanner(r.Target, linkPrefix)
+	planner := NewPlanner(r.Target, targetToSource)
 
 	err = PlanInstallPackages(r.FS, planner, r.Source, r.Pkgs)
 

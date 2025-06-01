@@ -155,16 +155,16 @@ func TestDryRun(t *testing.T) {
 	}
 	task := tasks[0]
 
+	gotItem := task["Item"]
+	wantItem := item
+	if gotItem != wantItem {
+		t.Errorf("want item %q, got %q", wantItem, gotItem)
+	}
+
 	gotAction := task["Action"]
 	wantAction := "link"
 	if gotAction != wantAction {
 		t.Errorf("want action %q, got, %q", wantAction, gotAction)
-	}
-
-	gotPath := task["Path"]
-	wantPath := item
-	if gotPath != wantPath {
-		t.Errorf("want path %q, got %q", wantPath, gotPath)
 	}
 
 	gotDest := task["Dest"]

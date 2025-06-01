@@ -33,16 +33,19 @@ func (d dirEntry) Type() fs.FileMode {
 }
 
 func TestInstallVisitPkgDir(t *testing.T) {
-	const pkgName = "pkg"
+	const (
+		pkg    = "pkg"
+		source = "path/to/source"
+	)
 
 	planner := NewPlanner("", "")
 	mode := fs.ModeDir | 0o755 // Dir
-	entry := dirEntry{pkgName, mode, nil}
-	pkgDir := path.Join("path/to/source", pkgName)
+	entry := dirEntry{pkg, mode, nil}
+	sourcePkg := path.Join(source, pkg)
 
-	visit := PlanInstallPackage(planner, pkgDir, pkgName)
+	visit := PlanInstallPackage(planner, sourcePkg, pkg)
 
-	err := visit(pkgDir, entry, nil)
+	err := visit(sourcePkg, entry, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -54,15 +57,18 @@ func TestInstallVisitPkgDir(t *testing.T) {
 }
 
 func TestInstallVisitPkgDirWithError(t *testing.T) {
-	const pkgName = "pkg"
+	const (
+		pkg    = "pkg"
+		source = "path/to/source"
+	)
 
 	planner := NewPlanner("", "")
-	pkgDir := path.Join("path/to/source", pkgName)
+	sourcePkg := path.Join(source, pkg)
 	givenErr := errors.New("custom error")
 
-	visit := PlanInstallPackage(planner, pkgDir, pkgName)
+	visit := PlanInstallPackage(planner, sourcePkg, pkg)
 
-	gotErr := visit(pkgDir, nil, givenErr)
+	gotErr := visit(sourcePkg, nil, givenErr)
 	if !errors.Is(gotErr, givenErr) {
 		t.Errorf("want error %q, got %q", givenErr, gotErr)
 	}
@@ -75,21 +81,22 @@ func TestInstallVisitPkgDirWithError(t *testing.T) {
 
 func TestInstallVisitItem(t *testing.T) {
 	const (
-		linkPrefix = "../source" // Prepended by the planner onto each link dest
-		pkgName    = "pkg"
-		itemName   = "item"
+		source         = "path/to/source"
+		pkg            = "pkg"
+		item           = "item"
+		targetToSource = "../source" // Prepended by the planner onto each link dest
 	)
 
-	planner := NewPlanner("", linkPrefix)
+	planner := NewPlanner("", targetToSource)
 
 	mode := fs.FileMode(0o644) // Regular file
-	entry := dirEntry{itemName, mode, nil}
-	pkgDir := path.Join("path/to/source", pkgName)
-	itemPath := path.Join(pkgDir, itemName)
+	entry := dirEntry{item, mode, nil}
+	sourcePkg := path.Join(source, pkg)
+	sourcePkgItem := path.Join(sourcePkg, item)
 
-	visit := PlanInstallPackage(planner, pkgDir, pkgName)
+	visit := PlanInstallPackage(planner, sourcePkg, pkg)
 
-	err := visit(itemPath, entry, nil)
+	err := visit(sourcePkgItem, entry, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,8 +108,8 @@ func TestInstallVisitItem(t *testing.T) {
 
 	wantTask := CreateLink{
 		Action: "link",
-		Path:   itemName,
-		Dest:   path.Join(linkPrefix, pkgName, itemName),
+		Item:   item,
+		Dest:   path.Join(targetToSource, pkg, item),
 	}
 	gotTask := gotTasks[0]
 	if gotTask != wantTask {
@@ -112,19 +119,21 @@ func TestInstallVisitItem(t *testing.T) {
 
 func TestInstallVisitItemWithError(t *testing.T) {
 	const (
-		pkgName  = "pkg"
-		itemName = "item"
+		source         = "path/to/source"
+		pkg            = "pkg"
+		item           = "item"
+		targetToSource = "../source"
 	)
 
-	planner := NewPlanner("", "")
+	planner := NewPlanner("", targetToSource)
 
-	pkgDir := path.Join("path/to/source", pkgName)
-	itemPath := path.Join(pkgDir, itemName)
+	sourcePkg := path.Join(source, pkg)
+	sourcePkgItem := path.Join(sourcePkg, item)
 	givenErr := errors.New("custom error")
 
-	visit := PlanInstallPackage(planner, pkgDir, pkgName)
+	visit := PlanInstallPackage(planner, sourcePkg, pkg)
 
-	gotErr := visit(itemPath, nil, givenErr)
+	gotErr := visit(sourcePkgItem, nil, givenErr)
 	if !errors.Is(gotErr, givenErr) {
 		t.Errorf("want error %q, got %q", givenErr, gotErr)
 	}

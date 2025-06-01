@@ -8,9 +8,9 @@ import (
 func TestCreateLink(t *testing.T) {
 	pkg := "pkg"
 	item := "item"
-	linkPrefix := "../.."
+	targetToSource := "../.."
 
-	planner := NewPlanner("", linkPrefix)
+	planner := NewPlanner("", targetToSource)
 
 	planner.CreateLink(pkg, item)
 
@@ -20,7 +20,7 @@ func TestCreateLink(t *testing.T) {
 	}
 
 	gotTask := gotTasks[0]
-	wantTask := CreateLink{Action: "link", Path: item, Dest: path.Join(linkPrefix, pkg, item)}
+	wantTask := CreateLink{Action: "link", Item: item, Dest: path.Join(targetToSource, pkg, item)}
 	if gotTask != wantTask {
 		t.Fatalf("want task %#v, got %#v", wantTask, gotTask)
 	}

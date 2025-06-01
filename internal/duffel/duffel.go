@@ -7,9 +7,7 @@ import (
 
 type FS interface {
 	fs.ReadDirFS
-	// Lstat(path string) (fs.FileInfo, error)
-	// Mkdir(path string, perm fs.FileMode) error
-	Symlink(old, new string) error
+	Symlink(oldname, newname string) error
 }
 
 type Request struct {

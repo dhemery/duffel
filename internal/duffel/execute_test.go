@@ -19,53 +19,53 @@ func TestExecuteEmptyTargetNoConflictingPackageItems(t *testing.T) {
 		wantLinkPrefix = "../source"
 	)
 	items := []struct {
-		source string          // path from source to package item
-		file   *fstest.MapFile // item file
-		target string          // desired path from target to installed item
+		pkgItem string          // path from source to package item
+		file    *fstest.MapFile // item file
+		item    string          // desired path from target to installed item
 	}{
 		// pkg1 items
 		{
-			source: "pkg1/dirItem1",
-			file:   testfs.DirEntry(0o755),
-			target: "dirItem1",
+			pkgItem: "pkg1/dirItem1",
+			item:    "dirItem1",
+			file:    testfs.DirEntry(0o755),
 		},
 		{
-			source: "pkg1/fileItem1",
-			file:   testfs.FileEntry("fileItem1 content", 0o644),
-			target: "fileItem1",
+			pkgItem: "pkg1/fileItem1",
+			item:    "fileItem1",
+			file:    testfs.FileEntry("fileItem1 content", 0o644),
 		},
 		{
-			source: "pkg1/linkItem1",
-			file:   testfs.LinkEntry("linkItem1/dest"),
-			target: "linkItem1",
+			pkgItem: "pkg1/linkItem1",
+			item:    "linkItem1",
+			file:    testfs.LinkEntry("linkItem1/dest"),
 		},
 		// pkg2 items
 		{
-			source: "pkg2/dirItem2",
-			file:   testfs.DirEntry(0o755),
-			target: "dirItem2",
+			pkgItem: "pkg2/dirItem2",
+			item:    "dirItem2",
+			file:    testfs.DirEntry(0o755),
 		},
 		{
-			source: "pkg2/fileItem2",
-			file:   testfs.FileEntry("fileItem2 content", 0o644),
-			target: "fileItem2",
+			pkgItem: "pkg2/fileItem2",
+			item:    "fileItem2",
+			file:    testfs.FileEntry("fileItem2 content", 0o644),
 		},
 		{
-			source: "pkg2/linkItem2",
-			file:   testfs.LinkEntry("linkItem2/dest"),
-			target: "linkItem2",
+			pkgItem: "pkg2/linkItem2",
+			item:    "linkItem2",
+			file:    testfs.LinkEntry("linkItem2/dest"),
 		},
 	}
 
-	files := testfs.New()
-	files.M[target] = testfs.DirEntry(0o755)
+	fsys := testfs.New()
+	fsys.M[target] = testfs.DirEntry(0o755)
 	for _, item := range items {
-		source := path.Join(source, item.source)
-		files.M[source] = item.file
+		source := path.Join(source, item.pkgItem)
+		fsys.M[source] = item.file
 	}
 
 	req := &Request{
-		FS:     files,
+		FS:     fsys,
 		Stdout: &bytes.Buffer{},
 		Source: source,
 		Target: target,
@@ -78,28 +78,28 @@ func TestExecuteEmptyTargetNoConflictingPackageItems(t *testing.T) {
 	}
 
 	for _, item := range items {
-		wantTargetPath := path.Join(target, item.target)
-		gotFile, ok := files.M[wantTargetPath]
+		wantTargetItem := path.Join(target, item.item)
+		gotFile, ok := fsys.M[wantTargetItem]
 		if !ok {
-			t.Error("not installed:", wantTargetPath)
+			t.Error("not installed:", wantTargetItem)
 			continue
 		}
 
 		wantMode := fs.ModeSymlink
 		gotMode := gotFile.Mode
 		if gotMode != wantMode {
-			t.Errorf("%q want mode %s, got %s", wantTargetPath, wantMode, gotMode)
+			t.Errorf("%q want mode %s, got %s", wantTargetItem, wantMode, gotMode)
 		}
 
-		wantDest := path.Join(wantLinkPrefix, item.source)
+		wantDest := path.Join(wantLinkPrefix, item.pkgItem)
 		gotDest := string(gotFile.Data)
 		if gotDest != wantDest {
-			t.Errorf("%q want dest %s, got %s", wantTargetPath, wantDest, gotDest)
+			t.Errorf("%q want dest %s, got %s", wantTargetItem, wantDest, gotDest)
 		}
 	}
 
 	if t.Failed() {
-		t.Log("files:", files.M)
+		t.Log("files:", fsys.M)
 	}
 }
 
@@ -196,26 +196,26 @@ func TestInstallDirErrors(t *testing.T) {
 			files := testfs.New()
 			wd := "home/user"
 			packageName := "pkg"
-			sourcePath := path.Join(wd, "source")
-			packagePath := path.Join(sourcePath, packageName)
-			targetPath := path.Join(wd, "target")
+			absSource := path.Join(wd, "source")
+			absSourcePkg := path.Join(absSource, packageName)
+			absTarget := path.Join(wd, "target")
 			if test.packagePerm != doesNotExist {
-				itemPath := path.Join(packagePath, "item")
-				files.M[packagePath] = testfs.DirEntry(test.packagePerm)
-				files.M[itemPath] = testfs.DirEntry(permNormal)
+				sourcePkgItem := path.Join(absSourcePkg, "item")
+				files.M[absSourcePkg] = testfs.DirEntry(test.packagePerm)
+				files.M[sourcePkgItem] = testfs.DirEntry(permNormal)
 			}
 			if test.sourcePerm != doesNotExist {
-				files.M[sourcePath] = testfs.DirEntry(test.sourcePerm)
+				files.M[absSource] = testfs.DirEntry(test.sourcePerm)
 			}
 			if test.targetPerm != doesNotExist {
-				files.M[targetPath] = testfs.DirEntry(test.targetPerm)
+				files.M[absTarget] = testfs.DirEntry(test.targetPerm)
 			}
 
 			r := &Request{
 				Stdout: &bytes.Buffer{},
 				FS:     files,
-				Source: sourcePath,
-				Target: targetPath,
+				Source: absSource,
+				Target: absTarget,
 				Pkgs:   []string{packageName},
 			}
 
