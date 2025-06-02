@@ -155,13 +155,13 @@ func TestDryRun(t *testing.T) {
 	}
 	task := tasks[0]
 
-	gotItem := task["Item"]
+	gotItem := task["item"]
 	wantItem := item
 	if gotItem != wantItem {
 		t.Errorf("want item %q, got %q", wantItem, gotItem)
 	}
 
-	gotDest := task["Dest"]
+	gotDest := task["dest"]
 	wantDest, _ := filepath.Rel(absTarget, absSourcePkgItem)
 	if gotDest != wantDest {
 		t.Errorf("want dest %q, got %q", wantDest, gotDest)

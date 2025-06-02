@@ -7,7 +7,7 @@ import (
 )
 
 type Result struct {
-	Dest string
+	Dest string `json:"dest"`
 }
 
 func (r Result) Exists() bool {
@@ -16,7 +16,7 @@ func (r Result) Exists() bool {
 
 type Task struct {
 	// Item is the path of the item to create, relative to target
-	Item string
+	Item string `json:"item"`
 
 	// Result is the result to create at the target item path
 	Result
@@ -36,8 +36,8 @@ func (s Status) WillExist() bool {
 }
 
 type Plan struct {
-	Target string
-	Tasks  []Task
+	Target string `json:"target"`
+	Tasks  []Task `json:"tasks"`
 }
 
 func (p *Plan) Execute(fsys FS) error {
