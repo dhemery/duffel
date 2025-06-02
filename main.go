@@ -35,15 +35,13 @@ func main() {
 	source, _ := filepath.Rel(root, absSource)
 
 	req := &duffel.Request{
-		Stdout: os.Stdout,
 		FS:     fsys,
 		Source: source,
 		Target: target,
 		Pkgs:   flags.Args(),
-		DryRun: *dryRunOpt,
 	}
 
-	err = duffel.Execute(req)
+	err = duffel.Execute(req, *dryRunOpt, os.Stdout)
 	if err != nil {
 		fatal(err)
 	}

@@ -64,7 +64,7 @@ func TestPlannerCreate(t *testing.T) {
 	item := "item"
 	dest := "task/dest"
 
-	planner := NewPlanner("")
+	planner := Planner{}
 
 	got := planner.Status(item)
 	want := Status{}

@@ -51,10 +51,6 @@ func (p *Plan) Execute(fsys FS) error {
 
 type Planner map[string]Status
 
-func NewPlanner(target string) Planner {
-	return Planner{}
-}
-
 func (p Planner) Create(item string, result Result) {
 	p[item] = Status{Planned: result}
 }

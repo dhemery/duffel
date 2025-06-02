@@ -85,7 +85,7 @@ func TestInstallVisitInput(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			planner := NewPlanner("")
+			planner := Planner{}
 
 			visit := PlanInstallPackage(planner, targetToSource, test.walkPath, pkg)
 

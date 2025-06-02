@@ -1,7 +1,6 @@
 package duffel
 
 import (
-	"bytes"
 	"errors"
 	"io/fs"
 	"path"
@@ -64,13 +63,12 @@ func TestExecuteEmptyTargetNoConflictingPackageItems(t *testing.T) {
 
 	req := &Request{
 		FS:     fsys,
-		Stdout: &bytes.Buffer{},
 		Source: source,
 		Target: target,
 		Pkgs:   []string{"pkg1", "pkg2"},
 	}
 
-	err := Execute(req)
+	err := Execute(req, false, nil)
 	if err != nil {
 		t.Error(err)
 	}
@@ -118,13 +116,12 @@ func TestExecuteEmptyTargetWithConflictingPackageItems(t *testing.T) {
 
 	req := &Request{
 		FS:     files,
-		Stdout: &bytes.Buffer{},
 		Source: source,
 		Target: target,
 		Pkgs:   []string{"pkg1", "pkg2"},
 	}
 
-	err := Execute(req)
+	err := Execute(req, false, nil)
 
 	wantErr := &ErrConflict{}
 	if !errors.Is(err, wantErr) {
@@ -213,14 +210,13 @@ func TestInstallDirErrors(t *testing.T) {
 			}
 
 			r := &Request{
-				Stdout: &bytes.Buffer{},
 				FS:     files,
 				Source: absSource,
 				Target: absTarget,
 				Pkgs:   []string{pkg},
 			}
 
-			err := Execute(r)
+			err := Execute(r, false, nil)
 
 			if !errors.Is(err, test.wantError) {
 				t.Errorf("want error %v, got %v", test.wantError, err)
