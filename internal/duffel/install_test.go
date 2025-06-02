@@ -103,3 +103,83 @@ func TestInstallVisitInput(t *testing.T) {
 		})
 	}
 }
+
+func TestInstallVisitPlannedStatus(t *testing.T) {
+	const (
+		source         = "path/to/source"
+		pkg            = "pkg"
+		item           = "item"
+		targetToSource = "target/to/source"
+	)
+	sourcePkg := path.Join(source, pkg)
+	sourcePkgItem := path.Join(sourcePkg, item)
+
+	tests := map[string]struct {
+		status   bool
+		wantErr  error
+		wantTask Task
+	}{
+		"no planned status": {
+			status:  false,
+			wantErr: nil,
+			wantTask: CreateLink{
+				Action: "link",
+				Item:   item,
+				Dest:   path.Join(targetToSource, pkg, item),
+			},
+		},
+		"existing item": {
+			status:   true,
+			wantErr:  &Conflict{},
+			wantTask: nil,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			planner := NewPlanner("", targetToSource)
+			planner.Statuses[item] = test.status
+
+			visit := PlanInstallPackage(planner, sourcePkg, pkg)
+
+			err := visit(sourcePkgItem, nil, nil)
+
+			if test.wantErr == nil {
+				if err != nil {
+					t.Error(err)
+				}
+			} else {
+				var gotWrapped *Conflict
+				if !errors.As(err, &gotWrapped) {
+					t.Errorf("want error %v, got %v", test.wantErr, err)
+				}
+			}
+
+			gotTasks := planner.Plan.Tasks
+
+			if test.wantTask == nil {
+				if len(gotTasks) > 0 {
+					t.Fatalf("want no tasks, got %#v", gotTasks)
+				}
+				return
+			}
+			if len(gotTasks) == 0 {
+				t.Fatalf("want task %#v, got none", test.wantTask)
+			}
+
+			gotTask := gotTasks[0]
+			gotLinkTask, ok := gotTask.(CreateLink)
+			if !ok {
+				t.Fatalf("want CreateLink task %#v, got %#v", test.wantTask, gotTask)
+			}
+			if gotLinkTask != test.wantTask {
+				t.Errorf("want task %#v, got %#v", test.wantTask, gotLinkTask)
+			}
+
+			if len(gotTasks) > 1 {
+				t.Errorf("want 1 task %#v, got %d extra: %#v",
+					test.wantTask, len(gotTasks)-1, gotTasks[1:])
+			}
+		})
+	}
+}

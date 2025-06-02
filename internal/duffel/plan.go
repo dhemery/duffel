@@ -37,8 +37,8 @@ func NewPlanner(target, targetToSource string) *Planner {
 }
 
 func (p *Planner) Exists(target string) bool {
-	_, ok := p.Statuses[target]
-	return ok
+	exists, ok := p.Statuses[target]
+	return ok && exists
 }
 
 func (p *Planner) CreateLink(pkg, item string) {
