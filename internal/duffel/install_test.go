@@ -130,7 +130,7 @@ func TestInstallVisitPlannedStatus(t *testing.T) {
 		},
 		"existing item": {
 			status:   true,
-			wantErr:  &Conflict{},
+			wantErr:  &ErrConflict{},
 			wantTask: nil,
 		},
 	}
@@ -149,7 +149,7 @@ func TestInstallVisitPlannedStatus(t *testing.T) {
 					t.Error(err)
 				}
 			} else {
-				var gotWrapped *Conflict
+				var gotWrapped *ErrConflict
 				if !errors.As(err, &gotWrapped) {
 					t.Errorf("want error %v, got %v", test.wantErr, err)
 				}

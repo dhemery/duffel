@@ -126,7 +126,7 @@ func TestExecuteEmptyTargetWithConflictingPackageItems(t *testing.T) {
 
 	err := Execute(req)
 
-	wantErr := &Conflict{}
+	wantErr := &ErrConflict{}
 	if !errors.Is(err, wantErr) {
 		t.Errorf("want error %#v, got %#v", wantErr, err)
 	}

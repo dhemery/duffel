@@ -6,9 +6,9 @@ import (
 	"path/filepath"
 )
 
-type Conflict struct{}
+type ErrConflict struct{}
 
-func (e *Conflict) Error() string {
+func (e *ErrConflict) Error() string {
 	return ""
 }
 
@@ -37,7 +37,7 @@ func PlanInstallPackage(planner *Planner, sourcePkg string, pkg string) fs.WalkD
 
 		item, _ := filepath.Rel(sourcePkg, sourcePkgItem)
 		if planner.Exists(item) {
-			return &Conflict{}
+			return &ErrConflict{}
 		}
 		planner.CreateLink(pkg, item)
 
