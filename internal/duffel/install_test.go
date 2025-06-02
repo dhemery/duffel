@@ -96,7 +96,7 @@ func TestInstallVisitInput(t *testing.T) {
 				t.Errorf("want error %v, got %v", test.wantErr, err)
 			}
 
-			gotTasks := planner.Plan.Tasks
+			gotTasks := planner.Tasks()
 			if !slices.Equal(gotTasks, test.wantTasks) {
 				t.Errorf("want tasks %#v, got %#v", test.wantTasks, gotTasks)
 			}
@@ -155,7 +155,7 @@ func TestInstallVisitPlannedStatus(t *testing.T) {
 				}
 			}
 
-			gotTasks := planner.Plan.Tasks
+			gotTasks := planner.Tasks()
 
 			if test.wantTask == nil {
 				if len(gotTasks) > 0 {

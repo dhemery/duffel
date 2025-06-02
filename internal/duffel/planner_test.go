@@ -14,7 +14,7 @@ func TestCreateLink(t *testing.T) {
 
 	planner.CreateLink(pkg, item)
 
-	gotTasks := planner.Plan.Tasks
+	gotTasks := planner.Tasks()
 	if len(gotTasks) != 1 {
 		t.Fatalf("want 1 planned task, got %d: %#v", len(gotTasks), gotTasks)
 	}

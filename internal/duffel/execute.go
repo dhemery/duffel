@@ -14,7 +14,8 @@ func Execute(r *Request) error {
 
 	err = PlanInstallPackages(r.FS, planner, r.Source, r.Pkgs)
 
-	plan := planner.Plan
+	tasks := planner.Tasks()
+	plan := Plan{Target: r.Target, Tasks: tasks}
 	if r.DryRun {
 		enc := json.NewEncoder(r.Stdout)
 		return enc.Encode(plan)
