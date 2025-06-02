@@ -104,7 +104,7 @@ func TestInstallVisitInput(t *testing.T) {
 	}
 }
 
-func TestInstallVisitPlannedStatus(t *testing.T) {
+func TestInstallVisitStatus(t *testing.T) {
 	const (
 		source         = "path/to/source"
 		pkg            = "pkg"
@@ -115,12 +115,12 @@ func TestInstallVisitPlannedStatus(t *testing.T) {
 	sourcePkgItem := path.Join(sourcePkg, item)
 
 	tests := map[string]struct {
-		status   bool
+		status   *Status
 		wantErr  error
 		wantTask Task
 	}{
-		"no planned status": {
-			status:  false,
+		"no status": {
+			status:  nil,
 			wantErr: nil,
 			wantTask: CreateLink{
 				Action: "link",
@@ -129,7 +129,7 @@ func TestInstallVisitPlannedStatus(t *testing.T) {
 			},
 		},
 		"existing item": {
-			status:   true,
+			status:   &Status{Prior: &Result{Dest: "prior/link/dest"}},
 			wantErr:  &ErrConflict{},
 			wantTask: nil,
 		},
@@ -138,7 +138,7 @@ func TestInstallVisitPlannedStatus(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			planner := NewPlanner("", "")
-			planner.Statuses[item] = test.status
+			planner.status[item] = test.status
 
 			visit := PlanInstallPackage(planner, targetToSource, sourcePkg, pkg)
 

@@ -12,6 +12,11 @@ type Result struct {
 	Dest string
 }
 
+type Status struct {
+	Prior   *Result
+	Planned *Result
+}
+
 type Plan struct {
 	Target string
 	Tasks  []Task
@@ -29,30 +34,18 @@ func (p *Plan) Execute(fsys FS) error {
 type Planner struct {
 	TargetToSource string
 	tasks          []Task
-	Statuses       map[string]bool
-	status         map[string]Result
+	status         map[string]*Status
 }
 
 func NewPlanner(target, targetToSource string) *Planner {
 	return &Planner{
 		TargetToSource: targetToSource,
-		Statuses:       map[string]bool{},
-		status:         map[string]Result{},
+		status:         map[string]*Status{},
 	}
 }
 
-func (p *Planner) Tasks() []Task {
-	return p.tasks
-}
-
-func (p *Planner) Exists(target string) bool {
-	exists, ok := p.Statuses[target]
-	return ok && exists
-}
-
-func (p *Planner) Create(item string, result Result) {
-	p.status[item] = result
-	p.Statuses[item] = true
+func (p *Planner) Create(item string, result *Result) {
+	p.status[item] = &Status{Planned: result}
 	task := CreateLink{
 		Action: "link",
 		Item:   item,
@@ -61,14 +54,12 @@ func (p *Planner) Create(item string, result Result) {
 	p.tasks = append(p.tasks, task)
 }
 
-func (p *Planner) CreateLink(pkg, item string) {
-	task := CreateLink{
-		Action: "link",
-		Item:   item,
-		Dest:   path.Join(p.TargetToSource, pkg, item),
-	}
-	p.Statuses[item] = true
-	p.tasks = append(p.tasks, task)
+func (p *Planner) Status(item string) *Status {
+	return p.status[item]
+}
+
+func (p *Planner) Tasks() []Task {
+	return p.tasks
 }
 
 type CreateLink struct {

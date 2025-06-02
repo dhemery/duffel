@@ -40,11 +40,13 @@ func PlanInstallPackage(planner *Planner, targetToSource string, sourcePkg strin
 		}
 
 		item, _ := filepath.Rel(sourcePkg, sourcePkgItem)
-		if planner.Exists(item) {
+		status := planner.Status(item)
+		if status != nil {
 			return &ErrConflict{}
 		}
+
 		dest := path.Join(targetToSource, pkg, item)
-		result := Result{Dest: dest}
+		result := &Result{Dest: dest}
 		planner.Create(item, result)
 
 		return nil

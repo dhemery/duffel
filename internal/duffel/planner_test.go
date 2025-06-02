@@ -1,68 +1,29 @@
 package duffel
 
 import (
-	"path"
 	"testing"
 )
 
-func TestCreateResult(t *testing.T) {
+func TestCreate(t *testing.T) {
 	item := "item"
 	dest := "task/dest"
 
 	planner := NewPlanner("", "")
 
-	result := Result{Dest: dest}
+	got := planner.Status(item)
+	if got != nil {
+		t.Fatalf("before create want status %v, got %v", nil, got)
+	}
+
+	result := &Result{Dest: dest}
 	planner.Create(item, result)
 
-	gotTasks := planner.Tasks()
-	if len(gotTasks) != 1 {
-		t.Fatalf("want 1 task, got %d: %#v", len(gotTasks), gotTasks)
+	got = planner.Status(item)
+	want := &Status{Planned: result}
+	if got == nil {
+		t.Fatalf("after create want status %v, got %v", *want, nil)
 	}
-
-	gotTask := gotTasks[0]
-	wantTask := CreateLink{Action: "link", Item: item, Dest: dest}
-	if gotTask != wantTask {
-		t.Fatalf("want task %#v, got %#v", wantTask, gotTask)
-	}
-}
-
-func TestCreateLink(t *testing.T) {
-	pkg := "pkg"
-	item := "item"
-	targetToSource := "target/to/source"
-
-	planner := NewPlanner("", targetToSource)
-
-	planner.CreateLink(pkg, item)
-
-	gotTasks := planner.Tasks()
-	if len(gotTasks) != 1 {
-		t.Fatalf("want 1 planned task, got %d: %#v", len(gotTasks), gotTasks)
-	}
-
-	gotTask := gotTasks[0]
-	wantTask := CreateLink{Action: "link", Item: item, Dest: path.Join(targetToSource, pkg, item)}
-	if gotTask != wantTask {
-		t.Fatalf("want task %#v, got %#v", wantTask, gotTask)
-	}
-}
-
-func TestTargetItemExists(t *testing.T) {
-	const (
-		pkg  = "pkg"
-		item = "item"
-	)
-	planner := NewPlanner("", "")
-
-	exists := planner.Exists(item)
-	if exists {
-		t.Errorf("before create link, %q exists want %t, got %t", item, !exists, exists)
-	}
-
-	planner.CreateLink(pkg, item)
-
-	exists = planner.Exists(item)
-	if !exists {
-		t.Errorf("after create link, %q exists want %t, got %t", item, !exists, exists)
+	if *got != *want {
+		t.Fatalf("after create want status %v, got %v", *want, *got)
 	}
 }
