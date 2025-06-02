@@ -32,43 +32,51 @@ func (d dirEntry) Type() fs.FileMode {
 	return d.mode & fs.ModeType
 }
 
-func TestInstallVisitInput(t *testing.T) {
+func TestVisitInstall(t *testing.T) {
 	const (
-		source         = "path/to/source"
-		pkg            = "pkg"
-		item           = "item"
-		targetToSource = "target/to/source"
+		source         = "path/to/source"   // Parent dir of package being walked
+		pkg            = "pkg"              // Package dir being walked, relative to source
+		targetToSource = "target/to/source" // Given to walk func to use in link dests
 	)
 	visitErr := errors.New("error passed to visit")
 
 	tests := map[string]struct {
-		item       string
-		visitErr   error
-		wantStatus Status
-		wantErr    error
+		item       string // Item being visited, relative to pkg dir
+		givenErr   error  // Error passed to visit
+		status     Status // Planner status before visit
+		wantStatus Status // Planner status after visit
+		wantErr    error  // Returned by visit
 	}{
-		"visit pkg dir": {
+		"pkg dir": {
 			item:       ".",
+			givenErr:   nil,
 			wantErr:    nil,
-			wantStatus: Status{},
+			wantStatus: Status{}, // Plans no action
 		},
-		"visit pkg dir with error": {
+		"pkg dir and given error": {
 			item:       ".",
-			visitErr:   visitErr,
+			givenErr:   visitErr,
 			wantErr:    visitErr,
 			wantStatus: Status{},
 		},
-		"visit item": {
-			item:       item,
-			visitErr:   nil,
+		"item with no status": {
+			item:       "item",
+			givenErr:   nil,
+			status:     Status{},
 			wantErr:    nil,
-			wantStatus: Status{Planned: Result{Dest: path.Join(targetToSource, pkg, item)}},
+			wantStatus: Status{Planned: Result{Dest: path.Join(targetToSource, pkg, "item")}},
 		},
-		"visit item with error": {
-			item:       item,
-			visitErr:   visitErr,
+		"item and given error": {
+			item:       "item",
+			givenErr:   visitErr,
 			wantErr:    visitErr,
 			wantStatus: Status{},
+		},
+		"preexisting item": {
+			item:       "item",
+			status:     Status{Prior: Result{Dest: "prior/link/dest"}},
+			wantErr:    &ErrConflict{},
+			wantStatus: Status{Prior: Result{Dest: "prior/link/dest"}}, // Unchanged
 		},
 	}
 
@@ -78,66 +86,21 @@ func TestInstallVisitInput(t *testing.T) {
 			visitPath := path.Join(sourcePkg, test.item)
 
 			planner := Planner{}
+			if test.status.WillExist() {
+				planner[test.item] = test.status
+			}
 
 			visit := PlanInstallPackage(planner, targetToSource, sourcePkg, pkg)
 
-			gotErr := visit(visitPath, nil, test.visitErr)
+			gotErr := visit(visitPath, nil, test.givenErr)
 
 			if !errors.Is(gotErr, test.wantErr) {
-				t.Errorf("want error %v, got %v", test.wantErr, gotErr)
+				t.Errorf("want error %#v, got %#v", test.wantErr, gotErr)
 			}
 
-			gotStatus := planner.Status(item)
+			gotStatus := planner.Status(test.item)
 			if gotStatus != test.wantStatus {
-				t.Errorf("want status %#v, got %#v", test.wantStatus, gotStatus)
-			}
-		})
-	}
-}
-
-func TestInstallVisitStatus(t *testing.T) {
-	const (
-		source         = "path/to/source"
-		pkg            = "pkg"
-		item           = "item"
-		targetToSource = "target/to/source"
-	)
-	sourcePkg := path.Join(source, pkg)
-	sourcePkgItem := path.Join(sourcePkg, item)
-
-	tests := map[string]struct {
-		status     Status
-		wantErr    error
-		wantStatus Status
-	}{
-		"no status": {
-			status:     Status{},
-			wantErr:    nil,
-			wantStatus: Status{Planned: Result{Dest: path.Join(targetToSource, pkg, item)}},
-		},
-		"prior item": {
-			status:     Status{Prior: Result{Dest: "prior/link/dest"}},
-			wantErr:    &ErrConflict{},
-			wantStatus: Status{Prior: Result{Dest: "prior/link/dest"}}, // Unchanged
-		},
-	}
-
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			planner := Planner{}
-			planner[item] = test.status
-
-			visit := PlanInstallPackage(planner, targetToSource, sourcePkg, pkg)
-
-			gotErr := visit(sourcePkgItem, nil, nil)
-
-			if !errors.Is(gotErr, test.wantErr) {
-				t.Errorf("want error %v, got %v", test.wantErr, gotErr)
-			}
-
-			gotStatus := planner.Status(item)
-			if gotStatus != test.wantStatus {
-				t.Errorf("want status %#v, got %#v", test.wantStatus, gotStatus)
+				t.Errorf("want status %v, got %v", test.wantStatus, gotStatus)
 			}
 		})
 	}
