@@ -4,7 +4,6 @@ import (
 	"errors"
 	"io/fs"
 	"path"
-	"slices"
 	"testing"
 )
 
@@ -40,64 +39,57 @@ func TestInstallVisitInput(t *testing.T) {
 		item           = "item"
 		targetToSource = "target/to/source"
 	)
-	customError := errors.New("custom error for visit")
+	visitErr := errors.New("error passed to visit")
 
 	tests := map[string]struct {
-		walkPath  string
-		visitPath string
-		visitErr  error
-		wantTasks []Task
-		wantErr   error
+		item       string
+		visitErr   error
+		wantStatus Status
+		wantErr    error
 	}{
 		"visit pkg dir": {
-			walkPath:  path.Join(source, pkg),
-			visitPath: path.Join(source, pkg),
-			wantErr:   nil,
-			wantTasks: nil,
+			item:       ".",
+			wantErr:    nil,
+			wantStatus: Status{},
 		},
 		"visit pkg dir with error": {
-			walkPath:  path.Join(source, pkg),
-			visitPath: path.Join(source, pkg),
-			visitErr:  customError,
-			wantErr:   customError,
-			wantTasks: nil,
+			item:       ".",
+			visitErr:   visitErr,
+			wantErr:    visitErr,
+			wantStatus: Status{},
 		},
 		"visit item": {
-			walkPath:  path.Join(source, pkg),
-			visitPath: path.Join(source, pkg, item),
-			visitErr:  nil,
-			wantErr:   nil,
-			wantTasks: []Task{
-				{
-					Item:   item,
-					Result: Result{Dest: path.Join(targetToSource, pkg, item)},
-				},
-			},
+			item:       item,
+			visitErr:   nil,
+			wantErr:    nil,
+			wantStatus: Status{Planned: Result{Dest: path.Join(targetToSource, pkg, item)}},
 		},
 		"visit item with error": {
-			walkPath:  path.Join(source, pkg),
-			visitPath: path.Join(source, pkg, item),
-			visitErr:  customError,
-			wantErr:   customError,
-			wantTasks: nil,
+			item:       item,
+			visitErr:   visitErr,
+			wantErr:    visitErr,
+			wantStatus: Status{},
 		},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
+			sourcePkg := path.Join(source, pkg)
+			visitPath := path.Join(sourcePkg, test.item)
+
 			planner := Planner{}
 
-			visit := PlanInstallPackage(planner, targetToSource, test.walkPath, pkg)
+			visit := PlanInstallPackage(planner, targetToSource, sourcePkg, pkg)
 
-			err := visit(test.visitPath, nil, test.visitErr)
+			gotErr := visit(visitPath, nil, test.visitErr)
 
-			if !errors.Is(err, test.wantErr) {
-				t.Errorf("want error %v, got %v", test.wantErr, err)
+			if !errors.Is(gotErr, test.wantErr) {
+				t.Errorf("want error %v, got %v", test.wantErr, gotErr)
 			}
 
-			gotTasks := planner.Tasks()
-			if !slices.Equal(gotTasks, test.wantTasks) {
-				t.Errorf("want tasks %#v, got %#v", test.wantTasks, gotTasks)
+			gotStatus := planner.Status(item)
+			if gotStatus != test.wantStatus {
+				t.Errorf("want status %#v, got %#v", test.wantStatus, gotStatus)
 			}
 		})
 	}
@@ -114,69 +106,38 @@ func TestInstallVisitStatus(t *testing.T) {
 	sourcePkgItem := path.Join(sourcePkg, item)
 
 	tests := map[string]struct {
-		status   *Status
-		wantErr  error
-		wantTask *Task
+		status     Status
+		wantErr    error
+		wantStatus Status
 	}{
 		"no status": {
-			status:  nil,
-			wantErr: nil,
-			wantTask: &Task{
-				Item:   item,
-				Result: Result{Dest: path.Join(targetToSource, pkg, item)},
-			},
+			status:     Status{},
+			wantErr:    nil,
+			wantStatus: Status{Planned: Result{Dest: path.Join(targetToSource, pkg, item)}},
 		},
 		"prior item": {
-			status:   &Status{Prior: Result{Dest: "prior/link/dest"}},
-			wantErr:  &ErrConflict{},
-			wantTask: nil,
+			status:     Status{Prior: Result{Dest: "prior/link/dest"}},
+			wantErr:    &ErrConflict{},
+			wantStatus: Status{Prior: Result{Dest: "prior/link/dest"}}, // Unchanged
 		},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			planner := Planner{}
-			if test.status != nil {
-				planner[item] = *test.status
-			}
+			planner[item] = test.status
 
 			visit := PlanInstallPackage(planner, targetToSource, sourcePkg, pkg)
 
-			err := visit(sourcePkgItem, nil, nil)
+			gotErr := visit(sourcePkgItem, nil, nil)
 
-			if test.wantErr == nil {
-				if err != nil {
-					t.Error(err)
-				}
-			} else {
-				var gotWrapped *ErrConflict
-				if !errors.As(err, &gotWrapped) {
-					t.Errorf("want error %v, got %v", test.wantErr, err)
-				}
+			if !errors.Is(gotErr, test.wantErr) {
+				t.Errorf("want error %v, got %v", test.wantErr, gotErr)
 			}
 
-			gotTasks := planner.Tasks()
-
-			if test.wantTask == nil {
-				if len(gotTasks) > 0 {
-					t.Fatalf("want no tasks, got %#v", gotTasks)
-				}
-				return
-			}
-
-			wantTask := *test.wantTask
-			if len(gotTasks) == 0 {
-				t.Fatalf("want task %#v, got none", wantTask)
-			}
-
-			gotTask := gotTasks[0]
-			if gotTask != *test.wantTask {
-				t.Errorf("want task %#v, got %#v", wantTask, gotTask)
-			}
-
-			if len(gotTasks) > 1 {
-				t.Errorf("want 1 task %#v, got %d extra: %#v",
-					wantTask, len(gotTasks)-1, gotTasks[1:])
+			gotStatus := planner.Status(item)
+			if gotStatus != test.wantStatus {
+				t.Errorf("want status %#v, got %#v", test.wantStatus, gotStatus)
 			}
 		})
 	}
