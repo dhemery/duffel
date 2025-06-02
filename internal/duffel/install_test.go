@@ -86,7 +86,7 @@ func TestInstallVisitInput(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			planner := NewPlanner("", "")
+			planner := NewPlanner("")
 
 			visit := PlanInstallPackage(planner, targetToSource, test.walkPath, pkg)
 
@@ -137,7 +137,7 @@ func TestInstallVisitStatus(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			planner := NewPlanner("", "")
+			planner := NewPlanner("")
 			planner.status[item] = test.status
 
 			visit := PlanInstallPackage(planner, targetToSource, sourcePkg, pkg)

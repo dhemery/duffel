@@ -8,7 +8,7 @@ func TestCreate(t *testing.T) {
 	item := "item"
 	dest := "task/dest"
 
-	planner := NewPlanner("", "")
+	planner := NewPlanner("")
 
 	got := planner.Status(item)
 	if got != nil {

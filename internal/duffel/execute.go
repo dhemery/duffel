@@ -5,7 +5,7 @@ import (
 )
 
 func Execute(r *Request) error {
-	planner := NewPlanner(r.Target, "")
+	planner := NewPlanner(r.Target)
 
 	err := PlanInstallPackages(r.FS, planner, r.Target, r.Source, r.Pkgs)
 

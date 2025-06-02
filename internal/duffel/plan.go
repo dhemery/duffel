@@ -32,14 +32,12 @@ func (p *Plan) Execute(fsys FS) error {
 }
 
 type Planner struct {
-	TargetToSource string
 	tasks          []Task
 	status         map[string]*Status
 }
 
-func NewPlanner(target, targetToSource string) *Planner {
+func NewPlanner(target string) *Planner {
 	return &Planner{
-		TargetToSource: targetToSource,
 		status:         map[string]*Status{},
 	}
 }
