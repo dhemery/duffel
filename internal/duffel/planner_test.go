@@ -5,6 +5,27 @@ import (
 	"testing"
 )
 
+func TestCreateResult(t *testing.T) {
+	item := "item"
+	dest := "task/dest"
+
+	planner := NewPlanner("", "")
+
+	result := Result{Dest: dest}
+	planner.Create(item, result)
+
+	gotTasks := planner.Tasks()
+	if len(gotTasks) != 1 {
+		t.Fatalf("want 1 task, got %d: %#v", len(gotTasks), gotTasks)
+	}
+
+	gotTask := gotTasks[0]
+	wantTask := CreateLink{Action: "link", Item: item, Dest: dest}
+	if gotTask != wantTask {
+		t.Fatalf("want task %#v, got %#v", wantTask, gotTask)
+	}
+}
+
 func TestCreateLink(t *testing.T) {
 	pkg := "pkg"
 	item := "item"

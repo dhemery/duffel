@@ -8,6 +8,10 @@ type Task interface {
 	Execute(fsys FS, target string) error
 }
 
+type Result struct {
+	Dest string
+}
+
 type Plan struct {
 	Target string
 	Tasks  []Task
@@ -26,12 +30,14 @@ type Planner struct {
 	TargetToSource string
 	tasks          []Task
 	Statuses       map[string]bool
+	status         map[string]Result
 }
 
 func NewPlanner(target, targetToSource string) *Planner {
 	return &Planner{
 		TargetToSource: targetToSource,
 		Statuses:       map[string]bool{},
+		status:         map[string]Result{},
 	}
 }
 
@@ -42,6 +48,16 @@ func (p *Planner) Tasks() []Task {
 func (p *Planner) Exists(target string) bool {
 	exists, ok := p.Statuses[target]
 	return ok && exists
+}
+
+func (p *Planner) Create(item string, result Result) {
+	p.status[item] = result
+	task := CreateLink{
+		Action: "link",
+		Item:   item,
+		Dest:   result.Dest,
+	}
+	p.tasks = append(p.tasks, task)
 }
 
 func (p *Planner) CreateLink(pkg, item string) {
