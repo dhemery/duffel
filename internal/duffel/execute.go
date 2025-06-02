@@ -2,17 +2,12 @@ package duffel
 
 import (
 	"encoding/json"
-	"path/filepath"
 )
 
 func Execute(r *Request) error {
-	targetToSource, err := filepath.Rel(r.Target, r.Source)
-	if err != nil {
-		return err
-	}
-	planner := NewPlanner(r.Target, targetToSource)
+	planner := NewPlanner(r.Target, "")
 
-	err = PlanInstallPackages(r.FS, planner, r.Source, r.Pkgs)
+	err := PlanInstallPackages(r.FS, planner, r.Target, r.Source, r.Pkgs)
 
 	tasks := planner.Tasks()
 	plan := Plan{Target: r.Target, Tasks: tasks}

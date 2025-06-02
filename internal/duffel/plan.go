@@ -52,6 +52,7 @@ func (p *Planner) Exists(target string) bool {
 
 func (p *Planner) Create(item string, result Result) {
 	p.status[item] = result
+	p.Statuses[item] = true
 	task := CreateLink{
 		Action: "link",
 		Item:   item,
