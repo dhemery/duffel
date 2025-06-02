@@ -12,14 +12,14 @@ func (e *ErrConflict) Error() string {
 	return ""
 }
 
-func PlanInstallPackages(fsys FS, planner Planner, target string, source string, pkgs []string) error {
-	targetToSource, err := filepath.Rel(target, source)
+func PlanInstallPackages(r *Request, planner Planner) error {
+	targetToSource, err := filepath.Rel(r.Target, r.Source)
 	if err != nil {
 		return err
 	}
-	for _, pkg := range pkgs {
-		sourcePkg := path.Join(source, pkg)
-		err := fs.WalkDir(fsys, sourcePkg, PlanInstallPackage(planner, targetToSource, sourcePkg, pkg))
+	for _, pkg := range r.Pkgs {
+		sourcePkg := path.Join(r.Source, pkg)
+		err := fs.WalkDir(r.FS, sourcePkg, PlanInstallPackage(planner, targetToSource, sourcePkg, pkg))
 		if err != nil {
 			return err
 		}
