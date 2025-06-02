@@ -12,7 +12,7 @@ func (e *ErrConflict) Error() string {
 	return ""
 }
 
-func PlanInstallPackages(fsys FS, planner *Planner, target string, source string, pkgs []string) error {
+func PlanInstallPackages(fsys FS, planner Planner, target string, source string, pkgs []string) error {
 	targetToSource, err := filepath.Rel(target, source)
 	if err != nil {
 		return err
@@ -28,7 +28,7 @@ func PlanInstallPackages(fsys FS, planner *Planner, target string, source string
 	return nil
 }
 
-func PlanInstallPackage(planner *Planner, targetToSource string, sourcePkg string, pkg string) fs.WalkDirFunc {
+func PlanInstallPackage(planner Planner, targetToSource string, sourcePkg string, pkg string) fs.WalkDirFunc {
 	return func(sourcePkgItem string, _ fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -40,13 +40,14 @@ func PlanInstallPackage(planner *Planner, targetToSource string, sourcePkg strin
 		}
 
 		item, _ := filepath.Rel(sourcePkg, sourcePkgItem)
+
 		status := planner.Status(item)
-		if status != nil {
+		if status.WillExist() {
 			return &ErrConflict{}
 		}
 
 		dest := path.Join(targetToSource, pkg, item)
-		result := &Result{Dest: dest}
+		result := Result{Dest: dest}
 		planner.Create(item, result)
 
 		return nil

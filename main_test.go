@@ -161,12 +161,6 @@ func TestDryRun(t *testing.T) {
 		t.Errorf("want item %q, got %q", wantItem, gotItem)
 	}
 
-	gotAction := task["Action"]
-	wantAction := "link"
-	if gotAction != wantAction {
-		t.Errorf("want action %q, got, %q", wantAction, gotAction)
-	}
-
 	gotDest := task["Dest"]
 	wantDest, _ := filepath.Rel(absTarget, absSourcePkgItem)
 	if gotDest != wantDest {

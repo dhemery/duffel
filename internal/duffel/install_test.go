@@ -68,10 +68,9 @@ func TestInstallVisitInput(t *testing.T) {
 			visitErr:  nil,
 			wantErr:   nil,
 			wantTasks: []Task{
-				CreateLink{
+				{
 					Item:   item,
-					Action: "link",
-					Dest:   path.Join(targetToSource, pkg, item),
+					Result: Result{Dest: path.Join(targetToSource, pkg, item)},
 				},
 			},
 		},
@@ -117,19 +116,18 @@ func TestInstallVisitStatus(t *testing.T) {
 	tests := map[string]struct {
 		status   *Status
 		wantErr  error
-		wantTask Task
+		wantTask *Task
 	}{
 		"no status": {
 			status:  nil,
 			wantErr: nil,
-			wantTask: CreateLink{
-				Action: "link",
+			wantTask: &Task{
 				Item:   item,
-				Dest:   path.Join(targetToSource, pkg, item),
+				Result: Result{Dest: path.Join(targetToSource, pkg, item)},
 			},
 		},
-		"existing item": {
-			status:   &Status{Prior: &Result{Dest: "prior/link/dest"}},
+		"prior item": {
+			status:   &Status{Prior: Result{Dest: "prior/link/dest"}},
 			wantErr:  &ErrConflict{},
 			wantTask: nil,
 		},
@@ -137,8 +135,10 @@ func TestInstallVisitStatus(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			planner := NewPlanner("")
-			planner.status[item] = test.status
+			planner := Planner{}
+			if test.status != nil {
+				planner[item] = *test.status
+			}
 
 			visit := PlanInstallPackage(planner, targetToSource, sourcePkg, pkg)
 
@@ -163,22 +163,20 @@ func TestInstallVisitStatus(t *testing.T) {
 				}
 				return
 			}
+
+			wantTask := *test.wantTask
 			if len(gotTasks) == 0 {
-				t.Fatalf("want task %#v, got none", test.wantTask)
+				t.Fatalf("want task %#v, got none", wantTask)
 			}
 
 			gotTask := gotTasks[0]
-			gotLinkTask, ok := gotTask.(CreateLink)
-			if !ok {
-				t.Fatalf("want CreateLink task %#v, got %#v", test.wantTask, gotTask)
-			}
-			if gotLinkTask != test.wantTask {
-				t.Errorf("want task %#v, got %#v", test.wantTask, gotLinkTask)
+			if gotTask != *test.wantTask {
+				t.Errorf("want task %#v, got %#v", wantTask, gotTask)
 			}
 
 			if len(gotTasks) > 1 {
 				t.Errorf("want 1 task %#v, got %d extra: %#v",
-					test.wantTask, len(gotTasks)-1, gotTasks[1:])
+					wantTask, len(gotTasks)-1, gotTasks[1:])
 			}
 		})
 	}
