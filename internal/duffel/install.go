@@ -29,28 +29,45 @@ func PlanInstallPackages(r *Request, image Image) error {
 }
 
 func PlanInstallPackage(r *Request, image Image, targetToSource string, pkg string) fs.WalkDirFunc {
+	v := InstallPlanner{
+		target:         r.Target,
+		targetToSource: targetToSource,
+	}
 	sourcePkg := path.Join(r.Source, pkg)
-	return func(sourcePkgItem string, _ fs.DirEntry, err error) error {
+	return func(path string, _ fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 
-		// Don't install the pkg dir itself
-		if sourcePkgItem == sourcePkg {
+		// Don't visit sourcePkg
+		if path == sourcePkg {
 			return nil
 		}
 
-		item, _ := filepath.Rel(sourcePkg, sourcePkgItem)
+		item, _ := filepath.Rel(sourcePkg, path)
 
-		status := image.Status(item)
-		if status.WillExist() {
-			return &ErrConflict{}
-		}
-
-		dest := path.Join(targetToSource, pkg, item)
-		state := State{Dest: dest}
-		image.Create(item, state)
-
-		return nil
+		return v.Visit(r.Source, pkg, item, image)
 	}
+}
+
+type ItemVisitor interface {
+	Visit(source, pkg, item string, image Image) error
+}
+
+type InstallPlanner struct {
+	target         string
+	targetToSource string
+}
+
+func (v InstallPlanner) Visit(source, pkg, item string, image Image) error {
+	status := image.Status(item)
+	if status.WillExist() {
+		return &ErrConflict{}
+	}
+
+	dest := path.Join(v.targetToSource, pkg, item)
+	state := State{Dest: dest}
+	image.Create(item, state)
+
+	return nil
 }
