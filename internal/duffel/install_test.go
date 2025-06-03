@@ -140,7 +140,11 @@ func TestVisitInstall(t *testing.T) {
 
 			image := Image{}
 			image[test.item] = test.status
-			visit := PlanInstallPackage(req, image, targetToSource, pkg)
+			v := InstallVisitor{
+				target:         target,
+				targetToSource: targetToSource,
+			}
+			visit := PlanInstallPackage(req, pkg, v, image)
 
 			gotErr := visit(sourcePkgItem, nil, test.walkError)
 

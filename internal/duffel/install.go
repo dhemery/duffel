@@ -14,12 +14,16 @@ func (e *ErrConflict) Error() string {
 
 func PlanInstallPackages(r *Request, image Image) error {
 	targetToSource, err := filepath.Rel(r.Target, r.Source)
+	install := InstallVisitor{
+		target:         r.Target,
+		targetToSource: targetToSource,
+	}
 	if err != nil {
 		return err
 	}
 	for _, pkg := range r.Pkgs {
 		sourcePkg := path.Join(r.Source, pkg)
-		err := fs.WalkDir(r.FS, sourcePkg, PlanInstallPackage(r, image, targetToSource, pkg))
+		err := fs.WalkDir(r.FS, sourcePkg, PlanInstallPackage(r, pkg, install, image))
 		if err != nil {
 			return err
 		}
@@ -28,11 +32,7 @@ func PlanInstallPackages(r *Request, image Image) error {
 	return nil
 }
 
-func PlanInstallPackage(r *Request, image Image, targetToSource string, pkg string) fs.WalkDirFunc {
-	v := InstallPlanner{
-		target:         r.Target,
-		targetToSource: targetToSource,
-	}
+func PlanInstallPackage(r *Request, pkg string, v ItemVisitor, image Image) fs.WalkDirFunc {
 	sourcePkg := path.Join(r.Source, pkg)
 	return func(path string, _ fs.DirEntry, err error) error {
 		if err != nil {
@@ -54,12 +54,12 @@ type ItemVisitor interface {
 	Visit(source, pkg, item string, image Image) error
 }
 
-type InstallPlanner struct {
+type InstallVisitor struct {
 	target         string
 	targetToSource string
 }
 
-func (v InstallPlanner) Visit(source, pkg, item string, image Image) error {
+func (v InstallVisitor) Visit(source, pkg, item string, image Image) error {
 	status := image.Status(item)
 	if status.WillExist() {
 		return &ErrConflict{}
