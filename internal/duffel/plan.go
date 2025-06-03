@@ -38,7 +38,6 @@ type ItemVisitor interface {
 
 type PkgPlanner struct {
 	FS        fs.FS
-	Source    string
 	Pkg       string
 	SourcePkg string
 	Visitor   ItemVisitor
@@ -47,7 +46,6 @@ type PkgPlanner struct {
 func NewPkgPlanner(fsys fs.FS, source, pkg string, v ItemVisitor) PkgPlanner {
 	return PkgPlanner{
 		FS:        fsys,
-		Source:    source,
 		Pkg:       pkg,
 		SourcePkg: path.Join(source, pkg),
 		Visitor:   v,
@@ -58,15 +56,15 @@ func (p PkgPlanner) Plan() error {
 	return fs.WalkDir(p.FS, p.SourcePkg, p.VisitPath)
 }
 
-func (p PkgPlanner) VisitPath(pth string, d fs.DirEntry, err error) error {
+func (p PkgPlanner) VisitPath(path string, d fs.DirEntry, err error) error {
 	if err != nil {
 		return err
 	}
 
 	// Don't visit SourcePkg. It's a pkg, not an item.
-	if pth == p.SourcePkg {
+	if path == p.SourcePkg {
 		return nil
 	}
-	item, _ := filepath.Rel(p.SourcePkg, pth)
+	item, _ := filepath.Rel(p.SourcePkg, path)
 	return p.Visitor.VisitItem(p.Pkg, item, d)
 }
