@@ -63,13 +63,15 @@ func (p PkgPlanner) Plan(image Image) error {
 
 func PlanInstallPackages(fsys fs.FS, source string, target string, pkgs []string, image Image) error {
 	targetToSource, err := filepath.Rel(target, source)
+	if err != nil {
+		return err
+	}
 	install := InstallVisitor{
 		target:         target,
 		targetToSource: targetToSource,
 	}
-	if err != nil {
-		return err
-	}
+
+	var planners []PkgPlanner
 	for _, pkg := range pkgs {
 		planner := PkgPlanner{
 			FS:      fsys,
@@ -77,6 +79,10 @@ func PlanInstallPackages(fsys fs.FS, source string, target string, pkgs []string
 			Pkg:     pkg,
 			Visitor: install,
 		}
+		planners = append(planners, planner)
+	}
+
+	for _, planner := range planners {
 		err := planner.Plan(image)
 		if err != nil {
 			return err
