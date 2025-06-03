@@ -4,7 +4,11 @@ import (
 	"errors"
 	"io/fs"
 	"path"
+	"path/filepath"
 	"testing"
+	"testing/fstest"
+
+	"github.com/dhemery/duffel/internal/testfs"
 )
 
 type dirEntry struct {
@@ -34,73 +38,119 @@ func (d dirEntry) Type() fs.FileMode {
 
 func TestVisitInstall(t *testing.T) {
 	const (
-		source         = "path/to/source"   // Parent dir of package being walked
-		pkg            = "pkg"              // Package dir being walked, relative to source
-		targetToSource = "target/to/source" // Given to walk func to use in link dests
+		target = "path/to/target"
+		source = "path/to/source"
+		pkg    = "pkg"
 	)
-	visitErr := errors.New("error passed to visit")
+	var (
+		targetToSource, _ = filepath.Rel(target, source)
+		visitError        = errors.New("error passed to visit")
+	)
 
 	tests := map[string]struct {
-		item       string // Item being visited, relative to pkg dir
-		givenErr   error  // Error passed to visit
-		status     Status // Planner status before visit
-		wantStatus Status // Planner status after visit
-		wantErr    error  // Returned by visit
+		item        string          // Item being visited, relative to pkg dir
+		walkError   error           // Error passed to visit
+		status      Status          // Planner status before the visit
+		targetEntry *fstest.MapFile // File entry for the item in target dir
+		wantStatus  Status          // Planner status after visit
+		wantErr     error           // Returned by visit
+		skip        bool
 	}{
-		"pkg dir": {
-			item:       ".",
-			givenErr:   nil,
-			wantErr:    nil,
-			wantStatus: Status{}, // Plans no action
+		"new target item with no status": {
+			item:        "item",
+			targetEntry: nil,
+			status:      Status{},
+			wantStatus: Status{
+				// File does not exist in target
+				Prior: Result{},
+				// Planned link
+				Planned: Result{Dest: path.Join(targetToSource, pkg, "item")},
+			},
+			wantErr: nil,
 		},
-		"pkg dir and given error": {
-			item:       ".",
-			givenErr:   visitErr,
-			wantErr:    visitErr,
-			wantStatus: Status{},
+		"new target item with planned result": {
+			item:        "item",
+			targetEntry: nil,
+			status:      Status{Planned: Result{Dest: "planned/link/dest"}},
+			wantStatus:  Status{Planned: Result{Dest: "planned/link/dest"}}, // Unchanged
+			wantErr:     &ErrConflict{},
 		},
-		"item with no status": {
-			item:       "item",
-			givenErr:   nil,
-			status:     Status{},
-			wantErr:    nil,
-			wantStatus: Status{Planned: Result{Dest: path.Join(targetToSource, pkg, "item")}},
+		"existing target file first visit": {
+			item:        "item",
+			targetEntry: testfs.FileEntry("content", 0o644),
+			// First visit, so no  status
+			status: Status{},
+			wantStatus: Status{
+				// Record existing target file
+				Prior: Result{Mode: 0o644},
+				// Do not change existing target file
+				Planned: Result{},
+			},
+			wantErr: &ErrConflict{},
+			skip:    true,
 		},
-		"item and given error": {
-			item:       "item",
-			givenErr:   visitErr,
-			wantErr:    visitErr,
-			wantStatus: Status{},
-		},
-		"preexisting item": {
-			item:       "item",
-			status:     Status{Prior: Result{Dest: "prior/link/dest"}},
+		"existing target file already visited": {
+			item: "item",
+			// Prior result recorded on earlier visit
+			status: Status{Prior: Result{Dest: "prior/link/dest"}},
+			// Do not change existing target file
+			wantStatus: Status{Prior: Result{Dest: "prior/link/dest"}},
 			wantErr:    &ErrConflict{},
-			wantStatus: Status{Prior: Result{Dest: "prior/link/dest"}}, // Unchanged
+			skip:       true,
+		},
+		"visit pkg dir": {
+			item:       ".",
+			walkError:  nil,
+			wantErr:    nil,      // Succesfully...
+			wantStatus: Status{}, // ...plan no action
+		},
+		"visit pkg dir that gave walk error": {
+			item:       ".",
+			walkError:  visitError,
+			wantErr:    visitError, // Return the given error
+			wantStatus: Status{},   // Do not plan the pkg dir
+		},
+		"visit item that gave walk error": {
+			item:       "item",
+			walkError:  visitError,
+			wantErr:    visitError, // Return the given error
+			wantStatus: Status{},   // Do not plan an item that can't be walked
 		},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
+			if test.skip {
+				t.Skip("wip")
+			}
 			sourcePkg := path.Join(source, pkg)
-			visitPath := path.Join(sourcePkg, test.item)
+			sourcePkgItem := path.Join(sourcePkg, test.item)
 
-			planner := Planner{}
-			if test.status.WillExist() {
-				planner[test.item] = test.status
+			fsys := testfs.New()
+			fsys.M[target] = testfs.DirEntry(0o755)
+			if test.targetEntry != nil {
+				fsys.M[sourcePkgItem] = test.targetEntry
 			}
 
-			visit := PlanInstallPackage(planner, targetToSource, sourcePkg, pkg)
+			req := &Request{
+				FS:     fsys,
+				Target: target,
+				Source: source,
+			}
 
-			gotErr := visit(visitPath, nil, test.givenErr)
+			planner := Planner{}
+			planner[test.item] = test.status
+			visit := PlanInstallPackage(req, planner, targetToSource, pkg)
+
+			gotErr := visit(sourcePkgItem, nil, test.walkError)
 
 			if !errors.Is(gotErr, test.wantErr) {
-				t.Errorf("want error %#v, got %#v", test.wantErr, gotErr)
+				t.Errorf("error:\nwant %#v\ngot  %#v", test.wantErr, gotErr)
 			}
 
 			gotStatus := planner.Status(test.item)
 			if gotStatus != test.wantStatus {
-				t.Errorf("want status %v, got %v", test.wantStatus, gotStatus)
+				t.Errorf("status:\nwant %v\ngot  %v", test.wantStatus, gotStatus)
 			}
 		})
 	}

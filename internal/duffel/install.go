@@ -19,7 +19,7 @@ func PlanInstallPackages(r *Request, planner Planner) error {
 	}
 	for _, pkg := range r.Pkgs {
 		sourcePkg := path.Join(r.Source, pkg)
-		err := fs.WalkDir(r.FS, sourcePkg, PlanInstallPackage(planner, targetToSource, sourcePkg, pkg))
+		err := fs.WalkDir(r.FS, sourcePkg, PlanInstallPackage(r, planner, targetToSource, pkg))
 		if err != nil {
 			return err
 		}
@@ -28,7 +28,8 @@ func PlanInstallPackages(r *Request, planner Planner) error {
 	return nil
 }
 
-func PlanInstallPackage(planner Planner, targetToSource string, sourcePkg string, pkg string) fs.WalkDirFunc {
+func PlanInstallPackage(r *Request, planner Planner, targetToSource string, pkg string) fs.WalkDirFunc {
+	sourcePkg := path.Join(r.Source, pkg)
 	return func(sourcePkgItem string, _ fs.DirEntry, err error) error {
 		if err != nil {
 			return err

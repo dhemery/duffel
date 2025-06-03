@@ -1,13 +1,15 @@
 package duffel
 
 import (
+	"io/fs"
 	"maps"
 	"path"
 	"slices"
 )
 
 type Result struct {
-	Dest string `json:"dest"`
+	Mode fs.FileMode `json:"mode,omitzero"`
+	Dest string      `json:"dest,omitzero"`
 }
 
 func (r Result) Exists() bool {
