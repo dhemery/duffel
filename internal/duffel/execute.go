@@ -8,7 +8,7 @@ import (
 func Execute(r *Request, dryRun bool, w io.Writer) error {
 	image := Image{}
 
-	err := PlanInstallPackages(r, image)
+	err := PlanInstallPackages(r.FS, r.Source, r.Target, r.Pkgs, image)
 
 	tasks := image.Tasks()
 	plan := Plan{Target: r.Target, Tasks: tasks}

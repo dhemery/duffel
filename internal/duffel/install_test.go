@@ -132,19 +132,13 @@ func TestVisitInstall(t *testing.T) {
 				fsys.M[sourcePkgItem] = test.targetEntry
 			}
 
-			req := &Request{
-				FS:     fsys,
-				Target: target,
-				Source: source,
-			}
-
 			image := Image{}
 			image[test.item] = test.status
 			v := InstallVisitor{
 				target:         target,
 				targetToSource: targetToSource,
 			}
-			visit := PlanInstallPackage(req, pkg, v, image)
+			visit := PlanInstallPackage(source, pkg, v, image)
 
 			gotErr := visit(sourcePkgItem, nil, test.walkError)
 
