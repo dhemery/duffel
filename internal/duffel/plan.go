@@ -70,31 +70,3 @@ func (p PkgPlanner) VisitPath(pth string, d fs.DirEntry, err error) error {
 	item, _ := filepath.Rel(p.SourcePkg, pth)
 	return p.Visitor.VisitItem(p.Pkg, item, d)
 }
-
-func PlanInstallPackages(fsys fs.FS, source string, target string, pkgs []string, image Image) error {
-	targetToSource, err := filepath.Rel(target, source)
-	if err != nil {
-		return err
-	}
-	install := InstallVisitor{
-		source:         source,
-		target:         target,
-		targetToSource: targetToSource,
-		image:          image,
-	}
-
-	var planners []PkgPlanner
-	for _, pkg := range pkgs {
-		planner := NewPkgPlanner(fsys, source, pkg, install)
-		planners = append(planners, planner)
-	}
-
-	for _, planner := range planners {
-		err := planner.Plan()
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
