@@ -36,7 +36,7 @@ func (d dirEntry) Type() fs.FileMode {
 	return d.mode & fs.ModeType
 }
 
-func TestVisitInstall(t *testing.T) {
+func TestInstallVisitor(t *testing.T) {
 	const (
 		target = "path/to/target"
 		source = "path/to/source"
@@ -54,7 +54,7 @@ func TestVisitInstall(t *testing.T) {
 		targetEntry *fstest.MapFile // File entry for the item in target dir
 		wantStatus  Status          // Planner status after visit
 		wantErr     error           // Returned by visit
-		skip        bool
+		skip        string
 	}{
 		"new target item with no status": {
 			item:        "item",
@@ -87,7 +87,7 @@ func TestVisitInstall(t *testing.T) {
 				Planned: State{},
 			},
 			wantErr: &ErrConflict{},
-			skip:    true,
+			skip:    "not yet implemented",
 		},
 		"existing target file already visited": {
 			item: "item",
@@ -96,32 +96,35 @@ func TestVisitInstall(t *testing.T) {
 			// Visit did change the status
 			wantStatus: Status{Existing: State{Dest: "existing/dest"}},
 			wantErr:    &ErrConflict{},
-			skip:       true,
+			skip:       "not yet implemented",
 		},
 		"visit pkg dir": {
 			item:       ".",
 			walkError:  nil,
 			wantErr:    nil,      // Succesfully...
 			wantStatus: Status{}, // ...plan no action
+			skip:       "responsibility moved to PkgPlanner",
 		},
 		"visit pkg dir that gave walk error": {
 			item:       ".",
 			walkError:  visitError,
 			wantErr:    visitError, // Visit returned the given error
 			wantStatus: Status{},   // Visit did not change the status
+			skip:       "responsibility moved to PkgPlanner",
 		},
 		"visit item that gave walk error": {
 			item:       "item",
 			walkError:  visitError,
 			wantErr:    visitError, // Visit returned the given error
 			wantStatus: Status{},   // Visit did not change the status
+			skip:       "responsibility moved to PkgPlanner",
 		},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			if test.skip {
-				t.Skip("wip")
+			if test.skip != "" {
+				t.Skip(test.skip)
 			}
 			sourcePkg := path.Join(source, pkg)
 			sourcePkgItem := path.Join(sourcePkg, test.item)
@@ -134,13 +137,15 @@ func TestVisitInstall(t *testing.T) {
 
 			image := Image{}
 			image[test.item] = test.status
+
 			v := InstallVisitor{
+				source:         source,
 				target:         target,
 				targetToSource: targetToSource,
+				image:          image,
 			}
-			visit := PlanInstallPackage(source, pkg, v, image)
 
-			gotErr := visit(sourcePkgItem, nil, test.walkError)
+			gotErr := v.VisitItem(pkg, test.item, nil)
 
 			if !errors.Is(gotErr, test.wantErr) {
 				t.Errorf("error:\nwant %#v\ngot  %#v", test.wantErr, gotErr)

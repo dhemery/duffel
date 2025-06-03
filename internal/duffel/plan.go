@@ -33,32 +33,42 @@ func (t Task) Execute(fsys FS, target string) error {
 }
 
 type ItemVisitor interface {
-	Visit(source, pkg, item string, image Image) error
+	VisitItem(pkg, item string, d fs.DirEntry) error
 }
 
 type PkgPlanner struct {
-	FS      fs.FS
-	Source  string
-	Pkg     string
-	Visitor ItemVisitor
+	FS        fs.FS
+	Source    string
+	Pkg       string
+	SourcePkg string
+	Visitor   ItemVisitor
 }
 
-func (p PkgPlanner) Plan(image Image) error {
-	sourcePkg := path.Join(p.Source, p.Pkg)
-	return fs.WalkDir(p.FS, sourcePkg, func(path string, _ fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
+func NewPkgPlanner(fsys fs.FS, source, pkg string, v ItemVisitor) PkgPlanner {
+	return PkgPlanner{
+		FS:        fsys,
+		Source:    source,
+		Pkg:       pkg,
+		SourcePkg: path.Join(source, pkg),
+		Visitor:   v,
+	}
+}
 
-		// Don't visit sourcePkg
-		if path == sourcePkg {
-			return nil
-		}
+func (p PkgPlanner) Plan() error {
+	return fs.WalkDir(p.FS, p.SourcePkg, p.VisitPath)
+}
 
-		item, _ := filepath.Rel(sourcePkg, path)
+func (p PkgPlanner) VisitPath(pth string, d fs.DirEntry, err error) error {
+	if err != nil {
+		return err
+	}
 
-		return p.Visitor.Visit(p.Source, p.Pkg, item, image)
-	})
+	// Don't visit SourcePkg. It's a pkg, not an item.
+	if pth == p.SourcePkg {
+		return nil
+	}
+	item, _ := filepath.Rel(p.SourcePkg, pth)
+	return p.Visitor.VisitItem(p.Pkg, item, d)
 }
 
 func PlanInstallPackages(fsys fs.FS, source string, target string, pkgs []string, image Image) error {
@@ -67,45 +77,24 @@ func PlanInstallPackages(fsys fs.FS, source string, target string, pkgs []string
 		return err
 	}
 	install := InstallVisitor{
+		source:         source,
 		target:         target,
 		targetToSource: targetToSource,
+		image:          image,
 	}
 
 	var planners []PkgPlanner
 	for _, pkg := range pkgs {
-		planner := PkgPlanner{
-			FS:      fsys,
-			Source:  source,
-			Pkg:     pkg,
-			Visitor: install,
-		}
+		planner := NewPkgPlanner(fsys, source, pkg, install)
 		planners = append(planners, planner)
 	}
 
 	for _, planner := range planners {
-		err := planner.Plan(image)
+		err := planner.Plan()
 		if err != nil {
 			return err
 		}
 	}
 
 	return nil
-}
-
-func PlanInstallPackage(source string, pkg string, v ItemVisitor, image Image) fs.WalkDirFunc {
-	sourcePkg := path.Join(source, pkg)
-	return func(path string, _ fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-
-		// Don't visit sourcePkg
-		if path == sourcePkg {
-			return nil
-		}
-
-		item, _ := filepath.Rel(sourcePkg, path)
-
-		return v.Visit(source, pkg, item, image)
-	}
 }

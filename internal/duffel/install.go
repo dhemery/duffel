@@ -1,6 +1,7 @@
 package duffel
 
 import (
+	"io/fs"
 	"path"
 )
 
@@ -11,19 +12,21 @@ func (e *ErrConflict) Error() string {
 }
 
 type InstallVisitor struct {
+	source         string
 	target         string
 	targetToSource string
+	image          Image
 }
 
-func (v InstallVisitor) Visit(source, pkg, item string, image Image) error {
-	status := image.Status(item)
+func (v InstallVisitor) VisitItem(pkg, item string, _ fs.DirEntry) error {
+	status := v.image.Status(item)
 	if status.WillExist() {
 		return &ErrConflict{}
 	}
 
 	dest := path.Join(v.targetToSource, pkg, item)
 	state := State{Dest: dest}
-	image.Create(item, state)
+	v.image.Create(item, state)
 
 	return nil
 }
