@@ -1,41 +1,8 @@
 package duffel
 
 import (
-	"io/fs"
-	"maps"
 	"path"
-	"slices"
 )
-
-type Result struct {
-	Mode fs.FileMode `json:"mode,omitzero"`
-	Dest string      `json:"dest,omitzero"`
-}
-
-func (r Result) Exists() bool {
-	return r.Dest != ""
-}
-
-type Task struct {
-	// Item is the path of the item to create, relative to target
-	Item string `json:"item"`
-
-	// Result is the result to create at the target item path
-	Result
-}
-
-func (t Task) Execute(fsys FS, target string) error {
-	return fsys.Symlink(t.Dest, path.Join(target, t.Item))
-}
-
-type Status struct {
-	Prior   Result
-	Planned Result
-}
-
-func (s Status) WillExist() bool {
-	return s.Prior.Exists() || s.Planned.Exists()
-}
 
 type Plan struct {
 	Target string `json:"target"`
@@ -51,27 +18,14 @@ func (p *Plan) Execute(fsys FS) error {
 	return nil
 }
 
-type Planner map[string]Status
+type Task struct {
+	// Item is the path of the item to create, relative to target
+	Item string `json:"item"`
 
-func (p Planner) Create(item string, result Result) {
-	p[item] = Status{Planned: result}
+	// State describes the file to create at the target item path
+	State
 }
 
-func (p Planner) Status(item string) Status {
-	return p[item]
-}
-
-func (p Planner) Tasks() []Task {
-	var tasks []Task
-	// Must sort tasks in lexical order by item
-	for _, item := range slices.Sorted(maps.Keys(p)) {
-		status := p[item]
-		if !status.Planned.Exists() {
-			continue
-		}
-
-		task := Task{Item: item, Result: status.Planned}
-		tasks = append(tasks, task)
-	}
-	return tasks
+func (t Task) Execute(fsys FS, target string) error {
+	return fsys.Symlink(t.Dest, path.Join(target, t.Item))
 }

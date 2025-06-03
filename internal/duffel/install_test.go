@@ -61,18 +61,18 @@ func TestVisitInstall(t *testing.T) {
 			targetEntry: nil,
 			status:      Status{},
 			wantStatus: Status{
-				// File does not exist in target
-				Prior: Result{},
-				// Planned link
-				Planned: Result{Dest: path.Join(targetToSource, pkg, "item")},
+				// Visit did not change existing state
+				Existing: State{},
+				// Visit planned the link
+				Planned: State{Dest: path.Join(targetToSource, pkg, "item")},
 			},
 			wantErr: nil,
 		},
-		"new target item with planned result": {
+		"new target item with planned state": {
 			item:        "item",
 			targetEntry: nil,
-			status:      Status{Planned: Result{Dest: "planned/link/dest"}},
-			wantStatus:  Status{Planned: Result{Dest: "planned/link/dest"}}, // Unchanged
+			status:      Status{Planned: State{Dest: "planned/dest"}},
+			wantStatus:  Status{Planned: State{Dest: "planned/dest"}}, // Unchanged
 			wantErr:     &ErrConflict{},
 		},
 		"existing target file first visit": {
@@ -81,20 +81,20 @@ func TestVisitInstall(t *testing.T) {
 			// First visit, so no  status
 			status: Status{},
 			wantStatus: Status{
-				// Record existing target file
-				Prior: Result{Mode: 0o644},
-				// Do not change existing target file
-				Planned: Result{},
+				// Visit recorded existing target file
+				Existing: State{Mode: 0o644},
+				// Visit did not change the planned state
+				Planned: State{},
 			},
 			wantErr: &ErrConflict{},
 			skip:    true,
 		},
 		"existing target file already visited": {
 			item: "item",
-			// Prior result recorded on earlier visit
-			status: Status{Prior: Result{Dest: "prior/link/dest"}},
-			// Do not change existing target file
-			wantStatus: Status{Prior: Result{Dest: "prior/link/dest"}},
+			// Existing state recorded on earlier visit
+			status: Status{Existing: State{Dest: "existing/dest"}},
+			// Visit did change the status
+			wantStatus: Status{Existing: State{Dest: "existing/dest"}},
 			wantErr:    &ErrConflict{},
 			skip:       true,
 		},
@@ -107,14 +107,14 @@ func TestVisitInstall(t *testing.T) {
 		"visit pkg dir that gave walk error": {
 			item:       ".",
 			walkError:  visitError,
-			wantErr:    visitError, // Return the given error
-			wantStatus: Status{},   // Do not plan the pkg dir
+			wantErr:    visitError, // Visit returned the given error
+			wantStatus: Status{},   // Visit did not change the status
 		},
 		"visit item that gave walk error": {
 			item:       "item",
 			walkError:  visitError,
-			wantErr:    visitError, // Return the given error
-			wantStatus: Status{},   // Do not plan an item that can't be walked
+			wantErr:    visitError, // Visit returned the given error
+			wantStatus: Status{},   // Visit did not change the status
 		},
 	}
 
@@ -138,9 +138,9 @@ func TestVisitInstall(t *testing.T) {
 				Source: source,
 			}
 
-			planner := Planner{}
-			planner[test.item] = test.status
-			visit := PlanInstallPackage(req, planner, targetToSource, pkg)
+			image := Image{}
+			image[test.item] = test.status
+			visit := PlanInstallPackage(req, image, targetToSource, pkg)
 
 			gotErr := visit(sourcePkgItem, nil, test.walkError)
 
@@ -148,7 +148,7 @@ func TestVisitInstall(t *testing.T) {
 				t.Errorf("error:\nwant %#v\ngot  %#v", test.wantErr, gotErr)
 			}
 
-			gotStatus := planner.Status(test.item)
+			gotStatus := image.Status(test.item)
 			if gotStatus != test.wantStatus {
 				t.Errorf("status:\nwant %v\ngot  %v", test.wantStatus, gotStatus)
 			}

@@ -6,11 +6,11 @@ import (
 )
 
 func Execute(r *Request, dryRun bool, w io.Writer) error {
-	planner := Planner{}
+	image := Image{}
 
-	err := PlanInstallPackages(r, planner)
+	err := PlanInstallPackages(r, image)
 
-	tasks := planner.Tasks()
+	tasks := image.Tasks()
 	plan := Plan{Target: r.Target, Tasks: tasks}
 	if dryRun {
 		enc := json.NewEncoder(w)
