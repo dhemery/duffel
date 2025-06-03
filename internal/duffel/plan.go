@@ -32,6 +32,35 @@ func (t Task) Execute(fsys FS, target string) error {
 	return fsys.Symlink(t.Dest, path.Join(target, t.Item))
 }
 
+type ItemVisitor interface {
+	Visit(source, pkg, item string, image Image) error
+}
+
+type PkgPlanner struct {
+	FS      fs.FS
+	Source  string
+	Pkg     string
+	Visitor ItemVisitor
+}
+
+func (p PkgPlanner) Plan(image Image) error {
+	sourcePkg := path.Join(p.Source, p.Pkg)
+	return fs.WalkDir(p.FS, sourcePkg, func(path string, _ fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+
+		// Don't visit sourcePkg
+		if path == sourcePkg {
+			return nil
+		}
+
+		item, _ := filepath.Rel(sourcePkg, path)
+
+		return p.Visitor.Visit(p.Source, p.Pkg, item, image)
+	})
+}
+
 func PlanInstallPackages(fsys fs.FS, source string, target string, pkgs []string, image Image) error {
 	targetToSource, err := filepath.Rel(target, source)
 	install := InstallVisitor{
@@ -42,8 +71,13 @@ func PlanInstallPackages(fsys fs.FS, source string, target string, pkgs []string
 		return err
 	}
 	for _, pkg := range pkgs {
-		sourcePkg := path.Join(source, pkg)
-		err := fs.WalkDir(fsys, sourcePkg, PlanInstallPackage(source, pkg, install, image))
+		planner := PkgPlanner{
+			FS:      fsys,
+			Source:  source,
+			Pkg:     pkg,
+			Visitor: install,
+		}
+		err := planner.Plan(image)
 		if err != nil {
 			return err
 		}

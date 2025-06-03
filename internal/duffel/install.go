@@ -10,10 +10,6 @@ func (e *ErrConflict) Error() string {
 	return ""
 }
 
-type ItemVisitor interface {
-	Visit(source, pkg, item string, image Image) error
-}
-
 type InstallVisitor struct {
 	target         string
 	targetToSource string
