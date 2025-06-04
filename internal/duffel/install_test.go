@@ -37,7 +37,7 @@ func (d dirEntry) Type() fs.FileMode {
 	return d.mode & fs.ModeType
 }
 
-func TestInstallVisitor(t *testing.T) {
+func TestInstallAnalyze(t *testing.T) {
 	const (
 		target = "path/to/target"
 		source = "path/to/source"
@@ -49,22 +49,22 @@ func TestInstallVisitor(t *testing.T) {
 	)
 
 	tests := map[string]struct {
-		item        string          // Item being visited, relative to pkg dir
-		walkError   error           // Error passed to visit
-		status      Status          // Planner status before the visit
+		item        string          // Item being analyzed, relative to pkg dir
+		walkError   error           // Error passed to visit by fs.WalkDir
+		status      Status          // Item status before Analyze
 		targetEntry *fstest.MapFile // File entry for the item in target dir
-		wantStatus  Status          // Planner status after visit
-		wantErr     error           // Returned by visit
-		skip        string
+		wantStatus  Status          // Item status after Analyze
+		wantErr     error           // Error returned Analyze
+		skip        string          // Reason for skipping this test
 	}{
 		"new target item with no status": {
 			item:        "item",
 			targetEntry: nil,
 			status:      Status{},
 			wantStatus: Status{
-				// Visit did not record a current state
+				// Analyze did not record a current state
 				Current: nil,
-				// Visit proposed a desired state
+				// Analyze proposed a desired state
 				Desired: &State{Dest: path.Join(targetToSource, pkg, "item")},
 			},
 			wantErr: nil,
@@ -82,9 +82,9 @@ func TestInstallVisitor(t *testing.T) {
 			// First visit, so no  status
 			status: Status{},
 			wantStatus: Status{
-				// Visit recorded the state of the current target file
+				// Analyze recorded the state of the current target file
 				Current: &State{Mode: 0o644},
-				// Visit did not propose a desired state
+				// Analyze did not propose a desired state
 				Desired: nil,
 			},
 			wantErr: &ErrConflict{},
@@ -92,9 +92,9 @@ func TestInstallVisitor(t *testing.T) {
 		},
 		"current target file already visited": {
 			item: "item",
-			// current state recorded on earlier visit
+			// Current state recorded on earlier visit
 			status: Status{Current: &State{Dest: "current/dest"}},
-			// Visit did change the status
+			// Does not change the status
 			wantStatus: Status{Current: &State{Dest: "current/dest"}},
 			wantErr:    &ErrConflict{},
 			skip:       "not yet implemented",
@@ -103,22 +103,22 @@ func TestInstallVisitor(t *testing.T) {
 			item:       ".",
 			walkError:  nil,
 			wantErr:    nil,      // Succesfully...
-			wantStatus: Status{}, // ...plan no action
-			skip:       "responsibility moved to PkgPlanner",
+			wantStatus: Status{}, // ... does not set the status
+			skip:       "responsibility moved to PkgAnalyst",
 		},
 		"visit pkg dir that gave walk error": {
 			item:       ".",
 			walkError:  visitError,
-			wantErr:    visitError, // Visit returned the given error
-			wantStatus: Status{},   // Visit did not change the status
-			skip:       "responsibility moved to PkgPlanner",
+			wantStatus: Status{},   // Does not set the status
+			wantErr:    visitError, // Returns the given error
+			skip:       "responsibility moved to PkgAnalyst",
 		},
 		"visit item that gave walk error": {
 			item:       "item",
 			walkError:  visitError,
-			wantErr:    visitError, // Visit returned the given error
-			wantStatus: Status{},   // Visit did not change the status
-			skip:       "responsibility moved to PkgPlanner",
+			wantStatus: Status{},   // Does not set the status
+			wantErr:    visitError, // Returns the given error
+			skip:       "responsibility moved to PkgAnalyst",
 		},
 	}
 
@@ -139,14 +139,14 @@ func TestInstallVisitor(t *testing.T) {
 			image := Image{}
 			image[test.item] = test.status
 
-			v := InstallVisitor{
+			v := Install{
 				source:         source,
 				target:         target,
 				targetToSource: targetToSource,
 				image:          image,
 			}
 
-			gotErr := v.VisitItem(pkg, test.item, nil)
+			gotErr := v.Analyze(pkg, test.item, nil)
 
 			if !errors.Is(gotErr, test.wantErr) {
 				t.Errorf("error:\nwant %#v\ngot  %#v", test.wantErr, gotErr)

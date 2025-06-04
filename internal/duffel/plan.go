@@ -32,39 +32,39 @@ func (t Task) Execute(fsys FS, target string) error {
 	return fsys.Symlink(t.Dest, path.Join(target, t.Item))
 }
 
-type ItemVisitor interface {
-	VisitItem(pkg, item string, d fs.DirEntry) error
+type ItemAnalyst interface {
+	Analyze(pkg, item string, d fs.DirEntry) error
 }
 
-type PkgPlanner struct {
-	FS        fs.FS
-	Pkg       string
-	SourcePkg string
-	Visitor   ItemVisitor
+type PkgAnalyst struct {
+	FS          fs.FS
+	Pkg         string
+	SourcePkg   string
+	ItemAnalyst ItemAnalyst
 }
 
-func NewPkgPlanner(fsys fs.FS, source, pkg string, v ItemVisitor) PkgPlanner {
-	return PkgPlanner{
-		FS:        fsys,
-		Pkg:       pkg,
-		SourcePkg: path.Join(source, pkg),
-		Visitor:   v,
+func NewPkgAnalyst(fsys fs.FS, source, pkg string, a ItemAnalyst) PkgAnalyst {
+	return PkgAnalyst{
+		FS:          fsys,
+		Pkg:         pkg,
+		SourcePkg:   path.Join(source, pkg),
+		ItemAnalyst: a,
 	}
 }
 
-func (p PkgPlanner) Plan() error {
-	return fs.WalkDir(p.FS, p.SourcePkg, p.VisitPath)
+func (pa PkgAnalyst) Plan() error {
+	return fs.WalkDir(pa.FS, pa.SourcePkg, pa.Analyze)
 }
 
-func (p PkgPlanner) VisitPath(path string, d fs.DirEntry, err error) error {
+func (pa PkgAnalyst) Analyze(path string, d fs.DirEntry, err error) error {
 	if err != nil {
 		return err
 	}
 
 	// Don't visit SourcePkg. It's a pkg, not an item.
-	if path == p.SourcePkg {
+	if path == pa.SourcePkg {
 		return nil
 	}
-	item, _ := filepath.Rel(p.SourcePkg, path)
-	return p.Visitor.VisitItem(p.Pkg, item, d)
+	item, _ := filepath.Rel(pa.SourcePkg, path)
+	return pa.ItemAnalyst.Analyze(pa.Pkg, item, d)
 }

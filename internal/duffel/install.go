@@ -11,14 +11,14 @@ func (e *ErrConflict) Error() string {
 	return ""
 }
 
-type InstallVisitor struct {
+type Install struct {
 	source         string
 	target         string
 	targetToSource string
 	image          Image
 }
 
-func (v InstallVisitor) VisitItem(pkg, item string, _ fs.DirEntry) error {
+func (v Install) Analyze(pkg, item string, _ fs.DirEntry) error {
 	status, _ := v.image.Status(item)
 	// TODO: If not ok, stat the file
 	if status.Desired != nil {

@@ -13,21 +13,21 @@ func Execute(r *Request, dryRun bool, w io.Writer) error {
 	}
 
 	image := Image{}
-	install := InstallVisitor{
+	install := Install{
 		source:         r.Source,
 		target:         r.Target,
 		targetToSource: targetToSource,
 		image:          image,
 	}
 
-	var planners []PkgPlanner
+	var analysts []PkgAnalyst
 	for _, pkg := range r.Pkgs {
-		planner := NewPkgPlanner(r.FS, r.Source, pkg, install)
-		planners = append(planners, planner)
+		analyst := NewPkgAnalyst(r.FS, r.Source, pkg, install)
+		analysts = append(analysts, analyst)
 	}
 
-	for _, planner := range planners {
-		err = planner.Plan()
+	for _, analyst := range analysts {
+		err = analyst.Plan()
 		if err != nil {
 			break
 		}
