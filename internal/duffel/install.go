@@ -19,13 +19,14 @@ type InstallVisitor struct {
 }
 
 func (v InstallVisitor) VisitItem(pkg, item string, _ fs.DirEntry) error {
-	status := v.image.Status(item)
-	if status.WillExist() {
+	status, _ := v.image.Status(item)
+	// TODO: If not ok, stat the file
+	if status.Desired != nil {
 		return &ErrConflict{}
 	}
 
 	dest := path.Join(v.targetToSource, pkg, item)
-	state := State{Dest: dest}
+	state := &State{Dest: dest}
 	v.image.Create(item, state)
 
 	return nil

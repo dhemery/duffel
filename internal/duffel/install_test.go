@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"path"
 	"path/filepath"
+	"reflect"
 	"testing"
 	"testing/fstest"
 
@@ -62,17 +63,17 @@ func TestInstallVisitor(t *testing.T) {
 			status:      Status{},
 			wantStatus: Status{
 				// Visit did not record a current state
-				Current: State{},
+				Current: nil,
 				// Visit proposed a desired state
-				Desired: State{Dest: path.Join(targetToSource, pkg, "item")},
+				Desired: &State{Dest: path.Join(targetToSource, pkg, "item")},
 			},
 			wantErr: nil,
 		},
 		"new target item with desired state": {
 			item:        "item",
 			targetEntry: nil,
-			status:      Status{Desired: State{Dest: "desired/dest"}},
-			wantStatus:  Status{Desired: State{Dest: "desired/dest"}}, // Unchanged
+			status:      Status{Desired: &State{Dest: "desired/dest"}},
+			wantStatus:  Status{Desired: &State{Dest: "desired/dest"}}, // Unchanged
 			wantErr:     &ErrConflict{},
 		},
 		"current target file first visit": {
@@ -82,9 +83,9 @@ func TestInstallVisitor(t *testing.T) {
 			status: Status{},
 			wantStatus: Status{
 				// Visit recorded the state of the current target file
-				Current: State{Mode: 0o644},
+				Current: &State{Mode: 0o644},
 				// Visit did not propose a desired state
-				Desired: State{},
+				Desired: nil,
 			},
 			wantErr: &ErrConflict{},
 			skip:    "not yet implemented",
@@ -92,9 +93,9 @@ func TestInstallVisitor(t *testing.T) {
 		"current target file already visited": {
 			item: "item",
 			// current state recorded on earlier visit
-			status: Status{Current: State{Dest: "current/dest"}},
+			status: Status{Current: &State{Dest: "current/dest"}},
 			// Visit did change the status
-			wantStatus: Status{Current: State{Dest: "current/dest"}},
+			wantStatus: Status{Current: &State{Dest: "current/dest"}},
 			wantErr:    &ErrConflict{},
 			skip:       "not yet implemented",
 		},
@@ -151,9 +152,9 @@ func TestInstallVisitor(t *testing.T) {
 				t.Errorf("error:\nwant %#v\ngot  %#v", test.wantErr, gotErr)
 			}
 
-			gotStatus := image.Status(test.item)
-			if gotStatus != test.wantStatus {
-				t.Errorf("status:\nwant %v\ngot  %v", test.wantStatus, gotStatus)
+			gotStatus, _ := image.Status(test.item)
+			if !reflect.DeepEqual(gotStatus, test.wantStatus) {
+				t.Errorf("status:\nwant %s\ngot  %s", test.wantStatus, gotStatus)
 			}
 		})
 	}
