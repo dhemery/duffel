@@ -10,37 +10,37 @@ func TestImageTasks(t *testing.T) {
 		statuses map[string]Status
 		want     []Task
 	}{
-		"only existing states": {
+		"only current states": {
 			statuses: map[string]Status{
-				"item1": {Existing: State{Dest: "item1/existing/dest"}},
-				"item2": {Existing: State{Dest: "item2/existing/dest"}},
-				"item3": {Existing: State{Dest: "item4/existing/dest"}},
+				"item1": {Current: State{Dest: "item1/current/dest"}},
+				"item2": {Current: State{Dest: "item2/current/dest"}},
+				"item3": {Current: State{Dest: "item4/current/dest"}},
 			},
 			want: []Task{},
 		},
-		"only planned states": {
+		"only desired states": {
 			statuses: map[string]Status{
-				"item1": {Planned: State{Dest: "item1/planned/dest"}},
-				"item2": {Planned: State{Dest: "item2/planned/dest"}},
-				"item3": {Planned: State{Dest: "item3/planned/dest"}},
+				"item1": {Desired: State{Dest: "item1/desired/dest"}},
+				"item2": {Desired: State{Dest: "item2/desired/dest"}},
+				"item3": {Desired: State{Dest: "item3/desired/dest"}},
 			},
 			want: []Task{ // Tasks for all states, sorted by item
-				{Item: "item1", State: State{Dest: "item1/planned/dest"}},
-				{Item: "item2", State: State{Dest: "item2/planned/dest"}},
-				{Item: "item3", State: State{Dest: "item3/planned/dest"}},
+				{Item: "item1", State: State{Dest: "item1/desired/dest"}},
+				{Item: "item2", State: State{Dest: "item2/desired/dest"}},
+				{Item: "item3", State: State{Dest: "item3/desired/dest"}},
 			},
 		},
-		"existing and planned states": {
+		"current and desired states": {
 			statuses: map[string]Status{
-				"empty":  {}, // No planned or existing
-				"relax":  {Existing: State{Dest: "existing/dest"}},
-				"create": {Planned: State{Dest: "created/dest"}},
+				"empty":  {}, // No current or desired state
+				"relax":  {Current: State{Dest: "current/dest"}},
+				"create": {Desired: State{Dest: "created/dest"}},
 				"change": {
-					Existing: State{Dest: "existing/dest"},
-					Planned:  State{Dest: "changed/dest"},
+					Current: State{Dest: "current/dest"},
+					Desired: State{Dest: "changed/dest"},
 				},
 			},
-			want: []Task{ // Tasks only for planned states, sorted by item
+			want: []Task{ // Tasks only for desired states, sorted by item
 				{Item: "change", State: State{Dest: "changed/dest"}},
 				{Item: "create", State: State{Dest: "created/dest"}},
 			},
@@ -75,7 +75,7 @@ func TestImageCreate(t *testing.T) {
 	state := State{Dest: dest}
 	image.Create(item, state)
 
-	want = Status{Planned: state}
+	want = Status{Desired: state}
 	got = image.Status(item)
 	if got != want {
 		t.Fatalf("after create want status %v, got %v", want, got)
@@ -84,17 +84,17 @@ func TestImageCreate(t *testing.T) {
 
 func TestStatusWillExist(t *testing.T) {
 	var (
-		existingState = State{Dest: "existing/dest"}
-		plannedState  = State{Dest: "planned/dest"}
+		currentState = State{Dest: "current/dest"}
+		desiredState = State{Dest: "desired/dest"}
 	)
 	tests := []struct {
 		status Status
 		want   bool
 	}{
 		{status: Status{}, want: false},
-		{status: Status{Existing: existingState}, want: true},
-		{status: Status{Planned: plannedState}, want: true},
-		{status: Status{Existing: existingState, Planned: plannedState}, want: true},
+		{status: Status{Current: currentState}, want: true},
+		{status: Status{Desired: desiredState}, want: true},
+		{status: Status{Current: currentState, Desired: desiredState}, want: true},
 	}
 
 	for _, test := range tests {

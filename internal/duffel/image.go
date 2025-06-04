@@ -9,7 +9,7 @@ import (
 type Image map[string]Status
 
 func (i Image) Create(item string, state State) {
-	i[item] = Status{Planned: state}
+	i[item] = Status{Desired: state}
 }
 
 func (i Image) Status(item string) Status {
@@ -21,23 +21,23 @@ func (i Image) Tasks() []Task {
 	// Must sort tasks in lexical order by item
 	for _, item := range slices.Sorted(maps.Keys(i)) {
 		status := i[item]
-		if !status.Planned.Exists() {
+		if !status.Desired.Exists() {
 			continue
 		}
 
-		task := Task{Item: item, State: status.Planned}
+		task := Task{Item: item, State: status.Desired}
 		tasks = append(tasks, task)
 	}
 	return tasks
 }
 
 type Status struct {
-	Existing State
-	Planned  State
+	Current State
+	Desired State
 }
 
 func (s Status) WillExist() bool {
-	return s.Existing.Exists() || s.Planned.Exists()
+	return s.Current.Exists() || s.Desired.Exists()
 }
 
 type State struct {

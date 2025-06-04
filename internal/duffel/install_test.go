@@ -61,40 +61,40 @@ func TestInstallVisitor(t *testing.T) {
 			targetEntry: nil,
 			status:      Status{},
 			wantStatus: Status{
-				// Visit did not change existing state
-				Existing: State{},
-				// Visit planned the link
-				Planned: State{Dest: path.Join(targetToSource, pkg, "item")},
+				// Visit did not record a current state
+				Current: State{},
+				// Visit proposed a desired state
+				Desired: State{Dest: path.Join(targetToSource, pkg, "item")},
 			},
 			wantErr: nil,
 		},
-		"new target item with planned state": {
+		"new target item with desired state": {
 			item:        "item",
 			targetEntry: nil,
-			status:      Status{Planned: State{Dest: "planned/dest"}},
-			wantStatus:  Status{Planned: State{Dest: "planned/dest"}}, // Unchanged
+			status:      Status{Desired: State{Dest: "desired/dest"}},
+			wantStatus:  Status{Desired: State{Dest: "desired/dest"}}, // Unchanged
 			wantErr:     &ErrConflict{},
 		},
-		"existing target file first visit": {
+		"current target file first visit": {
 			item:        "item",
 			targetEntry: testfs.FileEntry("content", 0o644),
 			// First visit, so no  status
 			status: Status{},
 			wantStatus: Status{
-				// Visit recorded existing target file
-				Existing: State{Mode: 0o644},
-				// Visit did not change the planned state
-				Planned: State{},
+				// Visit recorded the state of the current target file
+				Current: State{Mode: 0o644},
+				// Visit did not propose a desired state
+				Desired: State{},
 			},
 			wantErr: &ErrConflict{},
 			skip:    "not yet implemented",
 		},
-		"existing target file already visited": {
+		"current target file already visited": {
 			item: "item",
-			// Existing state recorded on earlier visit
-			status: Status{Existing: State{Dest: "existing/dest"}},
+			// current state recorded on earlier visit
+			status: Status{Current: State{Dest: "current/dest"}},
 			// Visit did change the status
-			wantStatus: Status{Existing: State{Dest: "existing/dest"}},
+			wantStatus: Status{Current: State{Dest: "current/dest"}},
 			wantErr:    &ErrConflict{},
 			skip:       "not yet implemented",
 		},
