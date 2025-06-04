@@ -2,7 +2,6 @@ package duffel
 
 import (
 	"errors"
-	"io/fs"
 	"path"
 	"path/filepath"
 	"reflect"
@@ -12,41 +11,13 @@ import (
 	"github.com/dhemery/duffel/internal/testfs"
 )
 
-type dirEntry struct {
-	name string
-	mode fs.FileMode
-	info fs.FileInfo
-}
-
-func (d dirEntry) IsDir() bool {
-	return d.mode.IsDir()
-}
-
-func (d dirEntry) Info() (fs.FileInfo, error) {
-	if d.info == nil {
-		return nil, fs.ErrNotExist
-	}
-	return d.info, nil
-}
-
-func (d dirEntry) Name() string {
-	return d.name
-}
-
-func (d dirEntry) Type() fs.FileMode {
-	return d.mode & fs.ModeType
-}
-
-func TestInstallAnalyze(t *testing.T) {
+func TestInstall(t *testing.T) {
 	const (
 		target = "path/to/target"
 		source = "path/to/source"
 		pkg    = "pkg"
 	)
-	var (
-		targetToSource, _ = filepath.Rel(target, source)
-		visitError        = errors.New("error passed to visit")
-	)
+	targetToSource, _ := filepath.Rel(target, source)
 
 	tests := map[string]struct {
 		item        string          // Item being analyzed, relative to pkg dir
@@ -57,68 +28,46 @@ func TestInstallAnalyze(t *testing.T) {
 		wantErr     error           // Error returned Analyze
 		skip        string          // Reason for skipping this test
 	}{
-		"new target item with no status": {
+		"no status, no file": {
 			item:        "item",
 			targetEntry: nil,
 			status:      Status{},
 			wantStatus: Status{
-				// Analyze did not record a current state
+				// Does not set a current state because no target file
 				Current: nil,
-				// Analyze proposed a desired state
+				// Proposes linking to pkg item
 				Desired: &State{Dest: path.Join(targetToSource, pkg, "item")},
 			},
 			wantErr: nil,
 		},
-		"new target item with desired state": {
+		"desired state, no file": {
 			item:        "item",
 			targetEntry: nil,
 			status:      Status{Desired: &State{Dest: "desired/dest"}},
 			wantStatus:  Status{Desired: &State{Dest: "desired/dest"}}, // Unchanged
 			wantErr:     &ErrConflict{},
 		},
-		"current target file first visit": {
+		"file with no status": {
 			item:        "item",
 			targetEntry: testfs.FileEntry("content", 0o644),
-			// First visit, so no  status
-			status: Status{},
+			status:      Status{}, // No status means not yet analyzed
 			wantStatus: Status{
-				// Analyze recorded the state of the current target file
+				// Sets the current state of the target file
 				Current: &State{Mode: 0o644},
-				// Analyze did not propose a desired state
-				Desired: nil,
+				// Proposes to leave the target in its current state
+				Desired: &State{Mode: 0o644},
 			},
 			wantErr: &ErrConflict{},
 			skip:    "not yet implemented",
 		},
-		"current target file already visited": {
+		"current state": {
 			item: "item",
-			// Current state recorded on earlier visit
+			// Current state set by earlier analysis
 			status: Status{Current: &State{Dest: "current/dest"}},
 			// Does not change the status
 			wantStatus: Status{Current: &State{Dest: "current/dest"}},
 			wantErr:    &ErrConflict{},
 			skip:       "not yet implemented",
-		},
-		"visit pkg dir": {
-			item:       ".",
-			walkError:  nil,
-			wantErr:    nil,      // Succesfully...
-			wantStatus: Status{}, // ... does not set the status
-			skip:       "responsibility moved to PkgAnalyst",
-		},
-		"visit pkg dir that gave walk error": {
-			item:       ".",
-			walkError:  visitError,
-			wantStatus: Status{},   // Does not set the status
-			wantErr:    visitError, // Returns the given error
-			skip:       "responsibility moved to PkgAnalyst",
-		},
-		"visit item that gave walk error": {
-			item:       "item",
-			walkError:  visitError,
-			wantStatus: Status{},   // Does not set the status
-			wantErr:    visitError, // Returns the given error
-			skip:       "responsibility moved to PkgAnalyst",
 		},
 	}
 
@@ -139,14 +88,14 @@ func TestInstallAnalyze(t *testing.T) {
 			image := Image{}
 			image[test.item] = test.status
 
-			v := Install{
+			install := Install{
 				source:         source,
 				target:         target,
 				targetToSource: targetToSource,
 				image:          image,
 			}
 
-			gotErr := v.Analyze(pkg, test.item, nil)
+			gotErr := install.Analyze(pkg, test.item, nil)
 
 			if !errors.Is(gotErr, test.wantErr) {
 				t.Errorf("error:\nwant %#v\ngot  %#v", test.wantErr, gotErr)

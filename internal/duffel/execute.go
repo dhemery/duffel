@@ -20,14 +20,14 @@ func Execute(r *Request, dryRun bool, w io.Writer) error {
 		image:          image,
 	}
 
-	var analysts []PkgAnalyst
+	var pkgAnalysts []PkgAnalyst
 	for _, pkg := range r.Pkgs {
-		analyst := NewPkgAnalyst(r.FS, r.Source, pkg, install)
-		analysts = append(analysts, analyst)
+		pa := NewPkgAnalyst(r.FS, r.Source, pkg, install)
+		pkgAnalysts = append(pkgAnalysts, pa)
 	}
 
-	for _, analyst := range analysts {
-		err = analyst.Plan()
+	for _, pa := range pkgAnalysts {
+		err = pa.Analyze()
 		if err != nil {
 			break
 		}
