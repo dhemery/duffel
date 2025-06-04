@@ -19,25 +19,24 @@ func (tia testItemAnalyst) Analyze(pkg, item string, d fs.DirEntry) error {
 
 func TestPkgAnalyst(t *testing.T) {
 	const (
-		target           = "path/to/target"
-		source           = "path/to/source"
-		pkg              = "pkg"
-		item             = "item"
-		permR            = 0o444
-		permW            = 0o222
-		permX            = 0o111
-		permReadable     = permR | permW | permX
-		permUnreadable   = permW | permX
-		permUnsearchable = permW | permR
+		target         = "path/to/target"
+		source         = "path/to/source"
+		pkg            = "pkg"
+		item           = "item"
+		permReadable   = 0o444
+		permUnreadable = 0
 	)
 
+	type analyzeItemCall struct {
+		pkgArg  string
+		itemArg string
+		err     error
+	}
 	tests := map[string]struct {
-		files    fstest.MapFS // Files on the file system
-		wantPkg  string       // pkg passed to item analyzer
-		wantItem string       // item passed to item analyzer
-		itemErr  error        // Error returned by item analyzer
-		wantErr  error        // Error returned by pkg analyzer
-		skip     string       // Reason for skipping this test
+		files           fstest.MapFS     // Files on the file system
+		wantAnalyzeItem *analyzeItemCall // Wanted call to item analyzer
+		wantErr         error            // Error returned by pkg analyzer
+		skip            string           // Reason for skipping this test
 	}{
 		"readable pkg dir": {
 			files: fstest.MapFS{
@@ -55,18 +54,24 @@ func TestPkgAnalyst(t *testing.T) {
 			files: fstest.MapFS{
 				path.Join(source, pkg, item): testfs.FileEntry("", permReadable),
 			},
-			wantPkg:  pkg,
-			wantItem: item,
-			itemErr:  nil,
-			wantErr:  nil,
+			wantAnalyzeItem: &analyzeItemCall{
+				pkgArg:  pkg,
+				itemArg: item,
+				err:     nil,
+			},
+			wantErr: nil,
 		},
-		"unreadable pkg item entry": {
+		"unreadable dir item": {
 			files: fstest.MapFS{
-				path.Join(source, pkg):       testfs.DirEntry(permUnsearchable),
-				path.Join(source, pkg, item): testfs.FileEntry("", permReadable),
+				path.Join(source, pkg, item): testfs.DirEntry(permUnreadable),
+			},
+			// Called for item's dir entry before trying to read item itself.
+			wantAnalyzeItem: &analyzeItemCall{
+				pkgArg:  pkg,
+				itemArg: item,
+				err:     nil,
 			},
 			wantErr: fs.ErrPermission,
-			skip:    "don't know how to cause stat error on item",
 		},
 	}
 
@@ -77,23 +82,35 @@ func TestPkgAnalyst(t *testing.T) {
 			}
 
 			fsys := testfs.FS{M: test.files}
+			gotAnalyzeItemCall := false
+
 			tia := testItemAnalyst(func(pkg, item string, d fs.DirEntry) error {
-				if test.wantPkg == "" {
-					return fmt.Errorf("item analyze: unexpected call with pkg %q, item %q",
+				if gotAnalyzeItemCall {
+					return fmt.Errorf("analyze item: unexpected second call: pkg %q, item %q",
 						pkg, item)
 				}
-				if pkg != test.wantPkg {
-					t.Errorf("item analyze: want pkg %q, got %q", test.wantPkg, pkg)
+				want := test.wantAnalyzeItem
+				if want == nil {
+					return fmt.Errorf("analyze item: unexpected call with pkg %q, item %q",
+						pkg, item)
 				}
-				if item != test.wantItem {
-					t.Errorf("item analyze:, want item %q, got %q", test.wantItem, item)
+				gotAnalyzeItemCall = true
+				if pkg != want.pkgArg {
+					t.Errorf("analyze item: want pkg %q, got %q", want.pkgArg, pkg)
 				}
-				return test.itemErr
+				if item != want.itemArg {
+					t.Errorf("analyze item:, want item %q, got %q", want.itemArg, item)
+				}
+				return want.err
 			})
 
 			pa := NewPkgAnalyst(fsys, source, pkg, tia)
 
 			gotErr := pa.Analyze()
+
+			if test.wantAnalyzeItem != nil && !gotAnalyzeItemCall {
+				t.Errorf("no call to analyze item, wanted: %#v", test.wantAnalyzeItem)
+			}
 
 			if !errors.Is(gotErr, test.wantErr) {
 				t.Fatalf("error:\nwant %v\ngot  %v", test.wantErr, gotErr)
