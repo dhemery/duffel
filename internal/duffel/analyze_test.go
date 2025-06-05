@@ -11,9 +11,9 @@ import (
 	"github.com/dhemery/duffel/internal/testfs"
 )
 
-type testItemAnalyst func(pkg, item string, d fs.DirEntry) error
+type itemAnalystFunc func(pkg, item string, d fs.DirEntry) error
 
-func (tia testItemAnalyst) Analyze(pkg, item string, d fs.DirEntry) error {
+func (tia itemAnalystFunc) Analyze(pkg, item string, d fs.DirEntry) error {
 	return tia(pkg, item, d)
 }
 
@@ -36,7 +36,6 @@ func TestPkgAnalyst(t *testing.T) {
 		files           fstest.MapFS     // Files on the file system
 		wantAnalyzeItem *analyzeItemCall // Wanted call to item analyzer
 		wantErr         error            // Error returned by pkg analyzer
-		skip            string           // Reason for skipping this test
 	}{
 		"readable pkg dir": {
 			files: fstest.MapFS{
@@ -77,14 +76,9 @@ func TestPkgAnalyst(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			if test.skip != "" {
-				t.Skip(test.skip)
-			}
-
-			fsys := testfs.FS{M: test.files}
 			gotAnalyzeItemCall := false
 
-			tia := testItemAnalyst(func(pkg, item string, d fs.DirEntry) error {
+			tia := itemAnalystFunc(func(pkg, item string, d fs.DirEntry) error {
 				if gotAnalyzeItemCall {
 					return fmt.Errorf("analyze item: unexpected second call: pkg %q, item %q",
 						pkg, item)
@@ -103,6 +97,8 @@ func TestPkgAnalyst(t *testing.T) {
 				}
 				return want.err
 			})
+
+			fsys := testfs.FS{M: test.files}
 
 			pa := NewPkgAnalyst(fsys, source, pkg, tia)
 
