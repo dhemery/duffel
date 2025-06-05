@@ -3,8 +3,21 @@ package duffel
 import (
 	"encoding/json"
 	"io"
+	"io/fs"
 	"path/filepath"
 )
+
+type FS interface {
+	fs.ReadDirFS
+	Symlink(oldname, newname string) error
+}
+
+type Request struct {
+	FS     FS
+	Source string
+	Target string
+	Pkgs   []string
+}
 
 func Execute(r *Request, dryRun bool, w io.Writer) error {
 	targetToSource, err := filepath.Rel(r.Target, r.Source)
@@ -12,12 +25,12 @@ func Execute(r *Request, dryRun bool, w io.Writer) error {
 		return err
 	}
 
-	image := Image{}
+	tree := TargetTree{}
 	install := Install{
 		source:         r.Source,
 		target:         r.Target,
 		targetToSource: targetToSource,
-		image:          image,
+		tree:           tree,
 	}
 
 	var pkgAnalysts []PkgAnalyst
@@ -33,7 +46,7 @@ func Execute(r *Request, dryRun bool, w io.Writer) error {
 		}
 	}
 
-	tasks := image.Tasks()
+	tasks := tree.Tasks()
 
 	plan := Plan{Target: r.Target, Tasks: tasks}
 

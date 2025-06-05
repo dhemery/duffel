@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestImageTasks(t *testing.T) {
+func TestTargetTreeTasks(t *testing.T) {
 	tests := map[string]struct {
 		statuses map[string]Status
 		want     []Task
@@ -49,9 +49,9 @@ func TestImageTasks(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			image := Image(test.statuses)
+			tree := TargetTree(test.statuses)
 
-			got := image.Tasks()
+			got := tree.Tasks()
 
 			if !slices.Equal(got, test.want) {
 				t.Errorf("want tasks %v, got %v", test.want, got)
@@ -60,22 +60,22 @@ func TestImageTasks(t *testing.T) {
 	}
 }
 
-func TestImageCreate(t *testing.T) {
+func TestTargetTreeCreate(t *testing.T) {
 	item := "item"
 	dest := "task/dest"
 
-	image := Image{}
+	tree := TargetTree{}
 
-	got, ok := image.Status(item)
+	got, ok := tree.Status(item)
 	if ok {
 		t.Fatalf("before create, want !ok, got ok status %v", got)
 	}
 
 	state := &State{Dest: dest}
-	image.Create(item, state)
+	tree.Create(item, state)
 
 	want := Status{Desired: state}
-	got, ok = image.Status(item)
+	got, ok = tree.Status(item)
 	if got != want || !ok {
 		t.Fatalf("after create want ok status %v\ngot ok %t, status %v", want, ok, got)
 	}

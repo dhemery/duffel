@@ -7,18 +7,18 @@ import (
 	"slices"
 )
 
-type Image map[string]Status
+type TargetTree map[string]Status
 
-func (i Image) Create(item string, state *State) {
+func (i TargetTree) Create(item string, state *State) {
 	i[item] = Status{Desired: state}
 }
 
-func (i Image) Status(item string) (Status, bool) {
+func (i TargetTree) Status(item string) (Status, bool) {
 	s, ok := i[item]
 	return s, ok
 }
 
-func (i Image) Tasks() []Task {
+func (i TargetTree) Tasks() []Task {
 	var tasks []Task
 	// Must sort tasks in lexical order by item
 	for _, item := range slices.Sorted(maps.Keys(i)) {

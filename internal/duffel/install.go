@@ -15,11 +15,11 @@ type Install struct {
 	source         string
 	target         string
 	targetToSource string
-	image          Image
+	tree           TargetTree
 }
 
 func (v Install) Analyze(pkg, item string, _ fs.DirEntry) error {
-	status, _ := v.image.Status(item)
+	status, _ := v.tree.Status(item)
 	// TODO: If not ok, stat the file
 	if status.Desired != nil {
 		return &ErrConflict{}
@@ -27,7 +27,7 @@ func (v Install) Analyze(pkg, item string, _ fs.DirEntry) error {
 
 	dest := path.Join(v.targetToSource, pkg, item)
 	state := &State{Dest: dest}
-	v.image.Create(item, state)
+	v.tree.Create(item, state)
 
 	return nil
 }

@@ -85,14 +85,14 @@ func TestInstall(t *testing.T) {
 				fsys.M[sourcePkgItem] = test.targetEntry
 			}
 
-			image := Image{}
-			image[test.item] = test.status
+			tree := TargetTree{}
+			tree[test.item] = test.status
 
 			install := Install{
 				source:         source,
 				target:         target,
 				targetToSource: targetToSource,
-				image:          image,
+				tree:           tree,
 			}
 
 			gotErr := install.Analyze(pkg, test.item, nil)
@@ -101,7 +101,7 @@ func TestInstall(t *testing.T) {
 				t.Errorf("error:\nwant %#v\ngot  %#v", test.wantErr, gotErr)
 			}
 
-			gotStatus, _ := image.Status(test.item)
+			gotStatus, _ := tree.Status(test.item)
 			if !reflect.DeepEqual(gotStatus, test.wantStatus) {
 				t.Errorf("status:\nwant %s\ngot  %s", test.wantStatus, gotStatus)
 			}
