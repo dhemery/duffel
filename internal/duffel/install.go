@@ -1,6 +1,7 @@
 package duffel
 
 import (
+	"errors"
 	"io/fs"
 	"path"
 )
@@ -12,22 +13,35 @@ func (e *ErrConflict) Error() string {
 }
 
 type Install struct {
+	fsys           fs.FS
 	source         string
 	target         string
 	targetToSource string
 	tree           TargetTree
 }
 
-func (v Install) Analyze(pkg, item string, _ fs.DirEntry) error {
-	status, _ := v.tree.Status(item)
-	// TODO: If not ok, stat the file
+func (i Install) Analyze(pkg, item string, _ fs.DirEntry) error {
+	status, ok := i.tree.Status(item)
+	if !ok {
+		targetItem := path.Join(i.target, item)
+		info, err := fs.Stat(i.fsys, targetItem)
+		if !errors.Is(err, fs.ErrNotExist) {
+			// TODO: Record the error in the status
+			return err
+		}
+		if err == nil {
+			status = NewStatus(info.Mode(), "")
+		}
+	}
+
 	if status.Desired != nil {
 		return &ErrConflict{}
 	}
 
-	dest := path.Join(v.targetToSource, pkg, item)
-	state := &State{Dest: dest}
-	v.tree.Create(item, state)
+	dest := path.Join(i.targetToSource, pkg, item)
+	status.Desired = &State{Mode: fs.ModeSymlink, Dest: dest}
+
+	i.tree.Set(item, status)
 
 	return nil
 }

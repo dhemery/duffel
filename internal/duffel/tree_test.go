@@ -1,6 +1,8 @@
 package duffel
 
 import (
+	"io/fs"
+	"reflect"
 	"slices"
 	"testing"
 )
@@ -60,9 +62,8 @@ func TestTargetTreeTasks(t *testing.T) {
 	}
 }
 
-func TestTargetTreeCreate(t *testing.T) {
+func TestTargetSet(t *testing.T) {
 	item := "item"
-	dest := "task/dest"
 
 	tree := TargetTree{}
 
@@ -71,12 +72,31 @@ func TestTargetTreeCreate(t *testing.T) {
 		t.Fatalf("before create, want !ok, got ok status %v", got)
 	}
 
-	state := &State{Dest: dest}
-	tree.Create(item, state)
+	status := Status{
+		Current: &State{Mode: fs.ModeSymlink, Dest: "current/dest"},
+		Desired: &State{Mode: fs.ModeDir | 0o755},
+	}
+	tree.Set(item, status)
 
-	want := Status{Desired: state}
 	got, ok = tree.Status(item)
-	if got != want || !ok {
-		t.Fatalf("after create want ok status %v\ngot ok %t, status %v", want, ok, got)
+	if got != status || !ok {
+		t.Fatalf("after set want ok status %v\ngot ok %t, status %v", status, ok, got)
+	}
+}
+
+func TestNewStatus(t *testing.T) {
+	mode := fs.ModeDir | 0o755
+	dest := "my/dest"
+
+	got := NewStatus(mode, dest)
+
+	// Records the given mode and dest as both the current and desired states
+	want := Status{
+		Current: &State{Mode: mode, Dest: dest},
+		Desired: &State{Mode: mode, Dest: dest},
+	}
+
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("new status:\nwant %s\ngot  %s", want, got)
 	}
 }

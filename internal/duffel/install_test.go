@@ -2,6 +2,7 @@ package duffel
 
 import (
 	"errors"
+	"io/fs"
 	"path"
 	"path/filepath"
 	"reflect"
@@ -36,7 +37,10 @@ func TestInstall(t *testing.T) {
 				// Does not set a current state because no target file
 				Current: nil,
 				// Proposes linking to pkg item
-				Desired: &State{Dest: path.Join(targetToSource, pkg, "item")},
+				Desired: &State{
+					Mode: fs.ModeSymlink,
+					Dest: path.Join(targetToSource, pkg, "item"),
+				},
 			},
 			wantErr: nil,
 		},
@@ -52,7 +56,7 @@ func TestInstall(t *testing.T) {
 			targetEntry: testfs.FileEntry("content", 0o644),
 			status:      Status{}, // No status means not yet analyzed
 			wantStatus: Status{
-				// Sets the current state of the target file
+				// Records the current state of the target file
 				Current: &State{Mode: 0o644},
 				// Proposes to leave the target in its current state
 				Desired: &State{Mode: 0o644},
@@ -60,14 +64,19 @@ func TestInstall(t *testing.T) {
 			wantErr: &ErrConflict{},
 			skip:    "not yet implemented",
 		},
-		"current state": {
+		"current state links to foreign dest": {
 			item: "item",
 			// Current state set by earlier analysis
-			status: Status{Current: &State{Dest: "current/dest"}},
+			status: Status{
+				Current: &State{Dest: "current/foreign/dest"},
+				Desired: &State{Dest: "current/foreign/dest"},
+			},
 			// Does not change the status
-			wantStatus: Status{Current: &State{Dest: "current/dest"}},
-			wantErr:    &ErrConflict{},
-			skip:       "not yet implemented",
+			wantStatus: Status{
+				Current: &State{Dest: "current/foreign/dest"},
+				Desired: &State{Dest: "current/foreign/dest"},
+			},
+			wantErr: &ErrConflict{},
 		},
 	}
 

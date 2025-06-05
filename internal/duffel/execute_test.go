@@ -133,7 +133,7 @@ func TestExecuteEmptyTargetWithConflictingPackageItems(t *testing.T) {
 	}
 }
 
-func TestInstallDirErrors(t *testing.T) {
+func TestExecuteDirErrors(t *testing.T) {
 	const (
 		doesNotExist = 0
 		permRead     = 0o444

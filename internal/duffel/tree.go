@@ -9,20 +9,20 @@ import (
 
 type TargetTree map[string]Status
 
-func (i TargetTree) Create(item string, state *State) {
-	i[item] = Status{Desired: state}
+func (tt TargetTree) Set(item string, status Status) {
+	tt[item] = status
 }
 
-func (i TargetTree) Status(item string) (Status, bool) {
-	s, ok := i[item]
+func (tt TargetTree) Status(item string) (Status, bool) {
+	s, ok := tt[item]
 	return s, ok
 }
 
-func (i TargetTree) Tasks() []Task {
+func (tt TargetTree) Tasks() []Task {
 	var tasks []Task
 	// Must sort tasks in lexical order by item
-	for _, item := range slices.Sorted(maps.Keys(i)) {
-		status := i[item]
+	for _, item := range slices.Sorted(maps.Keys(tt)) {
+		status := tt[item]
 		if status.Desired == nil {
 			continue
 		}
@@ -31,6 +31,13 @@ func (i TargetTree) Tasks() []Task {
 		tasks = append(tasks, task)
 	}
 	return tasks
+}
+
+func NewStatus(mode fs.FileMode, dest string) Status {
+	return Status{
+		Current: &State{Mode: mode, Dest: dest},
+		Desired: &State{Mode: mode, Dest: dest},
+	}
 }
 
 type Status struct {
@@ -43,6 +50,6 @@ func (s Status) String() string {
 }
 
 type State struct {
-	Mode fs.FileMode `json:"mode,omitzero"`
+	Mode fs.FileMode `json:"mode,omitzero,string"`
 	Dest string      `json:"dest,omitzero"`
 }
