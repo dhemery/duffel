@@ -1,4 +1,4 @@
-package testfs
+package duftest
 
 import (
 	"io/fs"
@@ -12,7 +12,7 @@ const (
 	writeAccess  = 0o222
 )
 
-func New() FS {
+func NewFS() FS {
 	return FS{fstest.MapFS{}}
 }
 

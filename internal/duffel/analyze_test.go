@@ -8,7 +8,7 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"github.com/dhemery/duffel/internal/testfs"
+	"github.com/dhemery/duffel/internal/duftest"
 )
 
 type itemAnalystFunc func(pkg, item string, d fs.DirEntry) error
@@ -39,19 +39,19 @@ func TestPkgAnalyst(t *testing.T) {
 	}{
 		"readable pkg dir": {
 			files: fstest.MapFS{
-				path.Join(source, pkg): testfs.DirEntry(permReadable),
+				path.Join(source, pkg): duftest.DirEntry(permReadable),
 			},
 			wantErr: nil,
 		},
 		"unreadable pkg dir": {
 			files: fstest.MapFS{
-				path.Join(source, pkg): testfs.DirEntry(permUnreadable),
+				path.Join(source, pkg): duftest.DirEntry(permUnreadable),
 			},
 			wantErr: fs.ErrPermission,
 		},
 		"readable pkg item": {
 			files: fstest.MapFS{
-				path.Join(source, pkg, item): testfs.FileEntry("", permReadable),
+				path.Join(source, pkg, item): duftest.FileEntry("", permReadable),
 			},
 			wantAnalyzeItem: &analyzeItemCall{
 				pkgArg:  pkg,
@@ -62,7 +62,7 @@ func TestPkgAnalyst(t *testing.T) {
 		},
 		"unreadable dir item": {
 			files: fstest.MapFS{
-				path.Join(source, pkg, item): testfs.DirEntry(permUnreadable),
+				path.Join(source, pkg, item): duftest.DirEntry(permUnreadable),
 			},
 			// Called for item's dir entry before trying to read item itself.
 			wantAnalyzeItem: &analyzeItemCall{
@@ -98,7 +98,7 @@ func TestPkgAnalyst(t *testing.T) {
 				return want.err
 			})
 
-			fsys := testfs.FS{M: test.files}
+			fsys := duftest.FS{M: test.files}
 
 			pa := NewPkgAnalyst(fsys, source, pkg, tia)
 

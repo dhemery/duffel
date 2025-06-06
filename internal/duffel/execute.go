@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"io/fs"
+	"log/slog"
 	"path/filepath"
 )
 
@@ -19,7 +20,7 @@ type Request struct {
 	Pkgs   []string
 }
 
-func Execute(r *Request, dryRun bool, w io.Writer) error {
+func Execute(r *Request, dryRun bool, w io.Writer, logger *slog.Logger) error {
 	targetToSource, err := filepath.Rel(r.Target, r.Source)
 	if err != nil {
 		return err
@@ -32,6 +33,7 @@ func Execute(r *Request, dryRun bool, w io.Writer) error {
 		target:         r.Target,
 		targetToSource: targetToSource,
 		tree:           tree,
+		logger:         logger,
 	}
 
 	var pkgAnalysts []PkgAnalyst

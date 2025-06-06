@@ -3,13 +3,15 @@ package duffel
 import (
 	"errors"
 	"io/fs"
+	"log/slog"
+	"os"
 	"path"
 	"path/filepath"
 	"reflect"
 	"testing"
 	"testing/fstest"
 
-	"github.com/dhemery/duffel/internal/testfs"
+	"github.com/dhemery/duffel/internal/duftest"
 )
 
 func TestInstall(t *testing.T) {
@@ -28,6 +30,7 @@ func TestInstall(t *testing.T) {
 		wantStatus  Status          // Item status after Analyze
 		wantErr     error           // Error returned Analyze
 		skip        string          // Reason for skipping this test
+		logLevel    slog.Level
 	}{
 		"no status, no target file": {
 			item:        "item",
@@ -53,7 +56,7 @@ func TestInstall(t *testing.T) {
 		},
 		"target file with no status": {
 			item:        "item",
-			targetEntry: testfs.FileEntry("content", 0o644),
+			targetEntry: duftest.FileEntry("content", 0o644),
 			status:      nil, // No status means not yet analyzed
 			wantStatus: Status{
 				// Records the current state of the target file
@@ -85,8 +88,8 @@ func TestInstall(t *testing.T) {
 				t.Skip(test.skip)
 			}
 
-			fsys := testfs.New()
-			fsys.M[target] = testfs.DirEntry(0o755)
+			fsys := duftest.NewFS()
+			fsys.M[target] = duftest.DirEntry(0o755)
 			targetItem := path.Join(target, test.item)
 			fsys.M[targetItem] = test.targetEntry
 
@@ -96,6 +99,7 @@ func TestInstall(t *testing.T) {
 			}
 
 			install := Install{
+				logger:         duftest.Logger(t.Name(), test.logLevel, os.Stderr),
 				fsys:           fsys,
 				source:         source,
 				target:         target,

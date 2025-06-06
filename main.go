@@ -41,13 +41,13 @@ func main() {
 		Pkgs:   flags.Args(),
 	}
 
-	err = duffel.Execute(req, *dryRunOpt, os.Stdout)
+	logger := slog.New(slog.NewJSONHandler(os.Stderr, nil))
+	err = duffel.Execute(req, *dryRunOpt, os.Stdout, logger)
 	if err != nil {
-		fatal(err)
+		logger.Error(err.Error())
+		os.Exit(1)
 	}
 }
 
 func fatal(err error) {
-	slog.Error(err.Error())
-	os.Exit(1)
 }

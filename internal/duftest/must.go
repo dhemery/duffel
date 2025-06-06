@@ -1,4 +1,4 @@
-package testfs
+package duftest
 
 import (
 	"io/fs"
