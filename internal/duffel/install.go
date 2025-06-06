@@ -25,16 +25,17 @@ func (i Install) Analyze(pkg, item string, _ fs.DirEntry) error {
 	if !ok {
 		targetItem := path.Join(i.target, item)
 		info, err := fs.Stat(i.fsys, targetItem)
-		if !errors.Is(err, fs.ErrNotExist) {
+		switch {
+		case err == nil:
+			status = NewStatus(info.Mode(), "")
+		case !errors.Is(err, fs.ErrNotExist):
 			// TODO: Record the error in the status
 			return err
 		}
-		if err == nil {
-			status = NewStatus(info.Mode(), "")
-		}
+		i.tree.Set(item, status)
 	}
 
-	if status.Desired != nil {
+	if status.Current != nil || status.Desired != nil {
 		return &ErrConflict{}
 	}
 
@@ -42,6 +43,5 @@ func (i Install) Analyze(pkg, item string, _ fs.DirEntry) error {
 	status.Desired = &State{Mode: fs.ModeSymlink, Dest: dest}
 
 	i.tree.Set(item, status)
-
 	return nil
 }

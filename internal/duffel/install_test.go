@@ -23,16 +23,16 @@ func TestInstall(t *testing.T) {
 	tests := map[string]struct {
 		item        string          // Item being analyzed, relative to pkg dir
 		walkError   error           // Error passed to visit by fs.WalkDir
-		status      Status          // Item status before Analyze
+		status      *Status         // Item status before Analyze
 		targetEntry *fstest.MapFile // File entry for the item in target dir
 		wantStatus  Status          // Item status after Analyze
 		wantErr     error           // Error returned Analyze
 		skip        string          // Reason for skipping this test
 	}{
-		"no status, no file": {
+		"no status, no target file": {
 			item:        "item",
 			targetEntry: nil,
-			status:      Status{},
+			status:      nil,
 			wantStatus: Status{
 				// Does not set a current state because no target file
 				Current: nil,
@@ -44,17 +44,17 @@ func TestInstall(t *testing.T) {
 			},
 			wantErr: nil,
 		},
-		"desired state, no file": {
+		"desired state, no target file": {
 			item:        "item",
 			targetEntry: nil,
-			status:      Status{Desired: &State{Dest: "desired/dest"}},
+			status:      &Status{Desired: &State{Dest: "desired/dest"}},
 			wantStatus:  Status{Desired: &State{Dest: "desired/dest"}}, // Unchanged
 			wantErr:     &ErrConflict{},
 		},
-		"file with no status": {
+		"target file with no status": {
 			item:        "item",
 			targetEntry: testfs.FileEntry("content", 0o644),
-			status:      Status{}, // No status means not yet analyzed
+			status:      nil, // No status means not yet analyzed
 			wantStatus: Status{
 				// Records the current state of the target file
 				Current: &State{Mode: 0o644},
@@ -62,12 +62,11 @@ func TestInstall(t *testing.T) {
 				Desired: &State{Mode: 0o644},
 			},
 			wantErr: &ErrConflict{},
-			skip:    "not yet implemented",
 		},
 		"current state links to foreign dest": {
 			item: "item",
 			// Current state set by earlier analysis
-			status: Status{
+			status: &Status{
 				Current: &State{Dest: "current/foreign/dest"},
 				Desired: &State{Dest: "current/foreign/dest"},
 			},
@@ -85,19 +84,19 @@ func TestInstall(t *testing.T) {
 			if test.skip != "" {
 				t.Skip(test.skip)
 			}
-			sourcePkg := path.Join(source, pkg)
-			sourcePkgItem := path.Join(sourcePkg, test.item)
 
 			fsys := testfs.New()
 			fsys.M[target] = testfs.DirEntry(0o755)
-			if test.targetEntry != nil {
-				fsys.M[sourcePkgItem] = test.targetEntry
-			}
+			targetItem := path.Join(target, test.item)
+			fsys.M[targetItem] = test.targetEntry
 
 			tree := TargetTree{}
-			tree[test.item] = test.status
+			if test.status != nil {
+				tree[test.item] = *test.status
+			}
 
 			install := Install{
+				fsys:           fsys,
 				source:         source,
 				target:         target,
 				targetToSource: targetToSource,
