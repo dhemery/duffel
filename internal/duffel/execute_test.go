@@ -24,35 +24,35 @@ func TestExecuteEmptyTargetNoConflictingPackageItems(t *testing.T) {
 		"pkg1": {
 			{
 				name:  "dirItem1",
-				entry: duftest.DirEntry(0o755),
+				entry: &fstest.MapFile{Mode: fs.ModeDir | 0o755},
 			},
 			{
 				name:  "fileItem1",
-				entry: duftest.FileEntry("fileItem1 content", 0o644),
+				entry: &fstest.MapFile{Mode: 0o644},
 			},
 			{
 				name:  "linkItem1",
-				entry: duftest.LinkEntry("linkItem1/dest"),
+				entry: &fstest.MapFile{Mode: fs.ModeSymlink, Data: []byte("linkItem1/dest")},
 			},
 		},
 		"pkg2": {
 			{
 				name:  "dirItem2",
-				entry: duftest.DirEntry(0o755),
+				entry: &fstest.MapFile{Mode: fs.ModeDir | 0o755},
 			},
 			{
 				name:  "fileItem2",
-				entry: duftest.FileEntry("fileItem2 content", 0o644),
+				entry: &fstest.MapFile{Mode: 0o644},
 			},
 			{
 				name:  "linkItem2",
-				entry: duftest.LinkEntry("linkItem2/dest"),
+				entry: &fstest.MapFile{Mode: fs.ModeSymlink, Data: []byte("linkItem2/dest")},
 			},
 		},
 	}
 
 	fsys := duftest.NewFS()
-	fsys.M[target] = duftest.DirEntry(0o755)
+	fsys.M[target] = &fstest.MapFile{Mode: fs.ModeDir | 0o755}
 	for pkg, items := range pkgItems {
 		sourcePkg := path.Join(source, pkg)
 		for _, item := range items {
@@ -108,11 +108,11 @@ func TestExecuteEmptyTargetWithConflictingPackageItems(t *testing.T) {
 	)
 
 	files := duftest.NewFS()
-	files.M[target] = duftest.DirEntry(0o755)
+	files.M[target] = &fstest.MapFile{Mode: fs.ModeDir | 0o755}
 
 	// Conflict: pkg2/dirItem and pkg1/dirItem install to same target path
-	files.M[path.Join(source, "pkg1/dirItem")] = duftest.DirEntry(0o755)
-	files.M[path.Join(source, "pkg2/dirItem")] = duftest.DirEntry(0o755)
+	files.M[path.Join(source, "pkg1/dirItem")] = &fstest.MapFile{Mode: fs.ModeDir | 0o755}
+	files.M[path.Join(source, "pkg2/dirItem")] = &fstest.MapFile{Mode: fs.ModeDir | 0o755}
 
 	req := &Request{
 		FS:     files,
@@ -135,57 +135,53 @@ func TestExecuteEmptyTargetWithConflictingPackageItems(t *testing.T) {
 
 func TestExecuteDirErrors(t *testing.T) {
 	const (
-		doesNotExist = 0
-		permRead     = 0o444
-		permWrite    = 0o222
-		permSearch   = 0o111
-		permNormal   = permRead | permWrite | permSearch
-		permNoRead   = permNormal ^ permRead
-		permNoWrite  = permNormal ^ permWrite
-		permNoSearch = permNormal ^ permSearch
+		dirNormal       = fs.ModeDir | 0o755
+		dirUnreadable   = fs.ModeDir | 0o311
+		dirUnsearchable = fs.ModeDir | 0o644
+		dirUnwriteable  = fs.ModeDir | 0o555
 	)
 
 	tests := map[string]struct {
-		sourcePerm  fs.FileMode
-		targetPerm  fs.FileMode
-		packagePerm fs.FileMode
-		wantError   error
+		sourceEntry  *fstest.MapFile
+		targetEntry  *fstest.MapFile
+		packageEntry *fstest.MapFile
+		wantError    error
 	}{
 		"package dir missing": {
-			sourcePerm:  permNormal,
-			packagePerm: doesNotExist,
-			targetPerm:  permNormal,
-			wantError:   fs.ErrNotExist,
+			sourceEntry:  &fstest.MapFile{Mode: dirNormal},
+			packageEntry: nil,
+			targetEntry:  &fstest.MapFile{Mode: dirNormal},
+			wantError:    fs.ErrNotExist,
 		},
 		"package dir not readable": {
-			sourcePerm:  permNormal,
-			packagePerm: permNoRead,
-			targetPerm:  permNormal,
-			wantError:   fs.ErrPermission,
+			sourceEntry:  &fstest.MapFile{Mode: dirNormal},
+			packageEntry: &fstest.MapFile{Mode: dirUnreadable},
+			targetEntry:  &fstest.MapFile{Mode: dirNormal},
+			wantError:    fs.ErrPermission,
 		},
 		"source dir missing": {
-			sourcePerm:  doesNotExist,
-			packagePerm: doesNotExist, // Creating package would require source to exist
-			targetPerm:  permNormal,
-			wantError:   fs.ErrNotExist,
+			sourceEntry:  nil,
+			packageEntry: nil, // Creating package would require source to exist
+			targetEntry:  &fstest.MapFile{Mode: dirNormal},
+			wantError:    fs.ErrNotExist,
 		},
 		"source dir not searchable": {
-			sourcePerm:  permNoSearch,
-			packagePerm: permNormal,
-			targetPerm:  permNormal,
-			wantError:   fs.ErrPermission,
+			sourceEntry:  &fstest.MapFile{Mode: dirUnsearchable},
+			packageEntry: &fstest.MapFile{Mode: dirNormal},
+			targetEntry:  &fstest.MapFile{Mode: dirNormal},
+			wantError:    fs.ErrPermission,
 		},
 		"target dir missing": {
-			sourcePerm:  permNormal,
-			packagePerm: permNormal,
-			targetPerm:  doesNotExist,
-			wantError:   fs.ErrNotExist,
+			sourceEntry:  &fstest.MapFile{Mode: dirNormal},
+			packageEntry: &fstest.MapFile{Mode: dirNormal},
+			targetEntry:  nil,
+			wantError:    fs.ErrNotExist,
 		},
 		"target dir not writeable": {
-			sourcePerm:  permNormal,
-			packagePerm: permNormal,
-			targetPerm:  permNoWrite,
-			wantError:   fs.ErrPermission,
+			sourceEntry:  &fstest.MapFile{Mode: dirNormal},
+			packageEntry: &fstest.MapFile{Mode: dirNormal},
+			targetEntry:  &fstest.MapFile{Mode: dirUnwriteable},
+			wantError:    fs.ErrPermission,
 		},
 	}
 
@@ -197,16 +193,16 @@ func TestExecuteDirErrors(t *testing.T) {
 			absSource := path.Join(wd, "source")
 			absSourcePkg := path.Join(absSource, pkg)
 			absTarget := path.Join(wd, "target")
-			if test.packagePerm != doesNotExist {
+			if test.packageEntry != nil {
 				sourcePkgItem := path.Join(absSourcePkg, "item")
-				files.M[absSourcePkg] = duftest.DirEntry(test.packagePerm)
-				files.M[sourcePkgItem] = duftest.DirEntry(permNormal)
+				files.M[absSourcePkg] = test.packageEntry
+				files.M[sourcePkgItem] = &fstest.MapFile{Mode: 0o644} // plain file
 			}
-			if test.sourcePerm != doesNotExist {
-				files.M[absSource] = duftest.DirEntry(test.sourcePerm)
+			if test.sourceEntry != nil {
+				files.M[absSource] = test.sourceEntry
 			}
-			if test.targetPerm != doesNotExist {
-				files.M[absTarget] = duftest.DirEntry(test.targetPerm)
+			if test.targetEntry != nil {
+				files.M[absTarget] = test.targetEntry
 			}
 
 			r := &Request{

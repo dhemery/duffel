@@ -19,12 +19,13 @@ func (tia itemAnalystFunc) Analyze(pkg, item string, d fs.DirEntry) error {
 
 func TestPkgAnalyst(t *testing.T) {
 	const (
-		target         = "path/to/target"
-		source         = "path/to/source"
-		pkg            = "pkg"
-		item           = "item"
-		permReadable   = 0o444
-		permUnreadable = 0
+		target        = "path/to/target"
+		source        = "path/to/source"
+		pkg           = "pkg"
+		item          = "item"
+		dirReadable   = fs.ModeDir | 0o755
+		dirUnreadable = fs.ModeDir | 0o311
+		fileReadable  = 0o644
 	)
 
 	type analyzeItemCall struct {
@@ -39,19 +40,19 @@ func TestPkgAnalyst(t *testing.T) {
 	}{
 		"readable pkg dir": {
 			files: fstest.MapFS{
-				path.Join(source, pkg): duftest.DirEntry(permReadable),
+				path.Join(source, pkg): &fstest.MapFile{Mode: dirReadable},
 			},
 			wantErr: nil,
 		},
 		"unreadable pkg dir": {
 			files: fstest.MapFS{
-				path.Join(source, pkg): duftest.DirEntry(permUnreadable),
+				path.Join(source, pkg): &fstest.MapFile{Mode: dirUnreadable},
 			},
 			wantErr: fs.ErrPermission,
 		},
 		"readable pkg item": {
 			files: fstest.MapFS{
-				path.Join(source, pkg, item): duftest.FileEntry("", permReadable),
+				path.Join(source, pkg, item): &fstest.MapFile{Mode: fileReadable},
 			},
 			wantAnalyzeItem: &analyzeItemCall{
 				pkgArg:  pkg,
@@ -62,7 +63,7 @@ func TestPkgAnalyst(t *testing.T) {
 		},
 		"unreadable dir item": {
 			files: fstest.MapFS{
-				path.Join(source, pkg, item): duftest.DirEntry(permUnreadable),
+				path.Join(source, pkg, item): &fstest.MapFile{Mode: dirUnreadable},
 			},
 			// Called for item's dir entry before trying to read item itself.
 			wantAnalyzeItem: &analyzeItemCall{

@@ -22,17 +22,15 @@ func TestInstall(t *testing.T) {
 
 	tests := map[string]struct {
 		item        string          // Item being analyzed, relative to pkg dir
-		walkError   error           // Error passed to visit by fs.WalkDir
 		status      *Status         // Item status before Analyze
 		targetEntry *fstest.MapFile // File entry for the item in target dir
 		wantStatus  Status          // Item status after Analyze
 		wantErr     error           // Error returned Analyze
-		skip        string          // Reason for skipping this test
 	}{
 		"no status, no target file": {
 			item:        "item",
-			targetEntry: nil,
-			status:      nil,
+			status:      nil, // Not yet analyzed
+			targetEntry: nil, // No target file
 			wantStatus: Status{
 				// Does not set a current state because no target file
 				Current: nil,
@@ -46,15 +44,15 @@ func TestInstall(t *testing.T) {
 		},
 		"desired state, no target file": {
 			item:        "item",
-			targetEntry: nil,
 			status:      &Status{Desired: &State{Dest: "desired/dest"}},
+			targetEntry: nil,
 			wantStatus:  Status{Desired: &State{Dest: "desired/dest"}}, // Unchanged
 			wantErr:     &ErrConflict{},
 		},
 		"target file with no status": {
 			item:        "item",
-			targetEntry: duftest.FileEntry("content", 0o644),
-			status:      nil, // No status means not yet analyzed
+			status:      nil,                          // Not yet analyzed
+			targetEntry: &fstest.MapFile{Mode: 0o644}, // Plain file
 			wantStatus: Status{
 				// Records the current state of the target file
 				Current: &State{Mode: 0o644},
@@ -81,12 +79,8 @@ func TestInstall(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			if test.skip != "" {
-				t.Skip(test.skip)
-			}
-
 			fsys := duftest.NewFS()
-			fsys.M[target] = duftest.DirEntry(0o755)
+			fsys.M[target] = &fstest.MapFile{Mode: fs.ModeDir | 0o755}
 			targetItem := path.Join(target, test.item)
 			fsys.M[targetItem] = test.targetEntry
 
@@ -106,12 +100,18 @@ func TestInstall(t *testing.T) {
 			gotErr := install.Analyze(pkg, test.item, nil)
 
 			if !errors.Is(gotErr, test.wantErr) {
-				t.Errorf("error:\nwant %#v\ngot  %#v", test.wantErr, gotErr)
+				t.Errorf("error:\nwant %v\ngot  %v", test.wantErr, gotErr)
 			}
 
 			gotStatus, _ := tree.Status(test.item)
 			if !reflect.DeepEqual(gotStatus, test.wantStatus) {
 				t.Errorf("status:\nwant %s\ngot  %s", test.wantStatus, gotStatus)
+			}
+			if t.Failed() {
+				t.Log("files in fsys:")
+				for fname, entry := range fsys.M {
+					t.Logf("    %s: %v", fname, entry)
+				}
 			}
 		})
 	}

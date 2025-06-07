@@ -1,6 +1,7 @@
 package duftest
 
 import (
+	"fmt"
 	"io/fs"
 	"path"
 	"testing/fstest"
@@ -10,6 +11,8 @@ const (
 	readAccess   = 0o444
 	searchAccess = 0o111
 	writeAccess  = 0o222
+	// fsOp is the prefix for op names in PathError errors returned by FS methods
+	fsOp = "duftest."
 )
 
 func NewFS() FS {
@@ -21,11 +24,11 @@ type FS struct {
 }
 
 func (f FS) Open(name string) (fs.File, error) {
-	const op = "testfs.open"
+	const op = fsOp + "open"
 	if !fs.ValidPath(name) {
 		return nil, &fs.PathError{Op: op, Path: name, Err: fs.ErrInvalid}
 	}
-	if err := f.checkFileAccess(op, name, readAccess); err != nil {
+	if err := f.checkFileAccess(name, readAccess); err != nil {
 		return nil, &fs.PathError{Op: op, Path: name, Err: err}
 	}
 	file, err := f.M.Open(name)
@@ -36,11 +39,11 @@ func (f FS) Open(name string) (fs.File, error) {
 }
 
 func (f FS) ReadDir(name string) ([]fs.DirEntry, error) {
-	const op = "testfs.readdir"
+	const op = fsOp + "readdir"
 	if !fs.ValidPath(name) {
 		return nil, &fs.PathError{Op: op, Path: name, Err: fs.ErrInvalid}
 	}
-	if err := f.checkDirAccess(op, name, readAccess); err != nil {
+	if err := f.checkDirAccess(name, readAccess); err != nil {
 		return nil, &fs.PathError{Op: op, Path: name, Err: err}
 	}
 	entries, err := f.M.ReadDir(name)
@@ -51,87 +54,73 @@ func (f FS) ReadDir(name string) ([]fs.DirEntry, error) {
 }
 
 func (f FS) Symlink(oldname, newname string) error {
-	const op = "testfs.symlink"
+	const op = fsOp + "symlink"
 	if !fs.ValidPath(newname) {
 		return &fs.PathError{Op: op, Path: newname, Err: fs.ErrInvalid}
 	}
-	if err := f.checkDirAccess(op, path.Dir(newname), writeAccess); err != nil {
+	if err := f.checkDirAccess(path.Dir(newname), writeAccess); err != nil {
 		return &fs.PathError{Op: op, Path: newname, Err: err}
 	}
-	f.M[newname] = LinkEntry(oldname)
+	f.M[newname] = &fstest.MapFile{Mode: fs.ModeSymlink, Data: []byte(oldname)}
 	return nil
 }
 
-func DirEntry(perm fs.FileMode) *fstest.MapFile {
-	return &fstest.MapFile{
-		Mode: fs.ModeDir | perm.Perm(),
-	}
-}
-
-func FileEntry(data string, perm fs.FileMode) *fstest.MapFile {
-	return &fstest.MapFile{
-		Data: []byte(data),
-		Mode: perm.Perm(),
-	}
-}
-
-func LinkEntry(oldname string) *fstest.MapFile {
-	return &fstest.MapFile{
-		Data: []byte(oldname),
-		Mode: fs.ModeSymlink,
-	}
-}
-
-func (f FS) checkDirAccess(op, dir string, want fs.FileMode) error {
-	if err := f.checkSearchDir(op, path.Dir(dir)); err != nil {
-		return &fs.PathError{Op: op, Path: dir, Err: err}
+func (f FS) checkDirAccess(dir string, want fs.FileMode) error {
+	const op = fsOp + "checkDirAccess"
+	if err := f.checkSearchDir(path.Dir(dir)); err != nil {
+		return fmt.Errorf("%s %s: %w", op, dir, err)
 	}
 	info, err := f.M.Stat(dir)
 	if err != nil {
-		return err
+		return fmt.Errorf("%s %s: %w", op, dir, err)
 	}
-	if !info.IsDir() {
-		return &fs.PathError{Op: op, Path: dir, Err: fs.ErrInvalid}
+	mode := info.Mode()
+	if !mode.IsDir() {
+		return fmt.Errorf("%s %s: want dir, got %s: %w", op, dir, mode, fs.ErrInvalid)
 	}
-	got := info.Mode().Perm()
+	got := mode.Perm()
 	if got&want == 0 {
-		return &fs.PathError{Op: op, Path: dir, Err: fs.ErrPermission}
+		return fmt.Errorf("%s %s: want perm %s, got mode %s: %w", op, dir, want, mode, fs.ErrPermission)
 	}
 	return nil
 }
 
-func (f FS) checkFileAccess(op, file string, want fs.FileMode) error {
-	if err := f.checkSearchDir(op, path.Dir(file)); err != nil {
-		return &fs.PathError{Op: op, Path: file, Err: err}
+func (f FS) checkFileAccess(file string, want fs.FileMode) error {
+	const op = fsOp + "checkFileAccess"
+	if err := f.checkSearchDir(path.Dir(file)); err != nil {
+		return fmt.Errorf("%s %s: %w", op, file, err)
 	}
 	info, err := f.M.Stat(file)
 	if err != nil {
-		return err
+		return fmt.Errorf("%s %s: %w", op, file, err)
 	}
-	got := info.Mode().Perm()
+	mode := info.Mode()
+	got := mode.Perm()
 	if got&want == 0 {
-		return &fs.PathError{Op: op, Path: file, Err: fs.ErrPermission}
+		return fmt.Errorf("%s %s: want perm %s, got mode %s: %w", op, file, want, mode, fs.ErrPermission)
 	}
 	return nil
 }
 
-func (f FS) checkSearchDir(op, lookupDir string) error {
+func (f FS) checkSearchDir(lookupDir string) error {
+	const op = fsOp + "checkSearchDir"
 	if lookupDir == "." {
 		return nil
 	}
-	if err := f.checkSearchDir(op, path.Dir(lookupDir)); err != nil {
-		return err
+	if err := f.checkSearchDir(path.Dir(lookupDir)); err != nil {
+		return fmt.Errorf("%s %s: %w", op, lookupDir, err)
 	}
 	info, err := f.M.Stat(lookupDir)
 	if err != nil {
-		return err
+		return fmt.Errorf("%s %s: %w", op, lookupDir, err)
 	}
-	if !info.IsDir() {
-		return &fs.PathError{Op: op, Path: lookupDir, Err: fs.ErrInvalid}
+	mode := info.Mode()
+	if !mode.IsDir() {
+		return fmt.Errorf("%s %s: want dir, got %s: %w", op, lookupDir, mode, fs.ErrInvalid)
 	}
-	perm := info.Mode().Perm()
+	perm := mode.Perm()
 	if perm&0o111 == 0 {
-		return &fs.PathError{Op: op, Path: lookupDir, Err: fs.ErrPermission}
+		return fmt.Errorf("%s %s: want searchable, got mode %s: %w", op, lookupDir, mode, fs.ErrPermission)
 	}
 	return nil
 }
