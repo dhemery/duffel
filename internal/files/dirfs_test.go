@@ -6,11 +6,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/dhemery/duffel/internal/testfs"
+	"github.com/dhemery/duffel/internal/duftest"
 )
 
 func TestLstat(t *testing.T) {
-	must := testfs.Must(t)
+	must := duftest.Must(t)
 	root := t.TempDir()
 	must.MkdirAll(filepath.Join(root, "sub/dir"), 0o755)
 	must.WriteFile(filepath.Join(root, "sub/file"), []byte{}, 0o644)
@@ -49,7 +49,7 @@ func TestLstat(t *testing.T) {
 }
 
 func TestMkdir(t *testing.T) {
-	must := testfs.Must(t)
+	must := duftest.Must(t)
 	root := t.TempDir()
 	fsys := DirFS(root)
 
@@ -81,7 +81,7 @@ func TestMkdir(t *testing.T) {
 }
 
 func TestReadDir(t *testing.T) {
-	must := testfs.Must(t)
+	must := duftest.Must(t)
 	root := t.TempDir()
 	dirPerm := fs.FileMode(0o755)
 	must.MkdirAll(filepath.Join(root, "sub/dir"), dirPerm)
@@ -128,7 +128,7 @@ func TestReadDir(t *testing.T) {
 }
 
 func TestSymlink(t *testing.T) {
-	must := testfs.Must(t)
+	must := duftest.Must(t)
 	root := t.TempDir()
 	must.MkdirAll(filepath.Join(root, "sub"), 0o755)
 

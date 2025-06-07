@@ -11,7 +11,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/dhemery/duffel/internal/testfs"
+	"github.com/dhemery/duffel/internal/duftest"
 )
 
 // TestMain executes the test binary as the duffel command if
@@ -76,7 +76,7 @@ func TestDirOptions(t *testing.T) {
 			absTarget := filepath.Join(wd, cmp.Or(test.targetOpt, defaultTarget))
 			absSourcePkgItem := filepath.Join(absSource, pkg, item)
 
-			must := testfs.Must(t)
+			must := duftest.Must(t)
 			must.MkdirAll(wd, 0o755)
 			must.MkdirAll(absTarget, 0o755)
 			must.MkdirAll(absSourcePkgItem, 0o755) // Also necessarily makes sourceDir
@@ -119,7 +119,7 @@ func TestDryRun(t *testing.T) {
 	absSourcePkg := filepath.Join(absSource, pkg)
 	absSourcePkgItem := filepath.Join(absSourcePkg, item)
 
-	must := testfs.Must(t)
+	must := duftest.Must(t)
 	// Also creates target and source, which are ancestors
 	must.MkdirAll(absSourcePkgItem, 0o755)
 

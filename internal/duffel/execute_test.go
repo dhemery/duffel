@@ -7,7 +7,7 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"github.com/dhemery/duffel/internal/testfs"
+	"github.com/dhemery/duffel/internal/duftest"
 )
 
 func TestExecuteEmptyTargetNoConflictingPackageItems(t *testing.T) {
@@ -24,35 +24,35 @@ func TestExecuteEmptyTargetNoConflictingPackageItems(t *testing.T) {
 		"pkg1": {
 			{
 				name:  "dirItem1",
-				entry: testfs.DirEntry(0o755),
+				entry: duftest.DirEntry(0o755),
 			},
 			{
 				name:  "fileItem1",
-				entry: testfs.FileEntry("fileItem1 content", 0o644),
+				entry: duftest.FileEntry("fileItem1 content", 0o644),
 			},
 			{
 				name:  "linkItem1",
-				entry: testfs.LinkEntry("linkItem1/dest"),
+				entry: duftest.LinkEntry("linkItem1/dest"),
 			},
 		},
 		"pkg2": {
 			{
 				name:  "dirItem2",
-				entry: testfs.DirEntry(0o755),
+				entry: duftest.DirEntry(0o755),
 			},
 			{
 				name:  "fileItem2",
-				entry: testfs.FileEntry("fileItem2 content", 0o644),
+				entry: duftest.FileEntry("fileItem2 content", 0o644),
 			},
 			{
 				name:  "linkItem2",
-				entry: testfs.LinkEntry("linkItem2/dest"),
+				entry: duftest.LinkEntry("linkItem2/dest"),
 			},
 		},
 	}
 
-	fsys := testfs.New()
-	fsys.M[target] = testfs.DirEntry(0o755)
+	fsys := duftest.NewFS()
+	fsys.M[target] = duftest.DirEntry(0o755)
 	for pkg, items := range pkgItems {
 		sourcePkg := path.Join(source, pkg)
 		for _, item := range items {
@@ -107,12 +107,12 @@ func TestExecuteEmptyTargetWithConflictingPackageItems(t *testing.T) {
 		target = "home/user/target"
 	)
 
-	files := testfs.New()
-	files.M[target] = testfs.DirEntry(0o755)
+	files := duftest.NewFS()
+	files.M[target] = duftest.DirEntry(0o755)
 
 	// Conflict: pkg2/dirItem and pkg1/dirItem install to same target path
-	files.M[path.Join(source, "pkg1/dirItem")] = testfs.DirEntry(0o755)
-	files.M[path.Join(source, "pkg2/dirItem")] = testfs.DirEntry(0o755)
+	files.M[path.Join(source, "pkg1/dirItem")] = duftest.DirEntry(0o755)
+	files.M[path.Join(source, "pkg2/dirItem")] = duftest.DirEntry(0o755)
 
 	req := &Request{
 		FS:     files,
@@ -191,7 +191,7 @@ func TestExecuteDirErrors(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			files := testfs.New()
+			files := duftest.NewFS()
 			wd := "home/user"
 			pkg := "pkg"
 			absSource := path.Join(wd, "source")
@@ -199,14 +199,14 @@ func TestExecuteDirErrors(t *testing.T) {
 			absTarget := path.Join(wd, "target")
 			if test.packagePerm != doesNotExist {
 				sourcePkgItem := path.Join(absSourcePkg, "item")
-				files.M[absSourcePkg] = testfs.DirEntry(test.packagePerm)
-				files.M[sourcePkgItem] = testfs.DirEntry(permNormal)
+				files.M[absSourcePkg] = duftest.DirEntry(test.packagePerm)
+				files.M[sourcePkgItem] = duftest.DirEntry(permNormal)
 			}
 			if test.sourcePerm != doesNotExist {
-				files.M[absSource] = testfs.DirEntry(test.sourcePerm)
+				files.M[absSource] = duftest.DirEntry(test.sourcePerm)
 			}
 			if test.targetPerm != doesNotExist {
-				files.M[absTarget] = testfs.DirEntry(test.targetPerm)
+				files.M[absTarget] = duftest.DirEntry(test.targetPerm)
 			}
 
 			r := &Request{
