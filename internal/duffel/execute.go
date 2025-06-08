@@ -28,7 +28,6 @@ func Execute(r *Request, dryRun bool, w io.Writer) error {
 	tree := TargetTree{}
 	install := Install{
 		fsys:           r.FS,
-		source:         r.Source,
 		target:         r.Target,
 		targetToSource: targetToSource,
 		tree:           tree,

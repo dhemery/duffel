@@ -91,7 +91,6 @@ func TestInstall(t *testing.T) {
 
 			install := Install{
 				fsys:           fsys,
-				source:         source,
 				target:         target,
 				targetToSource: targetToSource,
 				tree:           tree,

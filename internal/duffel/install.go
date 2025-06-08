@@ -14,7 +14,6 @@ func (e *ErrConflict) Error() string {
 
 type Install struct {
 	fsys           fs.FS
-	source         string
 	target         string
 	targetToSource string
 	tree           TargetTree
