@@ -58,16 +58,11 @@ type State struct {
 // MarshalJSON implements [json.Marshaller].
 // It makes the JSON more descriptive by calling [fs.FileMode.String] on the Mode.
 func (s State) MarshalJSON() ([]byte, error) {
-	mode := ""
-	if s.Mode != 0 {
-		mode = s.Mode.String()
-	}
-
 	return json.Marshal(struct {
-		Mode string `json:"mode,omitzero"`
+		Mode string `json:"mode"`
 		Dest string `json:"dest,omitzero"`
 	}{
-		Mode: mode,
+		Mode: s.Mode.String(),
 		Dest: s.Dest,
 	})
 }

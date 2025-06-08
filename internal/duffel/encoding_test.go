@@ -12,9 +12,22 @@ func TestStateEncodeJSON(t *testing.T) {
 		state State
 		want  string
 	}{
-		{state: State{}, want: `{}`},
-		{state: State{Mode: fs.ModeDir | 0o755}, want: `{"mode":"drwxr-xr-x"}`},
-		{state: State{Dest: "my/dest"}, want: `{"dest":"my/dest"}`},
+		{
+			state: State{},
+			want:  `{"mode":"----------"}`,
+		},
+		{
+			state: State{Mode: fs.ModeDir | 0o755},
+			want:  `{"mode":"drwxr-xr-x"}`,
+		},
+		{
+			state: State{Mode: fs.ModeSymlink, Dest: "my/dest"},
+			want:  `{"mode":"L---------","dest":"my/dest"}`,
+		},
+		{
+			state: State{Mode: 0o644}, // Regular file
+			want:  `{"mode":"-rw-r--r--"}`,
+		},
 	}
 
 	for _, test := range tests {
