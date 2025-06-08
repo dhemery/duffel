@@ -1,6 +1,7 @@
 package duffel
 
 import (
+	"encoding/json"
 	"io/fs"
 	"path"
 	"path/filepath"
@@ -21,15 +22,37 @@ func (p *Plan) Execute(fsys FS) error {
 }
 
 type Task struct {
-	// Item is the path of the item to create, relative to target
-	Item string `json:"item"`
-
-	// State describes the file to create at the target item path
+	// Item is the path of the item to create, relative to target.
+	Item string
+	// State describes the file to create at the target item path.
 	State
 }
 
 func (t Task) Execute(fsys FS, target string) error {
 	return fsys.Symlink(t.Dest, path.Join(target, t.Item))
+}
+
+// MarshalJSON implements [json.Marshaller].
+// We have to implement it in order to override the [State.MarshalJSON] promoted from the embedded State,
+// which marshals only the State fields.
+func (t Task) MarshalJSON() ([]byte, error) {
+	stateJSON, err := t.State.MarshalJSON()
+	if err != nil {
+		return nil, err
+	}
+	taskJSON, err := json.Marshal(struct {
+		Item string `json:"item"`
+	}{
+		Item: t.Item,
+	})
+	if err != nil {
+		return nil, err
+	}
+	// Replace the closing brace with a comma to continue with the state
+	taskJSON[len(taskJSON)-1] = ','
+	// Skip the the state's opening brace to continue after the task fields
+	stateJSON = stateJSON[1:]
+	return append(taskJSON, stateJSON...), nil
 }
 
 type ItemAnalyst interface {

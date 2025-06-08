@@ -1,6 +1,7 @@
 package duffel
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"maps"
@@ -50,6 +51,23 @@ func (s Status) String() string {
 }
 
 type State struct {
-	Mode fs.FileMode `json:"mode,omitzero,string"`
-	Dest string      `json:"dest,omitzero"`
+	Mode fs.FileMode
+	Dest string
+}
+
+// MarshalJSON implements [json.Marshaller].
+// It makes the JSON more descriptive by calling [fs.FileMode.String] on the Mode.
+func (s State) MarshalJSON() ([]byte, error) {
+	mode := ""
+	if s.Mode != 0 {
+		mode = s.Mode.String()
+	}
+
+	return json.Marshal(struct {
+		Mode string `json:"mode,omitzero"`
+		Dest string `json:"dest,omitzero"`
+	}{
+		Mode: mode,
+		Dest: s.Dest,
+	})
 }
