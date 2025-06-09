@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io/fs"
 	"path"
+	"strings"
 	"testing/fstest"
 )
 
@@ -25,10 +26,7 @@ type FS struct {
 
 func (f FS) Open(name string) (fs.File, error) {
 	const op = fsOp + "open"
-	if !fs.ValidPath(name) {
-		return nil, &fs.PathError{Op: op, Path: name, Err: fs.ErrInvalid}
-	}
-	if err := f.checkRead(name); err != nil {
+	if _, err := f.check(name, permRead); err != nil {
 		return nil, &fs.PathError{Op: op, Path: name, Err: err}
 	}
 	file, err := f.M.Open(name)
@@ -40,10 +38,7 @@ func (f FS) Open(name string) (fs.File, error) {
 
 func (f FS) ReadDir(name string) ([]fs.DirEntry, error) {
 	const op = fsOp + "readdir"
-	if !fs.ValidPath(name) {
-		return nil, &fs.PathError{Op: op, Path: name, Err: fs.ErrInvalid}
-	}
-	if err := f.checkDirRead(name); err != nil {
+	if _, err := f.check(name, fs.ModeDir|permRead); err != nil {
 		return nil, &fs.PathError{Op: op, Path: name, Err: err}
 	}
 	entries, err := f.M.ReadDir(name)
@@ -55,10 +50,7 @@ func (f FS) ReadDir(name string) ([]fs.DirEntry, error) {
 
 func (f FS) Stat(name string) (fs.FileInfo, error) {
 	const op = fsOp + "stat"
-	if !fs.ValidPath(name) {
-		return nil, &fs.PathError{Op: op, Path: name, Err: fs.ErrInvalid}
-	}
-	info, err := f.stat(name)
+	info, err := f.check(name, permRead)
 	if err != nil {
 		return nil, &fs.PathError{Op: op, Path: name, Err: err}
 	}
@@ -67,41 +59,65 @@ func (f FS) Stat(name string) (fs.FileInfo, error) {
 
 func (f FS) Symlink(oldname, newname string) error {
 	const op = fsOp + "symlink"
-	if !fs.ValidPath(newname) {
-		return &fs.PathError{Op: op, Path: newname, Err: fs.ErrInvalid}
-	}
-	if err := f.checkDirWrite(path.Dir(newname)); err != nil {
+	if _, err := f.check(path.Dir(newname), fs.ModeDir|permWrite); err != nil {
 		return &fs.PathError{Op: op, Path: newname, Err: err}
 	}
 	f.M[newname] = &fstest.MapFile{Mode: fs.ModeSymlink, Data: []byte(oldname)}
 	return nil
 }
 
-func (f FS) stat(name string) (fs.FileInfo, error) {
-	if err := f.checkDirSearch(path.Dir(name)); err != nil {
+type searchError struct {
+	Path string
+	Elem string
+	Err  error
+}
+
+func (ce searchError) Error() string {
+	return fmt.Sprintf("%s ancestor %s unsearchable: %s", ce.Path, ce.Elem, ce.Err)
+}
+
+func (ce searchError) Unwrap() error {
+	return ce.Err
+}
+
+func (f FS) check(name string, want fs.FileMode) (fs.FileInfo, error) {
+	if err := f.checkPath(name); err != nil {
+		return nil, err
+	}
+	return f.checkMode(name, want)
+}
+
+func (f FS) checkPath(name string) error {
+	// The path must be lexically valid for use with fs.FS
+	if !fs.ValidPath(name) {
+		return fs.ErrInvalid
+	}
+	// Each ancestor must be a searchable dir
+	elems := strings.Split(name, "/")
+	for i := range len(elems) - 1 {
+		ancestor := path.Join(elems[:i+1]...)
+		_, err := f.checkMode(ancestor, fs.ModeDir|permSearch)
+		if err != nil {
+			return searchError{Path: name, Elem: ancestor, Err: err}
+		}
+	}
+	return nil
+}
+
+func (f FS) checkMode(name string, want fs.FileMode) (fs.FileInfo, error) {
+	info, err := f.M.Stat(name)
+	if err != nil {
 		return nil, err
 	}
 
-	return f.M.Stat(name)
-}
-
-func (f FS) checkRead(name string) error {
-	return f.checkMode(name, permRead)
-}
-
-func (f FS) checkDirRead(dir string) error {
-	return f.checkMode(dir, fs.ModeDir|permRead)
-}
-
-func (f FS) checkDirWrite(dir string) error {
-	return f.checkMode(dir, fs.ModeDir|permWrite)
-}
-
-func (f FS) checkDirSearch(dir string) error {
-	if dir == "." {
-		return nil
+	mode := info.Mode()
+	if mode.Type()&want.Type() != want.Type() {
+		return nil, modeError{Path: name, Want: want, Got: mode, Err: fs.ErrInvalid}
 	}
-	return f.checkMode(dir, fs.ModeDir|permSearch)
+	if mode.Perm()&want.Perm() == 0 {
+		return nil, modeError{Path: name, Want: want, Got: mode, Err: fs.ErrPermission}
+	}
+	return info, nil
 }
 
 type modeError struct {
@@ -117,23 +133,4 @@ func (me modeError) Error() string {
 
 func (me modeError) Unwrap() error {
 	return me.Err
-}
-
-func (f FS) checkMode(name string, want fs.FileMode) error {
-	info, err := f.stat(name)
-	if err != nil {
-		return err
-	}
-
-	wantType := want & fs.ModeType
-	wantPerm := want & fs.ModePerm
-
-	mode := info.Mode()
-	if mode&wantType != wantType {
-		return modeError{Path: name, Want: want, Got: mode, Err: fs.ErrInvalid}
-	}
-	if mode&wantPerm == 0 {
-		return modeError{Path: name, Want: want, Got: mode, Err: fs.ErrPermission}
-	}
-	return nil
 }
