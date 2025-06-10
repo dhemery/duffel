@@ -25,12 +25,12 @@ func Execute(r *Request, dryRun bool, w io.Writer) error {
 		return err
 	}
 
-	tree := TargetTree{}
+	targetGap := TargetGap{}
 	install := Install{
 		fsys:           r.FS,
 		target:         r.Target,
 		targetToSource: targetToSource,
-		tree:           tree,
+		gaps:           targetGap,
 	}
 
 	var pkgAnalysts []PkgAnalyst
@@ -46,7 +46,7 @@ func Execute(r *Request, dryRun bool, w io.Writer) error {
 		}
 	}
 
-	plan := NewPlan(r.Target, tree)
+	plan := NewPlan(r.Target, targetGap)
 
 	if dryRun {
 		enc := json.NewEncoder(w)

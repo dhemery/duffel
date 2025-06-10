@@ -7,25 +7,25 @@ import (
 	"testing"
 )
 
-func TestStateEncodeJSON(t *testing.T) {
+func TestFileStateEncodeJSON(t *testing.T) {
 	tests := []struct {
-		state State
+		state FileState
 		want  string
 	}{
 		{
-			state: State{},
+			state: FileState{},
 			want:  `{"mode":"----------"}`,
 		},
 		{
-			state: State{Mode: fs.ModeDir | 0o755},
+			state: FileState{Mode: fs.ModeDir | 0o755},
 			want:  `{"mode":"drwxr-xr-x"}`,
 		},
 		{
-			state: State{Mode: fs.ModeSymlink, Dest: "my/dest"},
+			state: FileState{Mode: fs.ModeSymlink, Dest: "my/dest"},
 			want:  `{"mode":"L---------","dest":"my/dest"}`,
 		},
 		{
-			state: State{Mode: 0o644}, // Regular file
+			state: FileState{Mode: 0o644}, // Regular file
 			want:  `{"mode":"-rw-r--r--"}`,
 		},
 	}

@@ -16,31 +16,31 @@ type Install struct {
 	fsys           fs.FS
 	target         string
 	targetToSource string
-	tree           TargetTree
+	gaps           TargetGap
 }
 
 func (i Install) Analyze(pkg, item string, _ fs.DirEntry) error {
-	status, ok := i.tree[item]
+	itemGap, ok := i.gaps[item]
 	if !ok {
 		targetItem := path.Join(i.target, item)
 		info, err := fs.Stat(i.fsys, targetItem)
 		switch {
 		case err == nil:
-			status = NewStatus(info.Mode(), "")
+			itemGap = NewFileGap(info.Mode(), "")
 		case !errors.Is(err, fs.ErrNotExist):
-			// TODO: Record the error in the status
+			// TODO: Record the error in the gap
 			return err
 		}
-		i.tree[item] = status
+		i.gaps[item] = itemGap
 	}
 
-	if status.Current != nil || status.Desired != nil {
+	if itemGap.Current != nil || itemGap.Desired != nil {
 		return &ErrConflict{}
 	}
 
 	dest := path.Join(i.targetToSource, pkg, item)
-	status.Desired = &State{Mode: fs.ModeSymlink, Dest: dest}
+	itemGap.Desired = &FileState{Mode: fs.ModeSymlink, Dest: dest}
 
-	i.tree[item] = status
+	i.gaps[item] = itemGap
 	return nil
 }

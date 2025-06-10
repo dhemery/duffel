@@ -22,20 +22,20 @@ func TestInstall(t *testing.T) {
 
 	tests := map[string]struct {
 		item        string          // Item being analyzed, relative to pkg dir
-		status      *Status         // Item status before Analyze
+		itemGap     *FileGap        // Item gap before Analyze
 		targetEntry *fstest.MapFile // File entry for the item in target dir
-		wantStatus  Status          // Item status after Analyze
+		wantItemGap FileGap         // Item gap after Analyze
 		wantErr     error           // Error returned Analyze
 	}{
-		"no status, no target file": {
+		"no gap, no target file": {
 			item:        "item",
-			status:      nil, // Not yet analyzed
+			itemGap:     nil, // Not yet analyzed
 			targetEntry: nil, // No target file
-			wantStatus: Status{
+			wantItemGap: FileGap{
 				// Does not set a current state because no target file
 				Current: nil,
 				// Proposes linking to pkg item
-				Desired: &State{
+				Desired: &FileState{
 					Mode: fs.ModeSymlink,
 					Dest: path.Join(targetToSource, pkg, "item"),
 				},
@@ -44,34 +44,34 @@ func TestInstall(t *testing.T) {
 		},
 		"desired state, no target file": {
 			item:        "item",
-			status:      &Status{Desired: &State{Dest: "desired/dest"}},
+			itemGap:     &FileGap{Desired: &FileState{Dest: "desired/dest"}},
 			targetEntry: nil,
-			wantStatus:  Status{Desired: &State{Dest: "desired/dest"}}, // Unchanged
+			wantItemGap: FileGap{Desired: &FileState{Dest: "desired/dest"}}, // Unchanged
 			wantErr:     &ErrConflict{},
 		},
-		"target file with no status": {
+		"target file with no gap": {
 			item:        "item",
-			status:      nil,                          // Not yet analyzed
+			itemGap:     nil,                          // Not yet analyzed
 			targetEntry: &fstest.MapFile{Mode: 0o644}, // Plain file
-			wantStatus: Status{
+			wantItemGap: FileGap{
 				// Records the current state of the target file
-				Current: &State{Mode: 0o644},
+				Current: &FileState{Mode: 0o644},
 				// Proposes to leave the target in its current state
-				Desired: &State{Mode: 0o644},
+				Desired: &FileState{Mode: 0o644},
 			},
 			wantErr: &ErrConflict{},
 		},
 		"current state links to foreign dest": {
 			item: "item",
 			// Current state set by earlier analysis
-			status: &Status{
-				Current: &State{Dest: "current/foreign/dest"},
-				Desired: &State{Dest: "current/foreign/dest"},
+			itemGap: &FileGap{
+				Current: &FileState{Dest: "current/foreign/dest"},
+				Desired: &FileState{Dest: "current/foreign/dest"},
 			},
-			// Does not change the status
-			wantStatus: Status{
-				Current: &State{Dest: "current/foreign/dest"},
-				Desired: &State{Dest: "current/foreign/dest"},
+			// Does not change the gap
+			wantItemGap: FileGap{
+				Current: &FileState{Dest: "current/foreign/dest"},
+				Desired: &FileState{Dest: "current/foreign/dest"},
 			},
 			wantErr: &ErrConflict{},
 		},
@@ -84,16 +84,16 @@ func TestInstall(t *testing.T) {
 			targetItem := path.Join(target, test.item)
 			fsys.M[targetItem] = test.targetEntry
 
-			tree := TargetTree{}
-			if test.status != nil {
-				tree[test.item] = *test.status
+			tree := TargetGap{}
+			if test.itemGap != nil {
+				tree[test.item] = *test.itemGap
 			}
 
 			install := Install{
 				fsys:           fsys,
 				target:         target,
 				targetToSource: targetToSource,
-				tree:           tree,
+				gaps:           tree,
 			}
 
 			gotErr := install.Analyze(pkg, test.item, nil)
@@ -102,9 +102,9 @@ func TestInstall(t *testing.T) {
 				t.Errorf("error:\nwant %v\ngot  %v", test.wantErr, gotErr)
 			}
 
-			gotStatus := tree[test.item]
-			if !reflect.DeepEqual(gotStatus, test.wantStatus) {
-				t.Errorf("status:\nwant %s\ngot  %s", test.wantStatus, gotStatus)
+			gotItemGap := tree[test.item]
+			if !reflect.DeepEqual(gotItemGap, test.wantItemGap) {
+				t.Errorf("gap:\nwant %s\ngot  %s", test.wantItemGap, gotItemGap)
 			}
 			if t.Failed() {
 				t.Log("files in fsys:")
