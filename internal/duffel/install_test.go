@@ -102,7 +102,7 @@ func TestInstall(t *testing.T) {
 				t.Errorf("error:\nwant %v\ngot  %v", test.wantErr, gotErr)
 			}
 
-			gotStatus, _ := tree.Status(test.item)
+			gotStatus := tree[test.item]
 			if !reflect.DeepEqual(gotStatus, test.wantStatus) {
 				t.Errorf("status:\nwant %s\ngot  %s", test.wantStatus, gotStatus)
 			}

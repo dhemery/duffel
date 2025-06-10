@@ -65,28 +65,6 @@ func TestPlan(t *testing.T) {
 	}
 }
 
-func TestTargetSet(t *testing.T) {
-	item := "item"
-
-	tree := TargetTree{}
-
-	got, ok := tree.Status(item)
-	if ok {
-		t.Fatalf("before create, want !ok, got ok status %v", got)
-	}
-
-	status := Status{
-		Current: &State{Mode: fs.ModeSymlink, Dest: "current/dest"},
-		Desired: &State{Mode: fs.ModeDir | 0o755},
-	}
-	tree.Set(item, status)
-
-	got, ok = tree.Status(item)
-	if got != status || !ok {
-		t.Fatalf("after set want ok status %v\ngot ok %t, status %v", status, ok, got)
-	}
-}
-
 func TestNewStatus(t *testing.T) {
 	mode := fs.ModeDir | 0o755
 	dest := "my/dest"

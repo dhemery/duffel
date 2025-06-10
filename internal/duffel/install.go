@@ -20,7 +20,7 @@ type Install struct {
 }
 
 func (i Install) Analyze(pkg, item string, _ fs.DirEntry) error {
-	status, ok := i.tree.Status(item)
+	status, ok := i.tree[item]
 	if !ok {
 		targetItem := path.Join(i.target, item)
 		info, err := fs.Stat(i.fsys, targetItem)
@@ -31,7 +31,7 @@ func (i Install) Analyze(pkg, item string, _ fs.DirEntry) error {
 			// TODO: Record the error in the status
 			return err
 		}
-		i.tree.Set(item, status)
+		i.tree[item] = status
 	}
 
 	if status.Current != nil || status.Desired != nil {
@@ -41,6 +41,6 @@ func (i Install) Analyze(pkg, item string, _ fs.DirEntry) error {
 	dest := path.Join(i.targetToSource, pkg, item)
 	status.Desired = &State{Mode: fs.ModeSymlink, Dest: dest}
 
-	i.tree.Set(item, status)
+	i.tree[item] = status
 	return nil
 }

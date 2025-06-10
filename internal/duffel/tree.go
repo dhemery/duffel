@@ -55,15 +55,6 @@ func (t Task) Execute(fsys FS, target string) error {
 
 type TargetTree map[string]Status
 
-func (tt TargetTree) Set(item string, status Status) {
-	tt[item] = status
-}
-
-func (tt TargetTree) Status(item string) (Status, bool) {
-	s, ok := tt[item]
-	return s, ok
-}
-
 func NewStatus(mode fs.FileMode, dest string) Status {
 	return Status{
 		Current: &State{Mode: mode, Dest: dest},
