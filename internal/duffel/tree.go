@@ -64,21 +64,6 @@ func (tt TargetTree) Status(item string) (Status, bool) {
 	return s, ok
 }
 
-func (tt TargetTree) Tasks() []Task {
-	var tasks []Task
-	// Must sort tasks in lexical order by item
-	for _, item := range slices.Sorted(maps.Keys(tt)) {
-		status := tt[item]
-		if status.Desired == nil {
-			continue
-		}
-
-		task := Task{Item: item, State: *status.Desired}
-		tasks = append(tasks, task)
-	}
-	return tasks
-}
-
 func NewStatus(mode fs.FileMode, dest string) Status {
 	return Status{
 		Current: &State{Mode: mode, Dest: dest},

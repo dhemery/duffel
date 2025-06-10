@@ -46,9 +46,7 @@ func Execute(r *Request, dryRun bool, w io.Writer) error {
 		}
 	}
 
-	tasks := tree.Tasks()
-
-	plan := Plan{Target: r.Target, Tasks: tasks}
+	plan := NewPlan(r.Target, tree)
 
 	if dryRun {
 		enc := json.NewEncoder(w)
