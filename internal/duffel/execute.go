@@ -27,10 +27,10 @@ func Execute(r *Request, dryRun bool, w io.Writer) error {
 
 	targetGap := TargetGap{}
 	install := Install{
-		fsys:           r.FS,
-		target:         r.Target,
-		targetToSource: targetToSource,
-		gaps:           targetGap,
+		FS:             r.FS,
+		Target:         r.Target,
+		TargetToSource: targetToSource,
+		TargetGap:      targetGap,
 	}
 
 	var pkgAnalysts []PkgAnalyst

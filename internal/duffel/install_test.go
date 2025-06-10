@@ -90,10 +90,10 @@ func TestInstall(t *testing.T) {
 			}
 
 			install := Install{
-				fsys:           fsys,
-				target:         target,
-				targetToSource: targetToSource,
-				gaps:           tree,
+				FS:             fsys,
+				Target:         target,
+				TargetToSource: targetToSource,
+				TargetGap:      tree,
 			}
 
 			gotErr := install.Analyze(pkg, test.item, nil)
@@ -104,7 +104,7 @@ func TestInstall(t *testing.T) {
 
 			gotItemGap := tree[test.item]
 			if !reflect.DeepEqual(gotItemGap, test.wantItemGap) {
-				t.Errorf("gap:\nwant %s\ngot  %s", test.wantItemGap, gotItemGap)
+				t.Errorf("item gap:\nwant %s\ngot  %s", test.wantItemGap, gotItemGap)
 			}
 			if t.Failed() {
 				t.Log("files in fsys:")
