@@ -7,31 +7,6 @@ import (
 	"path/filepath"
 )
 
-type Plan struct {
-	Target string `json:"target"`
-	Tasks  []Task `json:"tasks"`
-}
-
-func (p *Plan) Execute(fsys FS) error {
-	for _, task := range p.Tasks {
-		if err := task.Execute(fsys, p.Target); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-type Task struct {
-	// Item is the path of the item to create, relative to target.
-	Item string
-	// State describes the file to create at the target item path.
-	State
-}
-
-func (t Task) Execute(fsys FS, target string) error {
-	return fsys.Symlink(t.Dest, path.Join(target, t.Item))
-}
-
 // MarshalJSON implements [json.Marshaller].
 // We have to implement it in order to override the [State.MarshalJSON] promoted from the embedded State,
 // which marshals only the State fields.

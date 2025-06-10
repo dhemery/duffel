@@ -5,8 +5,53 @@ import (
 	"fmt"
 	"io/fs"
 	"maps"
+	"path"
 	"slices"
 )
+
+type Plan struct {
+	Target string `json:"target"`
+	Tasks  []Task `json:"tasks"`
+}
+
+// NewPlan returns a Plan with tasks to close the gap in the tree rooted at target.
+func NewPlan(target string, gap map[string]Status) Plan {
+	tasks := make([]Task, 0)
+	// Must sort tasks in lexical order by item
+	for _, item := range slices.Sorted(maps.Keys(gap)) {
+		status := gap[item]
+		if status.Desired == nil {
+			continue
+		}
+
+		task := Task{Item: item, State: *status.Desired}
+		tasks = append(tasks, task)
+	}
+	return Plan{
+		Target: target,
+		Tasks:  tasks,
+	}
+}
+
+func (p *Plan) Execute(fsys FS) error {
+	for _, task := range p.Tasks {
+		if err := task.Execute(fsys, p.Target); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+type Task struct {
+	// Item is the path of the item to create, relative to target.
+	Item string
+	// State describes the file to create at the target item path.
+	State
+}
+
+func (t Task) Execute(fsys FS, target string) error {
+	return fsys.Symlink(t.Dest, path.Join(target, t.Item))
+}
 
 type TargetTree map[string]Status
 
