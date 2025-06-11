@@ -12,7 +12,7 @@ import (
 	"github.com/dhemery/duffel/internal/duftest"
 )
 
-func TestInstall(t *testing.T) {
+func TestInstallAnalyze(t *testing.T) {
 	const (
 		target = "path/to/target"
 		source = "path/to/source"

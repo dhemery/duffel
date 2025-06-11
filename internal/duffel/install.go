@@ -53,3 +53,7 @@ func (i Install) Analyze(pkg, item string, entry fs.DirEntry) error {
 	i.TargetGap[item] = itemGap
 	return nil
 }
+
+func (i Install) Visit(pkg, item string, entry fs.DirEntry) error {
+	return nil
+}

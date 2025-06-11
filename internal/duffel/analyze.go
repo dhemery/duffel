@@ -6,7 +6,8 @@ import (
 	"path/filepath"
 )
 
-type ItemAnalyst interface {
+type ItemVisitor interface {
+	Visit(pkg, item string, d fs.DirEntry) error
 	Analyze(pkg, item string, d fs.DirEntry) error
 }
 
@@ -14,15 +15,15 @@ type PkgAnalyst struct {
 	FS          fs.FS
 	Pkg         string
 	SourcePkg   string
-	ItemAnalyst ItemAnalyst
+	ItemVisitor ItemVisitor
 }
 
-func NewPkgAnalyst(fsys fs.FS, source, pkg string, ia ItemAnalyst) PkgAnalyst {
+func NewPkgAnalyst(fsys fs.FS, source, pkg string, iv ItemVisitor) PkgAnalyst {
 	return PkgAnalyst{
 		FS:          fsys,
 		Pkg:         pkg,
 		SourcePkg:   path.Join(source, pkg),
-		ItemAnalyst: ia,
+		ItemVisitor: iv,
 	}
 }
 
@@ -38,6 +39,19 @@ func (pa PkgAnalyst) Analyze() error {
 				return nil
 			}
 			item, _ := filepath.Rel(pa.SourcePkg, path)
-			return pa.ItemAnalyst.Analyze(pa.Pkg, item, d)
+			return pa.ItemVisitor.Analyze(pa.Pkg, item, d)
 		})
+}
+
+func (pa PkgAnalyst) VisitPath(path string, entry fs.DirEntry, err error) error {
+	if err != nil {
+		return err
+	}
+
+	if path == pa.SourcePkg {
+		// Source pkg is not an item.
+		return nil
+	}
+	item, _ := filepath.Rel(pa.SourcePkg, path)
+	return pa.ItemVisitor.Visit(pa.Pkg, item, entry)
 }
