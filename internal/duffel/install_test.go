@@ -84,16 +84,16 @@ func TestInstall(t *testing.T) {
 			targetItem := path.Join(target, test.item)
 			fsys.M[targetItem] = test.targetEntry
 
-			tree := TargetGap{}
+			targetGap := TargetGap{}
 			if test.itemGap != nil {
-				tree[test.item] = *test.itemGap
+				targetGap[test.item] = *test.itemGap
 			}
 
 			install := Install{
 				FS:             fsys,
 				Target:         target,
 				TargetToSource: targetToSource,
-				TargetGap:      tree,
+				TargetGap:      targetGap,
 			}
 
 			gotErr := install.Analyze(pkg, test.item, nil)
@@ -102,7 +102,7 @@ func TestInstall(t *testing.T) {
 				t.Errorf("error:\nwant %v\ngot  %v", test.wantErr, gotErr)
 			}
 
-			gotItemGap := tree[test.item]
+			gotItemGap := targetGap[test.item]
 			if !reflect.DeepEqual(gotItemGap, test.wantItemGap) {
 				t.Errorf("item gap:\nwant %s\ngot  %s", test.wantItemGap, gotItemGap)
 			}
