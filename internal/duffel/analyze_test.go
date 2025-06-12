@@ -190,3 +190,20 @@ func TestPkgAnalystVisitPathSpecialCases(t *testing.T) {
 		})
 	}
 }
+
+func TestPkgAnalystVisitPathStatError(t *testing.T) {
+	wantErr := errors.New("wanted stat error")
+
+	fsys := duftest.ErrFS{StatErr: wantErr}
+
+	targetGap := TargetGap{} // No gaps, forces stat of target item
+
+	// Do not want call to item advisor.
+	pa := NewPkgAnalyst(fsys, target, source, pkg, targetGap, nil)
+
+	gotErr := pa.VisitPath(path.Join(source, pkg, item), nil, nil)
+
+	if !errors.Is(gotErr, wantErr) {
+		t.Errorf("want error %q, got %q", wantErr, gotErr)
+	}
+}
