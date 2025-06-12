@@ -12,6 +12,17 @@ import (
 	"github.com/dhemery/duffel/internal/duftest"
 )
 
+const (
+	target         = "path/to/target"
+	source         = "path/to/source"
+	targetToSource = "../source"
+	pkg            = "pkg"
+	item           = "item"
+	dirReadable    = fs.ModeDir | 0o755
+	dirUnreadable  = fs.ModeDir | 0o311
+	fileReadable   = 0o644
+)
+
 type adviseFunc func(string, string, fs.DirEntry, *FileState) (*FileState, error)
 
 func (af adviseFunc) Advise(pkg, item string, d fs.DirEntry, priorGoal *FileState) (*FileState, error) {
@@ -19,21 +30,7 @@ func (af adviseFunc) Advise(pkg, item string, d fs.DirEntry, priorGoal *FileStat
 }
 
 func TestPkgAnalystVisitPath(t *testing.T) {
-	const (
-		target         = "path/to/target"
-		source         = "path/to/source"
-		targetToSource = "../source"
-		pkg            = "pkg"
-		item           = "item"
-		dirReadable    = fs.ModeDir | 0o755
-		dirUnreadable  = fs.ModeDir | 0o311
-		fileReadable   = 0o644
-	)
-
-	var (
-		customWalkError    = errors.New("error passed to VisitPath")
-		customAdvisorError = errors.New("error returned from advisor")
-	)
+	customAdvisorError := errors.New("error returned from advisor")
 
 	type advisorCall struct {
 		pkgArg         string      // The pkg passed to the advisor
@@ -47,38 +44,14 @@ func TestPkgAnalystVisitPath(t *testing.T) {
 		priorFileGap    *FileGap     // The recorded file gap for the path before VisitPath
 		files           fstest.MapFS // Files on the file system
 		walkPath        string       // The path passed to VisitPath
-		walkEntry       fs.DirEntry  // The dir entry passed to VisitPath
-		walkErr         error        // The error passed to VisitPath
 		wantAdvisorCall *advisorCall // Wanted call to item advisor
 		wantErr         error        // Error returned by VisitPath
 		wantFileGap     *FileGap     // The recorded file gap for the path after VisitPath
 	}{
-		"returns walk error for pkg dir with walk error": {
-			walkPath:        path.Join(source, pkg),
-			walkErr:         customWalkError,
-			wantFileGap:     nil,             // Do not record a file gap for the pkg dir
-			wantAdvisorCall: nil,             // Do seek advice for the pkg dir
-			wantErr:         customWalkError, // Return the walk error
-		},
-		"does nothing if pkg dir": {
-			walkPath:        path.Join(source, pkg),
-			walkErr:         nil,
-			wantAdvisorCall: nil, // Do not seek advice for the pkg dir
-			wantFileGap:     nil, // Do not record a file gap for the pkg dir
-			wantErr:         nil,
-		},
-		"returns walk error for item with walk error": {
-			walkPath:        path.Join(source, pkg, item),
-			walkErr:         customWalkError,
-			wantAdvisorCall: nil,             // Do seek advice for an item with a walk error
-			wantFileGap:     nil,             // Do not record a file gap for an item with a walk error
-			wantErr:         customWalkError, // Return the walk error
-		},
 		"records item advice if no target file and no prior advice": {
 			walkPath:     path.Join(source, pkg, item),
 			files:        fstest.MapFS{}, // No target file for item
 			priorFileGap: nil,
-			walkEntry:    nil,
 			wantAdvisorCall: &advisorCall{
 				pkgArg:         pkg,
 				itemArg:        item,
@@ -149,7 +122,7 @@ func TestPkgAnalystVisitPath(t *testing.T) {
 
 			pa := NewPkgAnalyst(fsys, target, source, pkg, targetGap, advisor)
 
-			gotErr := pa.VisitPath(test.walkPath, test.walkEntry, test.walkErr)
+			gotErr := pa.VisitPath(test.walkPath, nil, nil)
 
 			if test.wantAdvisorCall != nil && !gotAdvisorCall {
 				t.Errorf("no call to advisor, wanted: %#v", test.wantAdvisorCall)
@@ -174,6 +147,45 @@ func TestPkgAnalystVisitPath(t *testing.T) {
 				for n, g := range targetGap {
 					t.Errorf("    %q: %v", n, g)
 				}
+			}
+		})
+	}
+}
+
+func TestPkgAnalystVisitPathSpecialCases(t *testing.T) {
+	aWalkError := errors.New("error passed to VisitPath")
+
+	tests := map[string]struct {
+		path      string
+		err       error
+		wantError error
+	}{
+		"pkg dir with no walk error": {
+			path:      path.Join(source, pkg),
+			err:       nil,
+			wantError: nil,
+		},
+		"pkg dir with walk error": {
+			path:      path.Join(source, pkg),
+			err:       aWalkError,
+			wantError: aWalkError,
+		},
+		"item with walk error": {
+			path:      path.Join(source, pkg, item),
+			err:       aWalkError,
+			wantError: aWalkError,
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			// Do not want calls to FS, target gap, or item advisor.
+			pa := NewPkgAnalyst(nil, "", source, pkg, nil, nil)
+
+			// Do not want calls to entry.
+			err := pa.VisitPath(test.path, nil, test.err)
+
+			if err != test.wantError {
+				t.Errorf("want error %q, got %q", test.wantError, err)
 			}
 		})
 	}
