@@ -28,14 +28,12 @@ func Execute(r *Request, dryRun bool, w io.Writer) error {
 	targetGap := TargetGap{}
 	install := Install{
 		FS:             r.FS,
-		Target:         r.Target,
 		TargetToSource: targetToSource,
-		TargetGap:      targetGap,
 	}
 
 	var pkgAnalysts []PkgAnalyst
 	for _, pkg := range r.Pkgs {
-		pa := NewPkgAnalyst(r.FS, r.Source, pkg, install)
+		pa := NewPkgAnalyst(r.FS, r.Target, r.Source, pkg, targetGap, install)
 		pkgAnalysts = append(pkgAnalysts, pa)
 	}
 

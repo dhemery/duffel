@@ -11,123 +11,10 @@ import (
 	"github.com/dhemery/duffel/internal/duftest"
 )
 
-type analyzeItemFunc func(pkg, item string, d fs.DirEntry) error
+type adviseFunc func(string, string, fs.DirEntry, *FileState) (*FileState, error)
 
-func (aif analyzeItemFunc) Analyze(pkg, item string, d fs.DirEntry) error {
-	return aif(pkg, item, d)
-}
-
-func (tia analyzeItemFunc) Visit(string, string, fs.DirEntry) error {
-	panic("visit called on analyst")
-}
-
-func TestPkgAnalystAnalyze(t *testing.T) {
-	const (
-		target        = "path/to/target"
-		source        = "path/to/source"
-		pkg           = "pkg"
-		item          = "item"
-		dirReadable   = fs.ModeDir | 0o755
-		dirUnreadable = fs.ModeDir | 0o311
-		fileReadable  = 0o644
-	)
-
-	type analyzeItemCall struct {
-		pkgArg  string
-		itemArg string
-		err     error
-	}
-	tests := map[string]struct {
-		files           fstest.MapFS     // Files on the file system
-		wantAnalyzeItem *analyzeItemCall // Wanted call to item analyzer
-		wantErr         error            // Error returned by pkg analyzer
-	}{
-		"readable pkg dir": {
-			files: fstest.MapFS{
-				path.Join(source, pkg): &fstest.MapFile{Mode: dirReadable},
-			},
-			wantErr: nil,
-		},
-		"unreadable pkg dir": {
-			files: fstest.MapFS{
-				path.Join(source, pkg): &fstest.MapFile{Mode: dirUnreadable},
-			},
-			wantErr: fs.ErrPermission,
-		},
-		"readable pkg item": {
-			files: fstest.MapFS{
-				path.Join(source, pkg, item): &fstest.MapFile{Mode: fileReadable},
-			},
-			wantAnalyzeItem: &analyzeItemCall{
-				pkgArg:  pkg,
-				itemArg: item,
-				err:     nil,
-			},
-			wantErr: nil,
-		},
-		"unreadable dir item": {
-			files: fstest.MapFS{
-				path.Join(source, pkg, item): &fstest.MapFile{Mode: dirUnreadable},
-			},
-			// Called for item's dir entry before trying to read item itself.
-			wantAnalyzeItem: &analyzeItemCall{
-				pkgArg:  pkg,
-				itemArg: item,
-				err:     nil,
-			},
-			wantErr: fs.ErrPermission,
-		},
-	}
-
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			gotAnalyzeItemCall := false
-
-			tia := analyzeItemFunc(func(pkg, item string, d fs.DirEntry) error {
-				if gotAnalyzeItemCall {
-					return fmt.Errorf("analyze item: unexpected second call: pkg %q, item %q",
-						pkg, item)
-				}
-				want := test.wantAnalyzeItem
-				if want == nil {
-					return fmt.Errorf("analyze item: unexpected call with pkg %q, item %q",
-						pkg, item)
-				}
-				gotAnalyzeItemCall = true
-				if pkg != want.pkgArg {
-					t.Errorf("analyze item: want pkg %q, got %q", want.pkgArg, pkg)
-				}
-				if item != want.itemArg {
-					t.Errorf("analyze item:, want item %q, got %q", want.itemArg, item)
-				}
-				return want.err
-			})
-
-			fsys := duftest.FS{M: test.files}
-
-			pa := NewPkgAnalyst(fsys, source, pkg, tia)
-
-			gotErr := pa.Analyze()
-
-			if test.wantAnalyzeItem != nil && !gotAnalyzeItemCall {
-				t.Errorf("no call to analyze item, wanted: %#v", test.wantAnalyzeItem)
-			}
-
-			if !errors.Is(gotErr, test.wantErr) {
-				t.Fatalf("error:\nwant %v\ngot  %v", test.wantErr, gotErr)
-			}
-		})
-	}
-}
-
-type itemVisitFunc func(pkg, item string, d fs.DirEntry) error
-
-func (ivf itemVisitFunc) Visit(pkg, item string, d fs.DirEntry) error {
-	return ivf(pkg, item, d)
-}
-
-func (ivf itemVisitFunc) Analyze(string, string, fs.DirEntry) error {
-	panic("analyze called on visitor")
+func (af adviseFunc) Advise(pkg, item string, d fs.DirEntry, priorGoal *FileState) (*FileState, error) {
+	return af(pkg, item, d, priorGoal)
 }
 
 func TestPkgAnalystVisitPath(t *testing.T) {
@@ -143,75 +30,75 @@ func TestPkgAnalystVisitPath(t *testing.T) {
 
 	customWalkError := errors.New("error passed to VisitPath")
 
-	type itemVisit struct {
-		pkgArg    string
-		itemArg   string
-		entryArg  fs.DirEntry
-		gapArg    FileGap
-		gapResult FileGap
-		errResult error
+	type advisorCall struct {
+		pkgArg         string      // The pkg passed to the advisor
+		itemArg        string      // The item passed to the advisor
+		entryArg       fs.DirEntry // The entry passed to the advisor
+		priorAdviceArg *FileState  // The prior advice passed to the advisor
+		adviceResult   *FileState  // The advice returned by the advisor
+		errResult      error       // The error returned by the advisor
 	}
 	tests := map[string]struct {
-		files         fstest.MapFS // Files on the file system
-		priorFileGap  *FileGap     // The recorded file gap for the path before VisitPath
-		walkPath      string       // The path passed to VisitPath
-		walkEntry     fs.DirEntry  // The dir entry passed to VisitPath
-		walkErr       error        // The error passed to VisitPath
-		wantFileGap   *FileGap     // The recorded file gap for the path after VisitPath
-		wantItemVisit *itemVisit   // Wanted call to item visitor
-		wantErr       error        // Error returned by VisitPath
+		files           fstest.MapFS // Files on the file system
+		priorFileGap    *FileGap     // The recorded file gap for the path before VisitPath
+		walkPath        string       // The path passed to VisitPath
+		walkEntry       fs.DirEntry  // The dir entry passed to VisitPath
+		walkErr         error        // The error passed to VisitPath
+		wantFileGap     *FileGap     // The recorded file gap for the path after VisitPath
+		wantAdvisorCall *advisorCall // Wanted call to item advisor
+		wantErr         error        // Error returned by VisitPath
 	}{
 		"pkg dir and walk error": {
-			walkPath:      path.Join(source, pkg),
-			walkErr:       customWalkError,
-			wantFileGap:   nil,             // Do not record a file gap for the pkg dir
-			wantItemVisit: nil,             // Do not visit the pkg dir as an item
-			wantErr:       customWalkError, // Return the walk error
+			walkPath:        path.Join(source, pkg),
+			walkErr:         customWalkError,
+			wantFileGap:     nil,             // Do not record a file gap for the pkg dir
+			wantAdvisorCall: nil,             // Do seek advice for the pkg dir
+			wantErr:         customWalkError, // Return the walk error
 		},
 		"pkg dir and no walk error": {
-			walkPath:      path.Join(source, pkg),
-			walkErr:       nil,
-			wantItemVisit: nil, // Do not visit the pkg dir as an item
-			wantFileGap:   nil, // Do not record a file gap for the pkg dir
-			wantErr:       nil,
+			walkPath:        path.Join(source, pkg),
+			walkErr:         nil,
+			wantAdvisorCall: nil, // Do not seek advice for the pkg dir
+			wantFileGap:     nil, // Do not record a file gap for the pkg dir
+			wantErr:         nil,
 		},
 		"item and walk error": {
-			walkPath:      path.Join(source, pkg, item),
-			walkErr:       customWalkError,
-			wantItemVisit: nil,             // Do not visit an item with a walk error
-			wantFileGap:   nil,             // Do not record a file gap for an item with a walk error
-			wantErr:       customWalkError, // Return the walk error
+			walkPath:        path.Join(source, pkg, item),
+			walkErr:         customWalkError,
+			wantAdvisorCall: nil,             // Do seek advice about an item with a walk error
+			wantFileGap:     nil,             // Do not record a file gap for an item with a walk error
+			wantErr:         customWalkError, // Return the walk error
 		},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			gotItemVisit := false
+			gotAdvisorCall := false
 
-			visitItem := itemVisitFunc(func(pkg, item string, d fs.DirEntry) error {
-				want := test.wantItemVisit
-				if want == nil {
-					return fmt.Errorf("visit item: unwanted call with pkg %q, item %q",
-						pkg, item)
+			advisor := adviseFunc(func(pkg, item string, d fs.DirEntry, s *FileState) (*FileState, error) {
+				call := test.wantAdvisorCall
+				if call == nil {
+					return nil, fmt.Errorf("advisor: unwanted call with pkg %q, item %q", pkg, item)
 				}
-				gotItemVisit = true
-				if pkg != want.pkgArg {
-					t.Errorf("visit item: want pkg %q, got %q", want.pkgArg, pkg)
+				gotAdvisorCall = true
+				if pkg != call.pkgArg {
+					t.Errorf("advisor: want pkg %q, got %q", call.pkgArg, pkg)
 				}
-				if item != want.itemArg {
-					t.Errorf("visit item:, want item %q, got %q", want.itemArg, item)
+				if item != call.itemArg {
+					t.Errorf("advisor:, want item %q, got %q", call.itemArg, item)
 				}
-				return want.errResult
+				return call.adviceResult, call.errResult
 			})
 
 			fsys := duftest.FS{M: test.files}
+			targetGap := TargetGap{}
 
-			pa := NewPkgAnalyst(fsys, source, pkg, visitItem)
+			pa := NewPkgAnalyst(fsys, target, source, pkg, targetGap, advisor)
 
 			gotErr := pa.VisitPath(test.walkPath, test.walkEntry, test.walkErr)
 
-			if test.wantItemVisit != nil && !gotItemVisit {
-				t.Errorf("no call to visit item, wanted: %#v", test.wantItemVisit)
+			if test.wantAdvisorCall != nil && !gotAdvisorCall {
+				t.Errorf("no call to advisor, wanted: %#v", test.wantAdvisorCall)
 			}
 
 			if !errors.Is(gotErr, test.wantErr) {
