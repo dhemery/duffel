@@ -2,14 +2,11 @@ package duffel
 
 import (
 	"errors"
-	"fmt"
 	"io/fs"
 	"path"
 	"reflect"
 	"testing"
 	"testing/fstest"
-
-	"github.com/dhemery/duffel/internal/duftest"
 )
 
 const (
@@ -29,103 +26,95 @@ func (af adviseFunc) Advise(pkg, item string, d fs.DirEntry, priorGoal *FileStat
 	return af(pkg, item, d, priorGoal)
 }
 
-func TestPkgAnalystVisitPath(t *testing.T) {
-	customAdvisorError := errors.New("error returned from advisor")
+func TestPkgAnalystVisitPathTargetItemState(t *testing.T) {
+	anAdvisorError := errors.New("error returned from advisor")
 
-	type advisorCall struct {
-		pkgArg         string      // The pkg passed to the advisor
-		itemArg        string      // The item passed to the advisor
-		entryArg       fs.DirEntry // The entry passed to the advisor
-		priorAdviceArg *FileState  // The prior advice passed to the advisor
-		adviceResult   *FileState  // The advice returned by the advisor
-		errResult      error       // The error returned by the advisor
-	}
 	tests := map[string]struct {
-		priorFileGap    *FileGap     // The recorded file gap for the path before VisitPath
-		files           fstest.MapFS // Files on the file system
-		walkPath        string       // The path passed to VisitPath
-		wantAdvisorCall *advisorCall // Wanted call to item advisor
-		wantErr         error        // Error returned by VisitPath
-		wantFileGap     *FileGap     // The recorded file gap for the path after VisitPath
+		targetItemState  *FileState // The state of the item in the target dir
+		advisorAdvice    *FileState // The advice returned by the advisor
+		advisorError     error      // Error returned by advisor
+		wantErr          error      // Error returned by VisitPath
+		wantDesiredState *FileState // The recorded desired state for the item after VisitPath
+		skip             string     // Reason for skipping test
 	}{
-		"records item advice if no target file and no prior advice": {
-			walkPath:     path.Join(source, pkg, item),
-			files:        fstest.MapFS{}, // No target file for item
-			priorFileGap: nil,
-			wantAdvisorCall: &advisorCall{
-				pkgArg:         pkg,
-				itemArg:        item,
-				entryArg:       nil,
-				priorAdviceArg: nil,
-				adviceResult: &FileState{
-					Mode: fs.ModeSymlink,
-					Dest: "path/advised/by/advisor",
-				},
-				errResult: nil,
-			},
-			wantErr: nil,
-			wantFileGap: &FileGap{
-				Desired: &FileState{
-					Mode: fs.ModeSymlink,
-					Dest: "path/advised/by/advisor",
-				},
-			},
+		"no target item": {
+			targetItemState:  nil,
+			advisorAdvice:    &FileState{Mode: fs.ModeSymlink, Dest: "dest/from/advisor"},
+			wantDesiredState: &FileState{Mode: fs.ModeSymlink, Dest: "dest/from/advisor"},
 		},
-		"returns advisor error": {
-			priorFileGap: nil,
-			files: fstest.MapFS{
-				path.Join(target, item): &fstest.MapFile{Mode: 0o644}, // Plain file
-			},
-			walkPath: path.Join(source, pkg, item),
-			wantAdvisorCall: &advisorCall{
-				pkgArg:         pkg,
-				itemArg:        item,
-				entryArg:       nil,
-				priorAdviceArg: &FileState{Mode: 0o644},
-				adviceResult:   nil,
-				errResult:      customAdvisorError,
-			},
-			wantErr: customAdvisorError,
-			// Records file state from stat
-			wantFileGap: &FileGap{
-				Current: &FileState{Mode: 0o644},
-				Desired: &FileState{Mode: 0o644},
-			},
+		"target item is dir, advisor advises": {
+			targetItemState:  &FileState{Mode: fs.ModeDir | 0o755},
+			advisorAdvice:    &FileState{Mode: fs.ModeSymlink, Dest: "dest/from/advisor"},
+			wantDesiredState: &FileState{Mode: fs.ModeSymlink, Dest: "dest/from/advisor"},
+		},
+		"target item is link, advisor advises": {
+			targetItemState:  &FileState{Mode: fs.ModeSymlink, Dest: "dest/from/stat"},
+			advisorAdvice:    &FileState{Mode: fs.ModeDir | 0o755},
+			wantDesiredState: &FileState{Mode: fs.ModeDir | 0o755},
+			skip:             "not yet implemented: use Lstat instead of Stat",
+		},
+		"target item is file, advisor reports error": {
+			targetItemState:  &FileState{Mode: 0o644},
+			advisorError:     anAdvisorError,
+			wantErr:          anAdvisorError,
+			wantDesiredState: &FileState{Mode: 0o644},
+		},
+		"target item is dir, advisor reports error": {
+			targetItemState:  &FileState{Mode: fs.ModeDir | 0o755},
+			advisorError:     anAdvisorError,
+			wantErr:          anAdvisorError,
+			wantDesiredState: &FileState{Mode: fs.ModeDir | 0o755},
+		},
+		"target item is link, advisor reports error": {
+			targetItemState:  &FileState{Mode: fs.ModeSymlink, Dest: "dest/from/stat"},
+			advisorAdvice:    nil,
+			advisorError:     anAdvisorError,
+			wantErr:          anAdvisorError,
+			wantDesiredState: &FileState{Mode: fs.ModeSymlink, Dest: "dest/from/stat"},
+			skip:             "not yet implemented: use Lstat instead of Stat",
 		},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
+			if test.skip != "" {
+				t.Skip(test.skip)
+			}
 			gotAdvisorCall := false
 
-			advisor := adviseFunc(func(pkg, item string, d fs.DirEntry, priorAdvice *FileState) (*FileState, error) {
-				call := test.wantAdvisorCall
-				if call == nil {
-					return nil, fmt.Errorf("advisor: unwanted call with pkg %q, item %q, priorAdvice %v",
-						pkg, item, priorAdvice)
-				}
+			advisor := adviseFunc(func(gotPkg, gotItem string, gotEntry fs.DirEntry, gotState *FileState) (*FileState, error) {
 				gotAdvisorCall = true
-				if pkg != call.pkgArg {
-					t.Errorf("advisor: want pkg %q, got %q", call.pkgArg, pkg)
+				if gotPkg != pkg {
+					t.Errorf("advisor: want pkg %q, got %q", pkg, gotPkg)
 				}
-				if item != call.itemArg {
-					t.Errorf("advisor: want item %q, got %q", call.itemArg, item)
+				if gotItem != item {
+					t.Errorf("advisor: want item %q, got %q", item, gotItem)
 				}
-				if !reflect.DeepEqual(priorAdvice, call.priorAdviceArg) {
-					t.Errorf("advisor: want prior advice %v, got %v", call.priorAdviceArg, priorAdvice)
+				if !reflect.DeepEqual(gotState, test.targetItemState) {
+					t.Errorf("advisor: want prior advice %v, got %v", test.targetItemState, gotState)
 				}
-				return call.adviceResult, call.errResult
+				return test.advisorAdvice, test.advisorError
 			})
 
-			fsys := duftest.FS{M: test.files}
+			fsys := fstest.MapFS{}
+			if test.targetItemState != nil {
+				targetItem := path.Join(target, item)
+				targetItemFile := &fstest.MapFile{
+					Mode: test.targetItemState.Mode,
+					Data: []byte(test.targetItemState.Dest),
+				}
+				fsys[targetItem] = targetItemFile
+			}
+
 			targetGap := TargetGap{}
 
 			pa := NewPkgAnalyst(fsys, target, source, pkg, targetGap, advisor)
 
-			gotErr := pa.VisitPath(test.walkPath, nil, nil)
+			sourcePkgItem := path.Join(source, pkg, item)
+			gotErr := pa.VisitPath(sourcePkgItem, nil, nil)
 
-			if test.wantAdvisorCall != nil && !gotAdvisorCall {
-				t.Errorf("no call to advisor, wanted: %#v", test.wantAdvisorCall)
+			if !gotAdvisorCall {
+				t.Errorf("no call to advisor")
 			}
 
 			if !errors.Is(gotErr, test.wantErr) {
@@ -133,20 +122,19 @@ func TestPkgAnalystVisitPath(t *testing.T) {
 			}
 
 			gotFileGap, ok := targetGap[item]
-			switch {
-			case test.wantFileGap == nil && ok:
-				t.Errorf("file gap:\n    want: none\n    got : got %#v", gotFileGap)
-			case test.wantFileGap != nil && !ok:
-				t.Errorf("file gap:\n    want: %v\n    got : none", test.wantFileGap)
-			case test.wantFileGap != nil && !reflect.DeepEqual(&gotFileGap, test.wantFileGap):
-				t.Errorf("file gap:\n    want: %v\n    got : %v", test.wantFileGap, gotFileGap)
 
+			if !ok {
+				t.Fatalf("did not record file gap")
 			}
-			if t.Failed() {
-				t.Error("target gap:")
-				for n, g := range targetGap {
-					t.Errorf("    %q: %v", n, g)
-				}
+
+			gotCurrentState := gotFileGap.Current
+			if !reflect.DeepEqual(gotCurrentState, test.targetItemState) {
+				t.Errorf("current state\nwant %v\ngot  %v", test.targetItemState, gotCurrentState)
+			}
+
+			gotDesiredState := gotFileGap.Desired
+			if !reflect.DeepEqual(gotDesiredState, test.wantDesiredState) {
+				t.Errorf("desired state\nwant %v\ngot  %v", test.wantDesiredState, gotDesiredState)
 			}
 		})
 	}
@@ -156,23 +144,23 @@ func TestPkgAnalystVisitPathSpecialCases(t *testing.T) {
 	aWalkError := errors.New("error passed to VisitPath")
 
 	tests := map[string]struct {
-		path      string
-		err       error
+		walkPath  string
+		walkErr   error
 		wantError error
 	}{
 		"pkg dir with no walk error": {
-			path:      path.Join(source, pkg),
-			err:       nil,
+			walkPath:  path.Join(source, pkg),
+			walkErr:   nil,
 			wantError: nil,
 		},
 		"pkg dir with walk error": {
-			path:      path.Join(source, pkg),
-			err:       aWalkError,
+			walkPath:  path.Join(source, pkg),
+			walkErr:   aWalkError,
 			wantError: aWalkError,
 		},
 		"item with walk error": {
-			path:      path.Join(source, pkg, item),
-			err:       aWalkError,
+			walkPath:  path.Join(source, pkg, item),
+			walkErr:   aWalkError,
 			wantError: aWalkError,
 		},
 	}
@@ -182,7 +170,7 @@ func TestPkgAnalystVisitPathSpecialCases(t *testing.T) {
 			pa := NewPkgAnalyst(nil, "", source, pkg, nil, nil)
 
 			// Do not want calls to entry.
-			err := pa.VisitPath(test.path, nil, test.err)
+			err := pa.VisitPath(test.walkPath, nil, test.walkErr)
 
 			if err != test.wantError {
 				t.Errorf("want error %q, got %q", test.wantError, err)
@@ -191,19 +179,31 @@ func TestPkgAnalystVisitPathSpecialCases(t *testing.T) {
 	}
 }
 
+type statErrorFS struct {
+	StatErr error
+}
+
+func (f statErrorFS) Open(path string) (fs.File, error) {
+	panic("ErrFS.open called: " + path)
+}
+
+func (f statErrorFS) Stat(path string) (fs.FileInfo, error) {
+	return nil, f.StatErr
+}
+
 func TestPkgAnalystVisitPathStatError(t *testing.T) {
-	wantErr := errors.New("wanted stat error")
+	statError := errors.New("wanted stat error")
+	fsys := statErrorFS{StatErr: statError}
 
-	fsys := duftest.ErrFS{StatErr: wantErr}
-
-	targetGap := TargetGap{} // No gaps, forces stat of target item
+	// No recorded gaps, forces stat of target item
+	targetGap := TargetGap{}
 
 	// Do not want call to item advisor.
 	pa := NewPkgAnalyst(fsys, target, source, pkg, targetGap, nil)
 
 	gotErr := pa.VisitPath(path.Join(source, pkg, item), nil, nil)
 
-	if !errors.Is(gotErr, wantErr) {
-		t.Errorf("want error %q, got %q", wantErr, gotErr)
+	if !errors.Is(gotErr, statError) {
+		t.Errorf("want error %q, got %q", statError, gotErr)
 	}
 }
