@@ -9,17 +9,6 @@ import (
 	"time"
 )
 
-const (
-	target         = "path/to/target"
-	source         = "path/to/source"
-	targetToSource = "../source"
-	pkg            = "pkg"
-	item           = "item"
-	dirReadable    = fs.ModeDir | 0o755
-	dirUnreadable  = fs.ModeDir | 0o311
-	fileReadable   = 0o644
-)
-
 type adviseFunc func(string, string, fs.DirEntry, *FileState) (*FileState, error)
 
 func (af adviseFunc) Advise(pkg, item string, d fs.DirEntry, priorGoal *FileState) (*FileState, error) {
@@ -91,7 +80,17 @@ func (f *fileStateInfo) Sys() any {
 	return nil
 }
 
-func TestPkgAnalystVisitPathTargetItemState(t *testing.T) {
+func TestPkgAnalystVisitPath(t *testing.T) {
+	const (
+		target         = "path/to/target"
+		source         = "path/to/source"
+		targetToSource = "../source"
+		pkg            = "pkg"
+		item           = "item"
+		dirReadable    = fs.ModeDir | 0o755
+		dirUnreadable  = fs.ModeDir | 0o311
+		fileReadable   = 0o644
+	)
 	anAdvisorError := errors.New("error returned from advisor")
 
 	tests := map[string]struct {
@@ -199,62 +198,23 @@ func TestPkgAnalystVisitPathTargetItemState(t *testing.T) {
 	}
 }
 
-func TestPkgAnalystVisitPathShortCircuit(t *testing.T) {
-	aWalkError := errors.New("error passed to VisitPath")
-
-	tests := map[string]struct {
-		walkPath  string
-		walkErr   error
-		wantError error
-	}{
-		"pkg dir with no walk error": {
-			walkPath:  path.Join(source, pkg),
-			walkErr:   nil,
-			wantError: nil,
-		},
-		"pkg dir with walk error": {
-			walkPath:  path.Join(source, pkg),
-			walkErr:   aWalkError,
-			wantError: aWalkError,
-		},
-		"item with walk error": {
-			walkPath:  path.Join(source, pkg, item),
-			walkErr:   aWalkError,
-			wantError: aWalkError,
-		},
-	}
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			// Do not want calls to FS, target gap, or item advisor.
-			pa := NewPkgAnalyst(nil, "", source, pkg, nil, nil)
-
-			// Do not want calls to entry.
-			err := pa.VisitPath(test.walkPath, nil, test.walkErr)
-
-			if err != test.wantError {
-				t.Errorf("want error %q, got %q", test.wantError, err)
-			}
-		})
-	}
-}
-
-type shortCircuitResults struct {
+type errFSResults struct {
 	mode        fs.FileMode
 	lstatErr    error
 	readLinkErr error
 }
 
-type shortCircuitFS map[string]*shortCircuitResults
+type errFS map[string]*errFSResults
 
-func (fsys shortCircuitFS) Open(path string) (fs.File, error) {
+func (fsys errFS) Open(path string) (fs.File, error) {
 	return nil, &fs.PathError{Op: "shortCircuit.open", Path: path, Err: errors.ErrUnsupported}
 }
 
-func (fsys shortCircuitFS) Stat(path string) (fs.FileInfo, error) {
+func (fsys errFS) Stat(path string) (fs.FileInfo, error) {
 	return nil, &fs.PathError{Op: "shortCircuit.stat", Path: path, Err: errors.ErrUnsupported}
 }
 
-func (fsys shortCircuitFS) Lstat(name string) (fs.FileInfo, error) {
+func (fsys errFS) Lstat(name string) (fs.FileInfo, error) {
 	results, ok := fsys[name]
 	if !ok {
 		return nil, &fs.PathError{Op: "shortCircuit.stat", Path: name, Err: fs.ErrNotExist}
@@ -263,7 +223,7 @@ func (fsys shortCircuitFS) Lstat(name string) (fs.FileInfo, error) {
 	return info, results.lstatErr
 }
 
-func (fsys shortCircuitFS) ReadLink(path string) (string, error) {
+func (fsys errFS) ReadLink(path string) (string, error) {
 	results, ok := fsys[path]
 	if !ok {
 		return "", &fs.PathError{Op: "shortCircuit.readlink", Path: path, Err: fs.ErrNotExist}
@@ -271,35 +231,63 @@ func (fsys shortCircuitFS) ReadLink(path string) (string, error) {
 	return "", results.readLinkErr
 }
 
-func TestPkgAnalystVisitPathStatError(t *testing.T) {
+// Tests of situations that produce errors
+// and preclude recording the target file state or calling the item advisor.
+func TestPkgAnalystVisitPathError(t *testing.T) {
 	var (
-		anLstatError   = errors.New("error from lstat")
-		aReadLinkError = errors.New("error from readlink")
+		anLstatError   = errors.New("error returned from lstat")
+		aReadLinkError = errors.New("error returned from readlink")
+		aWalkError     = errors.New("error passed to VisitPath")
 	)
 
 	tests := map[string]struct {
-		targetItemMode fs.FileMode
-		lstatErr       error
-		readLinkErr    error
-		wantErr        error
+		item           string      // The item being visited, or . to visit the pkg dir
+		walkErr        error       // The error passed to VisitPath
+		targetItemMode fs.FileMode // The mode of the target item file
+		lstatErr       error       // Error returned from Lstat
+		readLinkErr    error       // Error returned from ReadLink
+		wantError      error
 	}{
-		"lstat error": {
-			lstatErr: anLstatError,
-			wantErr:  anLstatError,
+		"pkg dir with no walk error": {
+			item:      ".",
+			walkErr:   nil,
+			wantError: nil,
 		},
-		"readlink error": {
+		"pkg dir with walk error": {
+			item:      ".",
+			walkErr:   aWalkError,
+			wantError: aWalkError,
+		},
+		"item with walk error": {
+			item:      "item",
+			walkErr:   aWalkError,
+			wantError: aWalkError,
+		},
+		"target item lstat error": {
+			item:      "item",
+			lstatErr:  anLstatError,
+			wantError: anLstatError,
+		},
+		"target item readlink error": {
+			item:           "item",
 			targetItemMode: fs.ModeSymlink,
 			readLinkErr:    aReadLinkError,
-			wantErr:        aReadLinkError,
+			wantError:      aReadLinkError,
 		},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			fsys := shortCircuitFS{}
+			const (
+				source = "path/to/source"
+				target = "path/to/target"
+				pkg    = "pkg"
+			)
+
+			fsys := errFS{}
 			if test.lstatErr != nil || test.readLinkErr != nil {
-				targetItem := path.Join(target, item)
-				result := &shortCircuitResults{
+				targetItem := path.Join(target, test.item)
+				result := &errFSResults{
 					mode:        test.targetItemMode,
 					lstatErr:    test.lstatErr,
 					readLinkErr: test.readLinkErr,
@@ -307,16 +295,23 @@ func TestPkgAnalystVisitPathStatError(t *testing.T) {
 				fsys[targetItem] = result
 			}
 
-			// No recorded gaps, forces stat of target item if not shortcircuited suooner
-			targetGap := TargetGap{}
+			emptyTargetGap := TargetGap{}
+			var uncallableAdvisor ItemAdvisor = nil
+			pa := NewPkgAnalyst(fsys, target, source, pkg, emptyTargetGap, uncallableAdvisor)
 
-			// Do not want call to item advisor.
-			pa := NewPkgAnalyst(fsys, target, source, pkg, targetGap, nil)
+			walkPath := path.Join(source, pkg, test.item)
 
-			gotErr := pa.VisitPath(path.Join(source, pkg, item), nil, nil)
+			gotErr := pa.VisitPath(walkPath, nil, test.walkErr)
 
-			if !errors.Is(gotErr, test.wantErr) {
-				t.Errorf("want error %q, got %q", test.wantErr, gotErr)
+			if !errors.Is(gotErr, test.wantError) {
+				t.Errorf("want error %q, got %q", test.wantError, gotErr)
+			}
+
+			if len(emptyTargetGap) != 0 {
+				t.Error("want no file gaps, got:")
+				for path, gap := range emptyTargetGap {
+					t.Errorf("    %q: %v", path, gap)
+				}
 			}
 		})
 	}
