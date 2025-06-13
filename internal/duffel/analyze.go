@@ -4,7 +4,6 @@ import (
 	"errors"
 	"io/fs"
 	"path"
-	"path/filepath"
 
 	"github.com/dhemery/duffel/internal/files"
 )
@@ -46,7 +45,7 @@ func (pa PkgAnalyst) VisitPath(name string, entry fs.DirEntry, err error) error 
 		// Source pkg is not an item.
 		return nil
 	}
-	item, _ := filepath.Rel(pa.SourcePkg, name)
+	item := name[len(pa.SourcePkg)+1:]
 	fileGap, ok := pa.TargetGap[item]
 	if !ok {
 		targetItem := path.Join(pa.Target, item)
