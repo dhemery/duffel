@@ -55,7 +55,10 @@ func (pa PkgAnalyst) VisitPath(name string, entry fs.DirEntry, err error) error 
 		case err == nil:
 			state := &FileState{Mode: info.Mode()}
 			if info.Mode()&fs.ModeSymlink != 0 {
-				dest, _ := files.ReadLink(pa.FS, targetItem)
+				dest, err := files.ReadLink(pa.FS, targetItem)
+				if err != nil {
+					return err
+				}
 				state.Dest = dest
 			}
 			fileGap.Current = state

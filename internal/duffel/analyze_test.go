@@ -199,7 +199,7 @@ func TestPkgAnalystVisitPathTargetItemState(t *testing.T) {
 	}
 }
 
-func TestPkgAnalystVisitPathSpecialCases(t *testing.T) {
+func TestPkgAnalystVisitPathShortCircuit(t *testing.T) {
 	aWalkError := errors.New("error passed to VisitPath")
 
 	tests := map[string]struct {
@@ -238,31 +238,86 @@ func TestPkgAnalystVisitPathSpecialCases(t *testing.T) {
 	}
 }
 
-type statErrorFS struct {
-	StatErr error
+type shortCircuitResults struct {
+	mode        fs.FileMode
+	lstatErr    error
+	readLinkErr error
 }
 
-func (f statErrorFS) Open(path string) (fs.File, error) {
-	panic("ErrFS.open called: " + path)
+type shortCircuitFS map[string]*shortCircuitResults
+
+func (fsys shortCircuitFS) Open(path string) (fs.File, error) {
+	return nil, &fs.PathError{Op: "shortCircuit.open", Path: path, Err: errors.ErrUnsupported}
 }
 
-func (f statErrorFS) Stat(path string) (fs.FileInfo, error) {
-	return nil, f.StatErr
+func (fsys shortCircuitFS) Stat(path string) (fs.FileInfo, error) {
+	return nil, &fs.PathError{Op: "shortCircuit.stat", Path: path, Err: errors.ErrUnsupported}
+}
+
+func (fsys shortCircuitFS) Lstat(name string) (fs.FileInfo, error) {
+	results, ok := fsys[name]
+	if !ok {
+		return nil, &fs.PathError{Op: "shortCircuit.stat", Path: name, Err: fs.ErrNotExist}
+	}
+	info := &fileStateInfo{name: path.Base(name), state: FileState{Mode: results.mode}}
+	return info, results.lstatErr
+}
+
+func (fsys shortCircuitFS) ReadLink(path string) (string, error) {
+	results, ok := fsys[path]
+	if !ok {
+		return "", &fs.PathError{Op: "shortCircuit.readlink", Path: path, Err: fs.ErrNotExist}
+	}
+	return "", results.readLinkErr
 }
 
 func TestPkgAnalystVisitPathStatError(t *testing.T) {
-	statError := errors.New("wanted stat error")
-	fsys := statErrorFS{StatErr: statError}
+	var (
+		anLstatError   = errors.New("error from lstat")
+		aReadLinkError = errors.New("error from readlink")
+	)
 
-	// No recorded gaps, forces stat of target item
-	targetGap := TargetGap{}
+	tests := map[string]struct {
+		targetItemMode fs.FileMode
+		lstatErr       error
+		readLinkErr    error
+		wantErr        error
+	}{
+		"lstat error": {
+			lstatErr: anLstatError,
+			wantErr:  anLstatError,
+		},
+		"readlink error": {
+			targetItemMode: fs.ModeSymlink,
+			readLinkErr:    aReadLinkError,
+			wantErr:        aReadLinkError,
+		},
+	}
 
-	// Do not want call to item advisor.
-	pa := NewPkgAnalyst(fsys, target, source, pkg, targetGap, nil)
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			fsys := shortCircuitFS{}
+			if test.lstatErr != nil || test.readLinkErr != nil {
+				targetItem := path.Join(target, item)
+				result := &shortCircuitResults{
+					mode:        test.targetItemMode,
+					lstatErr:    test.lstatErr,
+					readLinkErr: test.readLinkErr,
+				}
+				fsys[targetItem] = result
+			}
 
-	gotErr := pa.VisitPath(path.Join(source, pkg, item), nil, nil)
+			// No recorded gaps, forces stat of target item if not shortcircuited suooner
+			targetGap := TargetGap{}
 
-	if !errors.Is(gotErr, statError) {
-		t.Errorf("want error %q, got %q", statError, gotErr)
+			// Do not want call to item advisor.
+			pa := NewPkgAnalyst(fsys, target, source, pkg, targetGap, nil)
+
+			gotErr := pa.VisitPath(path.Join(source, pkg, item), nil, nil)
+
+			if !errors.Is(gotErr, test.wantErr) {
+				t.Errorf("want error %q, got %q", test.wantErr, gotErr)
+			}
+		})
 	}
 }
