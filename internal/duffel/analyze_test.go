@@ -6,7 +6,7 @@ import (
 	"path"
 	"reflect"
 	"testing"
-	"testing/fstest"
+	"time"
 )
 
 const (
@@ -24,6 +24,71 @@ type adviseFunc func(string, string, fs.DirEntry, *FileState) (*FileState, error
 
 func (af adviseFunc) Advise(pkg, item string, d fs.DirEntry, priorGoal *FileState) (*FileState, error) {
 	return af(pkg, item, d, priorGoal)
+}
+
+type fileStateFS map[string]FileState
+
+func (f fileStateFS) Open(name string) (fs.File, error) {
+	return nil, &fs.PathError{Op: "fileStateFS.open", Path: name, Err: errors.ErrUnsupported}
+}
+
+func (f fileStateFS) Stat(name string) (fs.FileInfo, error) {
+	state, ok := f[name]
+	if !ok {
+		return nil, &fs.PathError{Op: "fileStateFS.stat", Path: name, Err: fs.ErrNotExist}
+	}
+	if state.Mode&fs.ModeSymlink != 0 {
+		return f.Stat(state.Dest)
+	}
+	return &fileStateInfo{name: path.Base(name), state: state}, nil
+}
+
+func (f fileStateFS) Lstat(name string) (fs.FileInfo, error) {
+	state, ok := f[name]
+	if !ok {
+		return nil, &fs.PathError{Op: "fileStateFS.lstat", Path: name, Err: fs.ErrNotExist}
+	}
+	return &fileStateInfo{name: path.Base(name), state: state}, nil
+}
+
+func (f fileStateFS) ReadLink(name string) (string, error) {
+	state, ok := f[name]
+	if !ok {
+		return "", &fs.PathError{Op: "fileStateFS.readlink", Path: name, Err: fs.ErrNotExist}
+	}
+	if state.Mode&fs.ModeSymlink == 0 {
+		return "", &fs.PathError{Op: "fileStateFS.readlink", Path: name, Err: fs.ErrInvalid}
+	}
+	return state.Dest, nil
+}
+
+type fileStateInfo struct {
+	name  string
+	state FileState
+}
+
+func (f *fileStateInfo) IsDir() bool {
+	return f.Mode().IsDir()
+}
+
+func (f *fileStateInfo) ModTime() time.Time {
+	return time.Now()
+}
+
+func (f *fileStateInfo) Mode() fs.FileMode {
+	return f.state.Mode
+}
+
+func (f *fileStateInfo) Name() string {
+	return f.name
+}
+
+func (f *fileStateInfo) Size() int64 {
+	return 0
+}
+
+func (f *fileStateInfo) Sys() any {
+	return nil
 }
 
 func TestPkgAnalystVisitPathTargetItemState(t *testing.T) {
@@ -51,7 +116,6 @@ func TestPkgAnalystVisitPathTargetItemState(t *testing.T) {
 			targetItemState:  &FileState{Mode: fs.ModeSymlink, Dest: "dest/from/stat"},
 			advisorAdvice:    &FileState{Mode: fs.ModeDir | 0o755},
 			wantDesiredState: &FileState{Mode: fs.ModeDir | 0o755},
-			skip:             "not yet implemented: use Lstat instead of Stat",
 		},
 		"target item is file, advisor reports error": {
 			targetItemState:  &FileState{Mode: 0o644},
@@ -71,7 +135,6 @@ func TestPkgAnalystVisitPathTargetItemState(t *testing.T) {
 			advisorError:     anAdvisorError,
 			wantErr:          anAdvisorError,
 			wantDesiredState: &FileState{Mode: fs.ModeSymlink, Dest: "dest/from/stat"},
-			skip:             "not yet implemented: use Lstat instead of Stat",
 		},
 	}
 
@@ -96,14 +159,10 @@ func TestPkgAnalystVisitPathTargetItemState(t *testing.T) {
 				return test.advisorAdvice, test.advisorError
 			})
 
-			fsys := fstest.MapFS{}
+			fsys := fileStateFS{}
 			if test.targetItemState != nil {
 				targetItem := path.Join(target, item)
-				targetItemFile := &fstest.MapFile{
-					Mode: test.targetItemState.Mode,
-					Data: []byte(test.targetItemState.Dest),
-				}
-				fsys[targetItem] = targetItemFile
+				fsys[targetItem] = *test.targetItemState
 			}
 
 			targetGap := TargetGap{}

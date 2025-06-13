@@ -5,6 +5,8 @@ import (
 	"io/fs"
 	"path"
 	"path/filepath"
+
+	"github.com/dhemery/duffel/internal/files"
 )
 
 type ItemAdvisor interface {
@@ -35,36 +37,42 @@ func (pa PkgAnalyst) Analyze() error {
 	return fs.WalkDir(pa.FS, pa.SourcePkg, pa.VisitPath)
 }
 
-func (pa PkgAnalyst) VisitPath(p string, entry fs.DirEntry, err error) error {
+func (pa PkgAnalyst) VisitPath(name string, entry fs.DirEntry, err error) error {
 	if err != nil {
 		return err
 	}
 
-	if p == pa.SourcePkg {
+	if name == pa.SourcePkg {
 		// Source pkg is not an item.
 		return nil
 	}
-	item, _ := filepath.Rel(pa.SourcePkg, p)
-	itemGap, ok := pa.TargetGap[item]
+	item, _ := filepath.Rel(pa.SourcePkg, name)
+	fileGap, ok := pa.TargetGap[item]
 	if !ok {
 		targetItem := path.Join(pa.Target, item)
-		info, err := fs.Stat(pa.FS, targetItem)
+		info, err := files.Lstat(pa.FS, targetItem)
 		switch {
 		case err == nil:
-			itemGap = NewFileGap(info.Mode(), "")
+			state := &FileState{Mode: info.Mode()}
+			if info.Mode()&fs.ModeSymlink != 0 {
+				dest, _ := files.ReadLink(pa.FS, targetItem)
+				state.Dest = dest
+			}
+			fileGap.Current = state
+			fileGap.Desired = state
+			pa.TargetGap[item] = fileGap
 		case !errors.Is(err, fs.ErrNotExist):
 			// TODO: Record the error in the file gap
 			return err
 		}
-		pa.TargetGap[item] = itemGap
 	}
 
-	advice, err := pa.Advisor.Advise(pa.Pkg, item, entry, itemGap.Desired)
+	advice, err := pa.Advisor.Advise(pa.Pkg, item, entry, fileGap.Desired)
 	if err != nil {
 		return err
 	}
 
-	itemGap.Desired = advice
-	pa.TargetGap[item] = itemGap
+	fileGap.Desired = advice
+	pa.TargetGap[item] = fileGap
 	return nil
 }
