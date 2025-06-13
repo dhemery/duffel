@@ -62,11 +62,11 @@ func (pa PkgAnalyst) VisitPath(name string, entry fs.DirEntry, err error) error 
 			}
 			fileGap.Current = state
 			fileGap.Desired = state
-			pa.TargetGap[item] = fileGap
 		case !errors.Is(err, fs.ErrNotExist):
 			// TODO: Record the error in the file gap
 			return err
 		}
+		pa.TargetGap[item] = fileGap
 	}
 
 	advice, err := pa.Advisor.Advise(pa.Pkg, item, entry, fileGap.Desired)

@@ -101,10 +101,16 @@ func TestPkgAnalystVisitPath(t *testing.T) {
 		wantDesiredState *FileState // The recorded desired state for the item after VisitPath
 		skip             string     // Reason for skipping test
 	}{
-		"no target item": {
+		"no target item, advisor advises": {
 			targetItemState:  nil,
 			advisorAdvice:    &FileState{Mode: fs.ModeSymlink, Dest: "dest/from/advisor"},
 			wantDesiredState: &FileState{Mode: fs.ModeSymlink, Dest: "dest/from/advisor"},
+		},
+		"no target item, reports error": {
+			targetItemState:  nil,
+			advisorError:     anAdvisorError,
+			wantErr:          anAdvisorError,
+			wantDesiredState: nil,
 		},
 		"target item is dir, advisor advises": {
 			targetItemState:  &FileState{Mode: fs.ModeDir | 0o755},
