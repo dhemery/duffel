@@ -10,6 +10,7 @@ import (
 	"testing/fstest"
 
 	"github.com/dhemery/duffel/internal/duftest"
+	"github.com/dhemery/duffel/internal/file"
 )
 
 func TestAdviseInstall(t *testing.T) {
@@ -21,15 +22,15 @@ func TestAdviseInstall(t *testing.T) {
 	targetToSource, _ := filepath.Rel(target, source)
 
 	tests := map[string]struct {
-		item           string     // Item being analyzed, relative to pkg dir
-		priorAdviceArg *FileState // Desired state passed to Advise
-		wantAdvice     *FileState // Desired state returned by by Advise
-		wantErr        error      // Error returned by Advise
+		item           string      // Item being analyzed, relative to pkg dir
+		priorAdviceArg *file.State // Desired state passed to Advise
+		wantAdvice     *file.State // Desired state returned by by Advise
+		wantErr        error       // Error returned by Advise
 	}{
 		"no prior advice": {
 			item:           "item",
 			priorAdviceArg: nil,
-			wantAdvice: &FileState{
+			wantAdvice: &file.State{
 				Mode: fs.ModeSymlink,
 				Dest: path.Join(targetToSource, pkg, "item"),
 			},
@@ -37,7 +38,7 @@ func TestAdviseInstall(t *testing.T) {
 		},
 		"prior advice links to foreign dest": {
 			item:           "item",
-			priorAdviceArg: &FileState{Dest: "current/foreign/dest"},
+			priorAdviceArg: &file.State{Dest: "current/foreign/dest"},
 			wantAdvice:     nil,
 			wantErr:        &ErrConflict{},
 		},

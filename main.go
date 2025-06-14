@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/dhemery/duffel/internal/duffel"
-	"github.com/dhemery/duffel/internal/files"
+	"github.com/dhemery/duffel/internal/file"
 )
 
 func main() {
@@ -20,7 +20,7 @@ func main() {
 	flags.Parse(os.Args[1:])
 	root := "/"
 
-	fsys := files.DirFS(root)
+	fsys := file.DirFS(root)
 
 	absTarget, err := filepath.Abs(*targetOpt)
 	if err != nil {

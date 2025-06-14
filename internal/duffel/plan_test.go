@@ -3,6 +3,8 @@ package duffel
 import (
 	"slices"
 	"testing"
+
+	"github.com/dhemery/duffel/internal/file"
 )
 
 func TestNewPlan(t *testing.T) {
@@ -12,37 +14,37 @@ func TestNewPlan(t *testing.T) {
 	}{
 		"only current states": {
 			targetGap: TargetGap{
-				"item1": {Current: &FileState{Dest: "item1/current/dest"}},
-				"item2": {Current: &FileState{Dest: "item2/current/dest"}},
-				"item3": {Current: &FileState{Dest: "item4/current/dest"}},
+				"item1": {Current: &file.State{Dest: "item1/current/dest"}},
+				"item2": {Current: &file.State{Dest: "item2/current/dest"}},
+				"item3": {Current: &file.State{Dest: "item4/current/dest"}},
 			},
 			wantTasks: []Task{},
 		},
 		"only desired states": {
 			targetGap: TargetGap{
-				"item1": {Desired: &FileState{Dest: "item1/desired/dest"}},
-				"item2": {Desired: &FileState{Dest: "item2/desired/dest"}},
-				"item3": {Desired: &FileState{Dest: "item3/desired/dest"}},
+				"item1": {Desired: &file.State{Dest: "item1/desired/dest"}},
+				"item2": {Desired: &file.State{Dest: "item2/desired/dest"}},
+				"item3": {Desired: &file.State{Dest: "item3/desired/dest"}},
 			},
 			wantTasks: []Task{ // Tasks for all states, sorted by item
-				{Item: "item1", FileState: FileState{Dest: "item1/desired/dest"}},
-				{Item: "item2", FileState: FileState{Dest: "item2/desired/dest"}},
-				{Item: "item3", FileState: FileState{Dest: "item3/desired/dest"}},
+				{Item: "item1", State: file.State{Dest: "item1/desired/dest"}},
+				{Item: "item2", State: file.State{Dest: "item2/desired/dest"}},
+				{Item: "item3", State: file.State{Dest: "item3/desired/dest"}},
 			},
 		},
 		"current and desired states": {
 			targetGap: TargetGap{
 				"empty":  {}, // No current or desired state
-				"relax":  {Current: &FileState{Dest: "current/dest"}},
-				"create": {Desired: &FileState{Dest: "created/dest"}},
+				"relax":  {Current: &file.State{Dest: "current/dest"}},
+				"create": {Desired: &file.State{Dest: "created/dest"}},
 				"change": {
-					Current: &FileState{Dest: "current/dest"},
-					Desired: &FileState{Dest: "changed/dest"},
+					Current: &file.State{Dest: "current/dest"},
+					Desired: &file.State{Dest: "changed/dest"},
 				},
 			},
 			wantTasks: []Task{ // Tasks only for desired states, sorted by item
-				{Item: "change", FileState: FileState{Dest: "changed/dest"}},
-				{Item: "create", FileState: FileState{Dest: "created/dest"}},
+				{Item: "change", State: file.State{Dest: "changed/dest"}},
+				{Item: "create", State: file.State{Dest: "created/dest"}},
 			},
 		},
 	}

@@ -5,11 +5,11 @@ import (
 	"io/fs"
 	"path"
 
-	"github.com/dhemery/duffel/internal/files"
+	"github.com/dhemery/duffel/internal/file"
 )
 
 type ItemAdvisor interface {
-	Advise(pkg, item string, entry fs.DirEntry, priorAdvice *FileState) (*FileState, error)
+	Advise(pkg, item string, entry fs.DirEntry, priorAdvice *file.State) (*file.State, error)
 }
 
 type PkgAnalyst struct {
@@ -49,12 +49,12 @@ func (pa PkgAnalyst) VisitPath(name string, entry fs.DirEntry, err error) error 
 	fileGap, ok := pa.TargetGap[item]
 	if !ok {
 		targetItem := path.Join(pa.Target, item)
-		info, err := files.Lstat(pa.FS, targetItem)
+		info, err := file.Lstat(pa.FS, targetItem)
 		switch {
 		case err == nil:
-			state := &FileState{Mode: info.Mode()}
+			state := &file.State{Mode: info.Mode()}
 			if info.Mode()&fs.ModeSymlink != 0 {
-				dest, err := files.ReadLink(pa.FS, targetItem)
+				dest, err := file.ReadLink(pa.FS, targetItem)
 				if err != nil {
 					return err
 				}

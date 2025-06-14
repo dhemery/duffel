@@ -3,10 +3,11 @@ package duffel
 import (
 	"encoding/json"
 	"fmt"
-	"io/fs"
 	"maps"
 	"path"
 	"slices"
+
+	"github.com/dhemery/duffel/internal/file"
 )
 
 // A Plan is the sequence of tasks
@@ -30,7 +31,7 @@ func NewPlan(target string, targetGap TargetGap) Plan {
 			continue
 		}
 
-		task := Task{Item: item, FileState: *fileGap.Desired}
+		task := Task{Item: item, State: *fileGap.Desired}
 		tasks = append(tasks, task)
 	}
 	return Plan{
@@ -52,8 +53,8 @@ func (p Plan) Execute(fsys FS) error {
 type Task struct {
 	// Item is the path of the file relative to target.
 	Item string
-	// FileState describes the desired state of the file.
-	FileState
+	// State describes the desired state of the file.
+	file.State
 }
 
 func (t Task) Execute(fsys FS, target string) error {
@@ -61,10 +62,10 @@ func (t Task) Execute(fsys FS, target string) error {
 }
 
 // MarshalJSON returns the JSON representation of t.
-// It overrides the [FileState.MarshalJSON] promoted from the embedded FileState,
-// which marshals only the FileState fields.
+// It overrides the [file.State.MarshalJSON] promoted from the embedded State,
+// which marshals only the State fields.
 func (t Task) MarshalJSON() ([]byte, error) {
-	stateJSON, err := t.FileState.MarshalJSON()
+	stateJSON, err := t.State.MarshalJSON()
 	if err != nil {
 		return nil, err
 	}
@@ -90,29 +91,10 @@ type TargetGap map[string]FileGap
 // A FileGap describes the difference between the current and desired states
 // of a file.
 type FileGap struct {
-	Current *FileState `json:"current,omitzero"`
-	Desired *FileState `json:"desired,omitzero"`
+	Current *file.State `json:"current,omitzero"`
+	Desired *file.State `json:"desired,omitzero"`
 }
 
 func (g FileGap) String() string {
 	return fmt.Sprintf("%T{Current:%v,Desired:%v}", g, g.Current, g.Desired)
-}
-
-// A FileState describes the current or desired state of a file.
-type FileState struct {
-	Mode fs.FileMode
-	Dest string
-}
-
-// MarshalJSON returns the JSON representation of s.
-// It represents the Mode field as a descriptive string
-// by calling [fs.FileMode.String] on the Mode.
-func (s FileState) MarshalJSON() ([]byte, error) {
-	return json.Marshal(struct {
-		Mode string `json:"mode"`
-		Dest string `json:"dest,omitzero"`
-	}{
-		Mode: s.Mode.String(),
-		Dest: s.Dest,
-	})
 }

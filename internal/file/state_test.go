@@ -1,4 +1,4 @@
-package duffel
+package file
 
 import (
 	"bytes"
@@ -7,25 +7,25 @@ import (
 	"testing"
 )
 
-func TestFileStateEncodeJSON(t *testing.T) {
+func TestStateEncodeJSON(t *testing.T) {
 	tests := []struct {
-		state FileState
+		state State
 		want  string
 	}{
 		{
-			state: FileState{},
+			state: State{},
 			want:  `{"mode":"----------"}`,
 		},
 		{
-			state: FileState{Mode: fs.ModeDir | 0o755},
+			state: State{Mode: fs.ModeDir | 0o755},
 			want:  `{"mode":"drwxr-xr-x"}`,
 		},
 		{
-			state: FileState{Mode: fs.ModeSymlink, Dest: "my/dest"},
+			state: State{Mode: fs.ModeSymlink, Dest: "my/dest"},
 			want:  `{"mode":"L---------","dest":"my/dest"}`,
 		},
 		{
-			state: FileState{Mode: 0o644}, // Regular file
+			state: State{Mode: 0o644}, // Regular file
 			want:  `{"mode":"-rw-r--r--"}`,
 		},
 	}

@@ -7,15 +7,17 @@ import (
 	"reflect"
 	"testing"
 	"time"
+
+	"github.com/dhemery/duffel/internal/file"
 )
 
-type adviseFunc func(string, string, fs.DirEntry, *FileState) (*FileState, error)
+type adviseFunc func(string, string, fs.DirEntry, *file.State) (*file.State, error)
 
-func (af adviseFunc) Advise(pkg, item string, d fs.DirEntry, priorGoal *FileState) (*FileState, error) {
+func (af adviseFunc) Advise(pkg, item string, d fs.DirEntry, priorGoal *file.State) (*file.State, error) {
 	return af(pkg, item, d, priorGoal)
 }
 
-type fileStateFS map[string]FileState
+type fileStateFS map[string]file.State
 
 func (f fileStateFS) Open(name string) (fs.File, error) {
 	return nil, &fs.PathError{Op: "fileStateFS.open", Path: name, Err: errors.ErrUnsupported}
@@ -53,7 +55,7 @@ func (f fileStateFS) ReadLink(name string) (string, error) {
 
 type fileStateInfo struct {
 	name  string
-	state FileState
+	state file.State
 }
 
 func (f *fileStateInfo) IsDir() bool {
@@ -94,17 +96,17 @@ func TestPkgAnalystVisitPath(t *testing.T) {
 	anAdvisorError := errors.New("error returned from advisor")
 
 	tests := map[string]struct {
-		targetItemState  *FileState // The state of the item in the target dir
-		advisorAdvice    *FileState // The advice returned by the advisor
-		advisorError     error      // Error returned by advisor
-		wantErr          error      // Error returned by VisitPath
-		wantDesiredState *FileState // The recorded desired state for the item after VisitPath
-		skip             string     // Reason for skipping test
+		targetItemState  *file.State // The state of the item in the target dir
+		advisorAdvice    *file.State // The advice returned by the advisor
+		advisorError     error       // Error returned by advisor
+		wantErr          error       // Error returned by VisitPath
+		wantDesiredState *file.State // The recorded desired state for the item after VisitPath
+		skip             string      // Reason for skipping test
 	}{
 		"no target item, advisor advises": {
 			targetItemState:  nil,
-			advisorAdvice:    &FileState{Mode: fs.ModeSymlink, Dest: "dest/from/advisor"},
-			wantDesiredState: &FileState{Mode: fs.ModeSymlink, Dest: "dest/from/advisor"},
+			advisorAdvice:    &file.State{Mode: fs.ModeSymlink, Dest: "dest/from/advisor"},
+			wantDesiredState: &file.State{Mode: fs.ModeSymlink, Dest: "dest/from/advisor"},
 		},
 		"no target item, reports error": {
 			targetItemState:  nil,
@@ -113,33 +115,33 @@ func TestPkgAnalystVisitPath(t *testing.T) {
 			wantDesiredState: nil,
 		},
 		"target item is dir, advisor advises": {
-			targetItemState:  &FileState{Mode: fs.ModeDir | 0o755},
-			advisorAdvice:    &FileState{Mode: fs.ModeSymlink, Dest: "dest/from/advisor"},
-			wantDesiredState: &FileState{Mode: fs.ModeSymlink, Dest: "dest/from/advisor"},
+			targetItemState:  &file.State{Mode: fs.ModeDir | 0o755},
+			advisorAdvice:    &file.State{Mode: fs.ModeSymlink, Dest: "dest/from/advisor"},
+			wantDesiredState: &file.State{Mode: fs.ModeSymlink, Dest: "dest/from/advisor"},
 		},
 		"target item is link, advisor advises": {
-			targetItemState:  &FileState{Mode: fs.ModeSymlink, Dest: "dest/from/stat"},
-			advisorAdvice:    &FileState{Mode: fs.ModeDir | 0o755},
-			wantDesiredState: &FileState{Mode: fs.ModeDir | 0o755},
+			targetItemState:  &file.State{Mode: fs.ModeSymlink, Dest: "dest/from/stat"},
+			advisorAdvice:    &file.State{Mode: fs.ModeDir | 0o755},
+			wantDesiredState: &file.State{Mode: fs.ModeDir | 0o755},
 		},
 		"target item is file, advisor reports error": {
-			targetItemState:  &FileState{Mode: 0o644},
+			targetItemState:  &file.State{Mode: 0o644},
 			advisorError:     anAdvisorError,
 			wantErr:          anAdvisorError,
-			wantDesiredState: &FileState{Mode: 0o644},
+			wantDesiredState: &file.State{Mode: 0o644},
 		},
 		"target item is dir, advisor reports error": {
-			targetItemState:  &FileState{Mode: fs.ModeDir | 0o755},
+			targetItemState:  &file.State{Mode: fs.ModeDir | 0o755},
 			advisorError:     anAdvisorError,
 			wantErr:          anAdvisorError,
-			wantDesiredState: &FileState{Mode: fs.ModeDir | 0o755},
+			wantDesiredState: &file.State{Mode: fs.ModeDir | 0o755},
 		},
 		"target item is link, advisor reports error": {
-			targetItemState:  &FileState{Mode: fs.ModeSymlink, Dest: "dest/from/stat"},
+			targetItemState:  &file.State{Mode: fs.ModeSymlink, Dest: "dest/from/stat"},
 			advisorAdvice:    nil,
 			advisorError:     anAdvisorError,
 			wantErr:          anAdvisorError,
-			wantDesiredState: &FileState{Mode: fs.ModeSymlink, Dest: "dest/from/stat"},
+			wantDesiredState: &file.State{Mode: fs.ModeSymlink, Dest: "dest/from/stat"},
 		},
 	}
 
@@ -150,7 +152,7 @@ func TestPkgAnalystVisitPath(t *testing.T) {
 			}
 			gotAdvisorCall := false
 
-			advisor := adviseFunc(func(gotPkg, gotItem string, gotEntry fs.DirEntry, gotState *FileState) (*FileState, error) {
+			advisor := adviseFunc(func(gotPkg, gotItem string, gotEntry fs.DirEntry, gotState *file.State) (*file.State, error) {
 				gotAdvisorCall = true
 				if gotPkg != pkg {
 					t.Errorf("advisor: want pkg %q, got %q", pkg, gotPkg)
@@ -225,7 +227,7 @@ func (fsys errFS) Lstat(name string) (fs.FileInfo, error) {
 	if !ok {
 		return nil, &fs.PathError{Op: "shortCircuit.stat", Path: name, Err: fs.ErrNotExist}
 	}
-	info := &fileStateInfo{name: path.Base(name), state: FileState{Mode: results.mode}}
+	info := &fileStateInfo{name: path.Base(name), state: file.State{Mode: results.mode}}
 	return info, results.lstatErr
 }
 
