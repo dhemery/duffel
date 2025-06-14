@@ -22,7 +22,7 @@ type Plan struct {
 // Target is the root directory for the set of files.
 // TargetGap describes the current and desired
 // state of each file to include in the plan.
-func NewPlan(target string, targetGap TargetGap) Plan {
+func NewPlan(target string, targetGap Index) Plan {
 	tasks := make([]Task, 0)
 	// Must sort tasks in lexical order by item
 	for _, item := range slices.Sorted(maps.Keys(targetGap)) {
@@ -84,17 +84,15 @@ func (t Task) MarshalJSON() ([]byte, error) {
 	return append(taskJSON, stateJSON...), nil
 }
 
-// A TargetGap describes the difference between the current and desired
-// files in the target tree.
-type TargetGap map[string]FileGap
+// An Index collects Specs by item name.
+type Index map[string]Spec
 
-// A FileGap describes the difference between the current and desired states
-// of a file.
-type FileGap struct {
+// A Spec describes the current and desired states of a target item file.
+type Spec struct {
 	Current *file.State `json:"current,omitzero"`
 	Desired *file.State `json:"desired,omitzero"`
 }
 
-func (g FileGap) String() string {
-	return fmt.Sprintf("%T{Current:%v,Desired:%v}", g, g.Current, g.Desired)
+func (s Spec) String() string {
+	return fmt.Sprintf("%T{Current:%v,Desired:%v}", s, s.Current, s.Desired)
 }

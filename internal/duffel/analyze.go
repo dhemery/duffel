@@ -8,8 +8,8 @@ import (
 	"github.com/dhemery/duffel/internal/file"
 )
 
-type ItemAdvisor interface {
-	Advise(pkg, item string, entry fs.DirEntry, priorAdvice *file.State) (*file.State, error)
+type Advisor interface {
+	Advise(pkg, item string, entry fs.DirEntry, inState *file.State) (*file.State, error)
 }
 
 type PkgAnalyst struct {
@@ -17,17 +17,17 @@ type PkgAnalyst struct {
 	Target    string
 	Pkg       string
 	SourcePkg string
-	TargetGap TargetGap
-	Advisor   ItemAdvisor
+	Specs     Index
+	Advisor   Advisor
 }
 
-func NewPkgAnalyst(fsys fs.FS, target, source, pkg string, tg TargetGap, advisor ItemAdvisor) PkgAnalyst {
+func NewPkgAnalyst(fsys fs.FS, target, source, pkg string, index Index, advisor Advisor) PkgAnalyst {
 	return PkgAnalyst{
 		FS:        fsys,
 		Target:    target,
 		SourcePkg: path.Join(source, pkg),
 		Pkg:       pkg,
-		TargetGap: tg,
+		Specs:     index,
 		Advisor:   advisor,
 	}
 }
@@ -46,7 +46,7 @@ func (pa PkgAnalyst) VisitPath(name string, entry fs.DirEntry, err error) error 
 		return nil
 	}
 	item := name[len(pa.SourcePkg)+1:]
-	fileGap, ok := pa.TargetGap[item]
+	spec, ok := pa.Specs[item]
 	if !ok {
 		targetItem := path.Join(pa.Target, item)
 		info, err := file.Lstat(pa.FS, targetItem)
@@ -60,21 +60,20 @@ func (pa PkgAnalyst) VisitPath(name string, entry fs.DirEntry, err error) error 
 				}
 				state.Dest = dest
 			}
-			fileGap.Current = state
-			fileGap.Desired = state
+			spec.Current = state
+			spec.Desired = state
 		case !errors.Is(err, fs.ErrNotExist):
-			// TODO: Record the error in the file gap
 			return err
 		}
-		pa.TargetGap[item] = fileGap
+		pa.Specs[item] = spec
 	}
 
-	advice, err := pa.Advisor.Advise(pa.Pkg, item, entry, fileGap.Desired)
+	advice, err := pa.Advisor.Advise(pa.Pkg, item, entry, spec.Desired)
 	if err != nil {
 		return err
 	}
 
-	fileGap.Desired = advice
-	pa.TargetGap[item] = fileGap
+	spec.Desired = advice
+	pa.Specs[item] = spec
 	return nil
 }

@@ -9,11 +9,11 @@ import (
 
 func TestNewPlan(t *testing.T) {
 	tests := map[string]struct {
-		targetGap TargetGap
+		targetGap Index
 		wantTasks []Task
 	}{
 		"only current states": {
-			targetGap: TargetGap{
+			targetGap: Index{
 				"item1": {Current: &file.State{Dest: "item1/current/dest"}},
 				"item2": {Current: &file.State{Dest: "item2/current/dest"}},
 				"item3": {Current: &file.State{Dest: "item4/current/dest"}},
@@ -21,7 +21,7 @@ func TestNewPlan(t *testing.T) {
 			wantTasks: []Task{},
 		},
 		"only desired states": {
-			targetGap: TargetGap{
+			targetGap: Index{
 				"item1": {Desired: &file.State{Dest: "item1/desired/dest"}},
 				"item2": {Desired: &file.State{Dest: "item2/desired/dest"}},
 				"item3": {Desired: &file.State{Dest: "item3/desired/dest"}},
@@ -33,7 +33,7 @@ func TestNewPlan(t *testing.T) {
 			},
 		},
 		"current and desired states": {
-			targetGap: TargetGap{
+			targetGap: Index{
 				"empty":  {}, // No current or desired state
 				"relax":  {Current: &file.State{Dest: "current/dest"}},
 				"create": {Desired: &file.State{Dest: "created/dest"}},

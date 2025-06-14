@@ -172,7 +172,7 @@ func TestPkgAnalystVisitPath(t *testing.T) {
 				fsys[targetItem] = *test.targetItemState
 			}
 
-			targetGap := TargetGap{}
+			targetGap := Index{}
 
 			pa := NewPkgAnalyst(fsys, target, source, pkg, targetGap, advisor)
 
@@ -187,18 +187,18 @@ func TestPkgAnalystVisitPath(t *testing.T) {
 				t.Fatalf("error:\nwant %v\ngot  %v", test.wantErr, gotErr)
 			}
 
-			gotFileGap, ok := targetGap[item]
+			gotSpec, ok := targetGap[item]
 
 			if !ok {
-				t.Fatalf("did not record file gap")
+				t.Fatalf("did not record spec")
 			}
 
-			gotCurrentState := gotFileGap.Current
+			gotCurrentState := gotSpec.Current
 			if !reflect.DeepEqual(gotCurrentState, test.targetItemState) {
 				t.Errorf("current state\nwant %v\ngot  %v", test.targetItemState, gotCurrentState)
 			}
 
-			gotDesiredState := gotFileGap.Desired
+			gotDesiredState := gotSpec.Desired
 			if !reflect.DeepEqual(gotDesiredState, test.wantDesiredState) {
 				t.Errorf("desired state\nwant %v\ngot  %v", test.wantDesiredState, gotDesiredState)
 			}
@@ -303,9 +303,9 @@ func TestPkgAnalystVisitPathError(t *testing.T) {
 				fsys[targetItem] = result
 			}
 
-			emptyTargetGap := TargetGap{}
-			var uncallableAdvisor ItemAdvisor = nil
-			pa := NewPkgAnalyst(fsys, target, source, pkg, emptyTargetGap, uncallableAdvisor)
+			emptyIndex := Index{}
+			var uncallableAdvisor Advisor = nil
+			pa := NewPkgAnalyst(fsys, target, source, pkg, emptyIndex, uncallableAdvisor)
 
 			walkPath := path.Join(source, pkg, test.item)
 
@@ -315,10 +315,10 @@ func TestPkgAnalystVisitPathError(t *testing.T) {
 				t.Errorf("want error %q, got %q", test.wantError, gotErr)
 			}
 
-			if len(emptyTargetGap) != 0 {
-				t.Error("want no file gaps, got:")
-				for path, gap := range emptyTargetGap {
-					t.Errorf("    %q: %v", path, gap)
+			if len(emptyIndex) != 0 {
+				t.Error("want no specs, got:")
+				for item, spec := range emptyIndex {
+					t.Errorf("    %q: %v", item, spec)
 				}
 			}
 		})

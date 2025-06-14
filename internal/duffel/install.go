@@ -13,7 +13,7 @@ func (e *ErrConflict) Error() string {
 	return ""
 }
 
-// Install is an [ItemAdvisor] that describes the installed states
+// Install is an [Advisor] that describes the installed states
 // of the target files that correspond to the given pkg items.
 type Install struct {
 	FS             fs.FS  // The file system of the source and target files to analyze.

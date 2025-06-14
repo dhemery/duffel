@@ -25,7 +25,7 @@ func Execute(r *Request, dryRun bool, w io.Writer) error {
 		return err
 	}
 
-	targetGap := TargetGap{}
+	targetGap := Index{}
 	install := Install{
 		FS:             r.FS,
 		TargetToSource: targetToSource,
