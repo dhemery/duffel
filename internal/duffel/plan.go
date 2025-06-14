@@ -2,7 +2,6 @@ package duffel
 
 import (
 	"encoding/json"
-	"fmt"
 	"maps"
 	"path"
 	"slices"
@@ -82,17 +81,4 @@ func (t Task) MarshalJSON() ([]byte, error) {
 	// Skip the the state's opening brace to continue after the task fields
 	stateJSON = stateJSON[1:]
 	return append(taskJSON, stateJSON...), nil
-}
-
-// An Index collects Specs by item name.
-type Index map[string]Spec
-
-// A Spec describes the current and desired states of a target item file.
-type Spec struct {
-	Current *file.State `json:"current,omitzero"`
-	Desired *file.State `json:"desired,omitzero"`
-}
-
-func (s Spec) String() string {
-	return fmt.Sprintf("%T{Current:%v,Desired:%v}", s, s.Current, s.Desired)
 }
