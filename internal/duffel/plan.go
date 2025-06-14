@@ -94,15 +94,6 @@ type FileGap struct {
 	Desired *FileState `json:"desired,omitzero"`
 }
 
-// NewFileGap returns a FileGap with both the current and desired states
-// set to the given mode and dest.
-func NewFileGap(mode fs.FileMode, dest string) FileGap {
-	return FileGap{
-		Current: &FileState{Mode: mode, Dest: dest},
-		Desired: &FileState{Mode: mode, Dest: dest},
-	}
-}
-
 func (g FileGap) String() string {
 	return fmt.Sprintf("%T{Current:%v,Desired:%v}", g, g.Current, g.Desired)
 }

@@ -1,8 +1,6 @@
 package duffel
 
 import (
-	"io/fs"
-	"reflect"
 	"slices"
 	"testing"
 )
@@ -62,22 +60,5 @@ func TestNewPlan(t *testing.T) {
 				t.Errorf("want tasks %v, got %v", test.wantTasks, got)
 			}
 		})
-	}
-}
-
-func TestNewFileGap(t *testing.T) {
-	mode := fs.ModeDir | 0o755
-	dest := "my/dest"
-
-	got := NewFileGap(mode, dest)
-
-	// Records the given mode and dest as both the current and desired states
-	want := FileGap{
-		Current: &FileState{Mode: mode, Dest: dest},
-		Desired: &FileState{Mode: mode, Dest: dest},
-	}
-
-	if !reflect.DeepEqual(got, want) {
-		t.Fatalf("new file gap:\nwant %s\ngot  %s", want, got)
 	}
 }
