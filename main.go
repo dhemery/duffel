@@ -7,7 +7,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/dhemery/duffel/internal/duffel"
+	"github.com/dhemery/duffel/internal/exec"
 	"github.com/dhemery/duffel/internal/file"
 )
 
@@ -34,14 +34,14 @@ func main() {
 	}
 	source, _ := filepath.Rel(root, absSource)
 
-	req := &duffel.Request{
+	req := &exec.Request{
 		FS:     fsys,
 		Source: source,
 		Target: target,
 		Pkgs:   flags.Args(),
 	}
 
-	err = duffel.Execute(req, *dryRunOpt, os.Stdout)
+	err = exec.Execute(req, *dryRunOpt, os.Stdout)
 	if err != nil {
 		fatal(err)
 	}

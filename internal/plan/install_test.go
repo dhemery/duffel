@@ -1,4 +1,4 @@
-package duffel
+package plan
 
 import (
 	"errors"

@@ -1,15 +1,18 @@
-package duffel
+package exec
 
 import (
 	"encoding/json"
 	"io"
 	"io/fs"
 	"path/filepath"
+
+	"github.com/dhemery/duffel/internal/item"
+	"github.com/dhemery/duffel/internal/plan"
 )
 
 type FS interface {
 	fs.ReadDirFS
-	Symlink(oldname, newname string) error
+	plan.SymlinkFS
 }
 
 type Request struct {
@@ -25,15 +28,15 @@ func Execute(r *Request, dryRun bool, w io.Writer) error {
 		return err
 	}
 
-	targetGap := Index{}
-	install := Install{
+	index := item.Index{}
+	install := plan.Install{
 		FS:             r.FS,
 		TargetToSource: targetToSource,
 	}
 
-	var pkgAnalysts []PkgAnalyst
+	var pkgAnalysts []plan.PkgAnalyst
 	for _, pkg := range r.Pkgs {
-		pa := NewPkgAnalyst(r.FS, r.Target, r.Source, pkg, targetGap, install)
+		pa := plan.NewPkgAnalyst(r.FS, r.Target, r.Source, pkg, index, install)
 		pkgAnalysts = append(pkgAnalysts, pa)
 	}
 
@@ -44,7 +47,7 @@ func Execute(r *Request, dryRun bool, w io.Writer) error {
 		}
 	}
 
-	plan := NewPlan(r.Target, targetGap)
+	plan := plan.New(r.Target, index)
 
 	if dryRun {
 		enc := json.NewEncoder(w)

@@ -1,19 +1,20 @@
-package duffel
+package plan
 
 import (
 	"slices"
 	"testing"
 
 	"github.com/dhemery/duffel/internal/file"
+	"github.com/dhemery/duffel/internal/item"
 )
 
 func TestNewPlan(t *testing.T) {
 	tests := map[string]struct {
-		targetGap Index
+		index     item.Index
 		wantTasks []Task
 	}{
 		"only current states": {
-			targetGap: Index{
+			index: item.Index{
 				"item1": {Current: &file.State{Dest: "item1/current/dest"}},
 				"item2": {Current: &file.State{Dest: "item2/current/dest"}},
 				"item3": {Current: &file.State{Dest: "item4/current/dest"}},
@@ -21,7 +22,7 @@ func TestNewPlan(t *testing.T) {
 			wantTasks: []Task{},
 		},
 		"only desired states": {
-			targetGap: Index{
+			index: item.Index{
 				"item1": {Desired: &file.State{Dest: "item1/desired/dest"}},
 				"item2": {Desired: &file.State{Dest: "item2/desired/dest"}},
 				"item3": {Desired: &file.State{Dest: "item3/desired/dest"}},
@@ -33,7 +34,7 @@ func TestNewPlan(t *testing.T) {
 			},
 		},
 		"current and desired states": {
-			targetGap: Index{
+			index: item.Index{
 				"empty":  {}, // No current or desired state
 				"relax":  {Current: &file.State{Dest: "current/dest"}},
 				"create": {Desired: &file.State{Dest: "created/dest"}},
@@ -53,7 +54,7 @@ func TestNewPlan(t *testing.T) {
 		const target = "path/to/target"
 
 		t.Run(name, func(t *testing.T) {
-			got := NewPlan(target, test.targetGap)
+			got := New(target, test.index)
 
 			if got.Target != target {
 				t.Errorf("want target %q, got %q", target, got.Target)

@@ -1,4 +1,4 @@
-package duffel
+package plan
 
 import (
 	"encoding/json"
@@ -7,7 +7,12 @@ import (
 	"slices"
 
 	"github.com/dhemery/duffel/internal/file"
+	"github.com/dhemery/duffel/internal/item"
 )
+
+type SymlinkFS interface {
+	Symlink(oldname, newname string) error
+}
 
 // A Plan is the sequence of tasks
 // to bring the file tree rooted at Target to the desired state.
@@ -16,21 +21,20 @@ type Plan struct {
 	Tasks  []Task `json:"tasks"`
 }
 
-// NewPlan returns a Plan with tasks to bring
+// New returns a Plan with tasks to bring
 // a set of files to their desired states.
 // Target is the root directory for the set of files.
-// TargetGap describes the current and desired
-// state of each file to include in the plan.
-func NewPlan(target string, targetGap Index) Plan {
+// Specs holds the spec for each item included in the plan.
+func New(target string, specs item.Index) Plan {
 	tasks := make([]Task, 0)
 	// Must sort tasks in lexical order by item
-	for _, item := range slices.Sorted(maps.Keys(targetGap)) {
-		fileGap := targetGap[item]
-		if fileGap.Desired == nil {
+	for _, item := range slices.Sorted(maps.Keys(specs)) {
+		spec := specs[item]
+		if spec.Desired == nil {
 			continue
 		}
 
-		task := Task{Item: item, State: *fileGap.Desired}
+		task := Task{Item: item, State: *spec.Desired}
 		tasks = append(tasks, task)
 	}
 	return Plan{
@@ -39,7 +43,7 @@ func NewPlan(target string, targetGap Index) Plan {
 	}
 }
 
-func (p Plan) Execute(fsys FS) error {
+func (p Plan) Execute(fsys SymlinkFS) error {
 	for _, task := range p.Tasks {
 		if err := task.Execute(fsys, p.Target); err != nil {
 			return err
@@ -56,7 +60,7 @@ type Task struct {
 	file.State
 }
 
-func (t Task) Execute(fsys FS, target string) error {
+func (t Task) Execute(fsys SymlinkFS, target string) error {
 	return fsys.Symlink(t.Dest, path.Join(target, t.Item))
 }
 

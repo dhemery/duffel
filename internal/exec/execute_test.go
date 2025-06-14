@@ -1,4 +1,4 @@
-package duffel
+package exec
 
 import (
 	"errors"
@@ -8,6 +8,7 @@ import (
 	"testing/fstest"
 
 	"github.com/dhemery/duffel/internal/duftest"
+	"github.com/dhemery/duffel/internal/plan"
 )
 
 func TestExecuteEmptyTargetNoConflictingPackageItems(t *testing.T) {
@@ -123,7 +124,7 @@ func TestExecuteEmptyTargetWithConflictingPackageItems(t *testing.T) {
 
 	err := Execute(req, false, nil)
 
-	wantErr := &ErrConflict{}
+	wantErr := &plan.ErrConflict{}
 	if !errors.Is(err, wantErr) {
 		t.Errorf("want error %#v, got %#v", wantErr, err)
 	}

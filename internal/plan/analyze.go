@@ -1,4 +1,4 @@
-package duffel
+package plan
 
 import (
 	"errors"
@@ -6,6 +6,7 @@ import (
 	"path"
 
 	"github.com/dhemery/duffel/internal/file"
+	"github.com/dhemery/duffel/internal/item"
 )
 
 type Advisor interface {
@@ -17,11 +18,11 @@ type PkgAnalyst struct {
 	Target    string
 	Pkg       string
 	SourcePkg string
-	Specs     Index
+	Specs     item.Index
 	Advisor   Advisor
 }
 
-func NewPkgAnalyst(fsys fs.FS, target, source, pkg string, index Index, advisor Advisor) PkgAnalyst {
+func NewPkgAnalyst(fsys fs.FS, target, source, pkg string, index item.Index, advisor Advisor) PkgAnalyst {
 	return PkgAnalyst{
 		FS:        fsys,
 		Target:    target,

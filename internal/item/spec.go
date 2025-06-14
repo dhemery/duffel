@@ -1,4 +1,4 @@
-package duffel
+package item
 
 import (
 	"fmt"

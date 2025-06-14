@@ -1,4 +1,4 @@
-package duffel
+package plan
 
 import (
 	"errors"
@@ -9,12 +9,13 @@ import (
 	"time"
 
 	"github.com/dhemery/duffel/internal/file"
+	"github.com/dhemery/duffel/internal/item"
 )
 
 type adviseFunc func(string, string, fs.DirEntry, *file.State) (*file.State, error)
 
-func (af adviseFunc) Advise(pkg, item string, d fs.DirEntry, priorGoal *file.State) (*file.State, error) {
-	return af(pkg, item, d, priorGoal)
+func (af adviseFunc) Advise(pkg, itemName string, d fs.DirEntry, priorGoal *file.State) (*file.State, error) {
+	return af(pkg, itemName, d, priorGoal)
 }
 
 type fileStateFS map[string]file.State
@@ -88,7 +89,7 @@ func TestPkgAnalystVisitPath(t *testing.T) {
 		source         = "path/to/source"
 		targetToSource = "../source"
 		pkg            = "pkg"
-		item           = "item"
+		itemName       = "item"
 		dirReadable    = fs.ModeDir | 0o755
 		dirUnreadable  = fs.ModeDir | 0o311
 		fileReadable   = 0o644
@@ -157,8 +158,8 @@ func TestPkgAnalystVisitPath(t *testing.T) {
 				if gotPkg != pkg {
 					t.Errorf("advisor: want pkg %q, got %q", pkg, gotPkg)
 				}
-				if gotItem != item {
-					t.Errorf("advisor: want item %q, got %q", item, gotItem)
+				if gotItem != itemName {
+					t.Errorf("advisor: want item %q, got %q", itemName, gotItem)
 				}
 				if !reflect.DeepEqual(gotState, test.targetItemState) {
 					t.Errorf("advisor: want prior advice %v, got %v", test.targetItemState, gotState)
@@ -168,15 +169,15 @@ func TestPkgAnalystVisitPath(t *testing.T) {
 
 			fsys := fileStateFS{}
 			if test.targetItemState != nil {
-				targetItem := path.Join(target, item)
+				targetItem := path.Join(target, itemName)
 				fsys[targetItem] = *test.targetItemState
 			}
 
-			targetGap := Index{}
+			index := item.Index{}
 
-			pa := NewPkgAnalyst(fsys, target, source, pkg, targetGap, advisor)
+			pa := NewPkgAnalyst(fsys, target, source, pkg, index, advisor)
 
-			sourcePkgItem := path.Join(source, pkg, item)
+			sourcePkgItem := path.Join(source, pkg, itemName)
 			gotErr := pa.VisitPath(sourcePkgItem, nil, nil)
 
 			if !gotAdvisorCall {
@@ -187,7 +188,7 @@ func TestPkgAnalystVisitPath(t *testing.T) {
 				t.Fatalf("error:\nwant %v\ngot  %v", test.wantErr, gotErr)
 			}
 
-			gotSpec, ok := targetGap[item]
+			gotSpec, ok := index[itemName]
 
 			if !ok {
 				t.Fatalf("did not record spec")
@@ -303,7 +304,7 @@ func TestPkgAnalystVisitPathError(t *testing.T) {
 				fsys[targetItem] = result
 			}
 
-			emptyIndex := Index{}
+			emptyIndex := item.Index{}
 			var uncallableAdvisor Advisor = nil
 			pa := NewPkgAnalyst(fsys, target, source, pkg, emptyIndex, uncallableAdvisor)
 
