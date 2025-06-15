@@ -50,12 +50,12 @@ func (pa PkgAnalyst) VisitPath(name string, entry fs.DirEntry, err error) error 
 	spec, err := pa.Specs.Get(item)
 	if err != nil {
 		targetItem := path.Join(pa.Target, item)
-		info, err := file.Lstat(pa.FS, targetItem)
+		info, err := fs.Lstat(pa.FS, targetItem)
 		switch {
 		case err == nil:
 			state := &file.State{Mode: info.Mode()}
 			if info.Mode()&fs.ModeSymlink != 0 {
-				dest, err := file.ReadLink(pa.FS, targetItem)
+				dest, err := fs.ReadLink(pa.FS, targetItem)
 				if err != nil {
 					return err
 				}

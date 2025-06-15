@@ -18,28 +18,28 @@ func TestLstat(t *testing.T) {
 
 	fsys := DirFS(root)
 
-	e, err := fsys.Lstat("sub/dir")
+	e, err := fs.Lstat(fsys, "sub/dir")
 	if err != nil {
 		t.Error("unexpected error:", err)
 	} else if !e.IsDir() {
 		t.Errorf("%q want dir, got %s", "sub/dir", fs.FormatFileInfo(e))
 	}
 
-	e, err = fsys.Lstat("sub/file")
+	e, err = fs.Lstat(fsys, "sub/file")
 	if err != nil {
 		t.Error("unexpected error:", err)
 	} else if !e.Mode().IsRegular() {
 		t.Errorf("%q want regular file, got %s", "sub/file", fs.FormatFileInfo(e))
 	}
 
-	e, err = fsys.Lstat("sub/link")
+	e, err = fs.Lstat(fsys, "sub/link")
 	if err != nil {
 		t.Error("unexpected error:", err)
 	} else if e.Mode()&fs.ModeType != fs.ModeSymlink {
 		t.Errorf("%q want symlink got %s", "sub/link", fs.FormatFileInfo(e))
 	}
 
-	e, err = fsys.Lstat("no/such/entry")
+	e, err = fs.Lstat(fsys, "no/such/entry")
 	if !errors.Is(err, fs.ErrNotExist) {
 		t.Errorf("%q want error %s, got %s", "no/such/entry", fs.ErrNotExist, err)
 	}
@@ -91,7 +91,7 @@ func TestReadDir(t *testing.T) {
 
 	fsys := DirFS(root)
 
-	entries, err := fsys.ReadDir("sub")
+	entries, err := fs.ReadDir(fsys, "sub")
 	if err != nil {
 		t.Error("unexpected error:", err)
 	}
@@ -161,7 +161,7 @@ func TestValidatesPath(t *testing.T) {
 
 	fsys := DirFS(root)
 
-	_, err := fsys.Lstat("foo/../lstat")
+	_, err := fs.Lstat(fsys, "foo/../lstat")
 	if !errors.Is(err, fs.ErrInvalid) {
 		t.Errorf("lstat want %v, got %v", fs.ErrInvalid, err)
 	}

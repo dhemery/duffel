@@ -2,6 +2,7 @@ package plan
 
 import (
 	"encoding/json"
+	"io/fs"
 	"iter"
 	"path"
 
@@ -11,9 +12,6 @@ import (
 
 type specList interface {
 	ByItem() iter.Seq2[string, item.Spec]
-}
-type SymlinkFS interface {
-	Symlink(oldname, newname string) error
 }
 
 // A Plan is the sequence of tasks
@@ -43,7 +41,7 @@ func New(target string, specs specList) Plan {
 	}
 }
 
-func (p Plan) Execute(fsys SymlinkFS) error {
+func (p Plan) Execute(fsys fs.FS) error {
 	for _, task := range p.Tasks {
 		if err := task.Execute(fsys, p.Target); err != nil {
 			return err
@@ -60,8 +58,8 @@ type Task struct {
 	file.State
 }
 
-func (t Task) Execute(fsys SymlinkFS, target string) error {
-	return fsys.Symlink(t.Dest, path.Join(target, t.Item))
+func (t Task) Execute(fsys fs.FS, target string) error {
+	return file.Symlink(fsys, t.Dest, path.Join(target, t.Item))
 }
 
 // MarshalJSON returns the JSON representation of t.

@@ -10,13 +10,8 @@ import (
 	"github.com/dhemery/duffel/internal/plan"
 )
 
-type FS interface {
-	fs.ReadDirFS
-	plan.SymlinkFS
-}
-
 type Request struct {
-	FS     FS
+	FS     fs.FS
 	Source string
 	Target string
 	Pkgs   []string

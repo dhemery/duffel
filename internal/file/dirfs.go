@@ -7,19 +7,24 @@ import (
 	"path/filepath"
 )
 
-type dirFS struct {
+type osfs interface {
 	fs.ReadDirFS
+	fs.ReadLinkFS
+}
+
+type dirFS struct {
+	osfs
 	Dir string
 }
 
 type LinkError = os.LinkError
 
 // DirFS returns a file system for the tree of files rooted at dir.
-// It implements [duffel.FS].
+// It implements [fs.ReadDirFS] and [fs.ReadLinkFS].
 func DirFS(dir string) dirFS {
 	return dirFS{
-		ReadDirFS: os.DirFS(dir).(fs.ReadDirFS),
-		Dir:       dir,
+		osfs: os.DirFS(dir).(osfs),
+		Dir:  dir,
 	}
 }
 
@@ -28,14 +33,6 @@ func (f dirFS) join(path string) (string, error) {
 		return "", fmt.Errorf("path %s: %w", path, fs.ErrInvalid)
 	}
 	return filepath.Join(f.Dir, path), nil
-}
-
-func (f dirFS) Lstat(path string) (fs.FileInfo, error) {
-	full, err := f.join(path)
-	if err != nil {
-		return nil, &fs.PathError{Op: "lstat", Path: path, Err: err}
-	}
-	return os.Lstat(full)
 }
 
 func (f dirFS) Mkdir(path string, perm fs.FileMode) error {
