@@ -2,14 +2,16 @@ package plan
 
 import (
 	"encoding/json"
-	"maps"
+	"iter"
 	"path"
-	"slices"
 
 	"github.com/dhemery/duffel/internal/file"
 	"github.com/dhemery/duffel/internal/item"
 )
 
+type specList interface {
+	ByItem() iter.Seq2[string, item.Spec]
+}
 type SymlinkFS interface {
 	Symlink(oldname, newname string) error
 }
@@ -24,12 +26,10 @@ type Plan struct {
 // New returns a Plan with tasks to bring
 // a set of files to their desired states.
 // Target is the root directory for the set of files.
-// Specs holds the spec for each item included in the plan.
-func New(target string, specs item.Index) Plan {
+// SpecList delivers the specs in the plan sorted by item name.
+func New(target string, specs specList) Plan {
 	tasks := make([]Task, 0)
-	// Must sort tasks in lexical order by item
-	for _, item := range slices.Sorted(maps.Keys(specs)) {
-		spec := specs[item]
+	for item, spec := range specs.ByItem() {
 		if spec.Desired == nil {
 			continue
 		}

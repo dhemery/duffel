@@ -1,6 +1,8 @@
 package plan
 
 import (
+	"iter"
+	"maps"
 	"slices"
 	"testing"
 
@@ -8,13 +10,29 @@ import (
 	"github.com/dhemery/duffel/internal/item"
 )
 
+type specs interface {
+	All() iter.Seq2[string, item.Spec]
+}
+
+type specMap map[string]item.Spec
+
+func (m specMap) ByItem() iter.Seq2[string, item.Spec] {
+	return func(yield func(string, item.Spec) bool) {
+		for _, key := range slices.Sorted(maps.Keys(m)) {
+			if !yield(key, m[key]) {
+				return
+			}
+		}
+	}
+}
+
 func TestNewPlan(t *testing.T) {
 	tests := map[string]struct {
-		index     item.Index
+		index     specMap
 		wantTasks []Task
 	}{
 		"only current states": {
-			index: item.Index{
+			index: map[string]item.Spec{
 				"item1": {Current: &file.State{Dest: "item1/current/dest"}},
 				"item2": {Current: &file.State{Dest: "item2/current/dest"}},
 				"item3": {Current: &file.State{Dest: "item4/current/dest"}},
@@ -22,7 +40,7 @@ func TestNewPlan(t *testing.T) {
 			wantTasks: []Task{},
 		},
 		"only desired states": {
-			index: item.Index{
+			index: map[string]item.Spec{
 				"item1": {Desired: &file.State{Dest: "item1/desired/dest"}},
 				"item2": {Desired: &file.State{Dest: "item2/desired/dest"}},
 				"item3": {Desired: &file.State{Dest: "item3/desired/dest"}},
@@ -34,7 +52,7 @@ func TestNewPlan(t *testing.T) {
 			},
 		},
 		"current and desired states": {
-			index: item.Index{
+			index: map[string]item.Spec{
 				"empty":  {}, // No current or desired state
 				"relax":  {Current: &file.State{Dest: "current/dest"}},
 				"create": {Desired: &file.State{Dest: "created/dest"}},

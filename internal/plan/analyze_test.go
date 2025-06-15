@@ -2,6 +2,7 @@ package plan
 
 import (
 	"errors"
+	"fmt"
 	"io/fs"
 	"path"
 	"reflect"
@@ -173,7 +174,7 @@ func TestPkgAnalystVisitPath(t *testing.T) {
 				fsys[targetItem] = *test.targetItemState
 			}
 
-			index := item.Index{}
+			index := item.NewIndex()
 
 			pa := NewPkgAnalyst(fsys, target, source, pkg, index, advisor)
 
@@ -188,10 +189,9 @@ func TestPkgAnalystVisitPath(t *testing.T) {
 				t.Fatalf("error:\nwant %v\ngot  %v", test.wantErr, gotErr)
 			}
 
-			gotSpec, ok := index[itemName]
-
-			if !ok {
-				t.Fatalf("did not record spec")
+			gotSpec, err := index.Get(itemName)
+			if err != nil {
+				t.Fatalf("error getting %q from index: %s", itemName, err)
 			}
 
 			gotCurrentState := gotSpec.Current
@@ -304,7 +304,7 @@ func TestPkgAnalystVisitPathError(t *testing.T) {
 				fsys[targetItem] = result
 			}
 
-			emptyIndex := item.Index{}
+			emptyIndex := item.NewIndex()
 			var uncallableAdvisor Advisor = nil
 			pa := NewPkgAnalyst(fsys, target, source, pkg, emptyIndex, uncallableAdvisor)
 
@@ -316,10 +316,15 @@ func TestPkgAnalystVisitPathError(t *testing.T) {
 				t.Errorf("want error %q, got %q", test.wantError, gotErr)
 			}
 
-			if len(emptyIndex) != 0 {
+			specs := []string{}
+			for item, spec := range emptyIndex.ByItem() {
+				s := fmt.Sprintf("%q: %v", item, spec)
+				specs = append(specs, s)
+			}
+			if len(specs) != 0 {
 				t.Error("want no specs, got:")
-				for item, spec := range emptyIndex {
-					t.Errorf("    %q: %v", item, spec)
+				for _, spec := range specs {
+					t.Error(spec)
 				}
 			}
 		})

@@ -18,11 +18,11 @@ type PkgAnalyst struct {
 	Target    string
 	Pkg       string
 	SourcePkg string
-	Specs     item.Index
+	Specs     *item.Index
 	Advisor   Advisor
 }
 
-func NewPkgAnalyst(fsys fs.FS, target, source, pkg string, index item.Index, advisor Advisor) PkgAnalyst {
+func NewPkgAnalyst(fsys fs.FS, target, source, pkg string, index *item.Index, advisor Advisor) PkgAnalyst {
 	return PkgAnalyst{
 		FS:        fsys,
 		Target:    target,
@@ -47,8 +47,8 @@ func (pa PkgAnalyst) VisitPath(name string, entry fs.DirEntry, err error) error 
 		return nil
 	}
 	item := name[len(pa.SourcePkg)+1:]
-	spec, ok := pa.Specs[item]
-	if !ok {
+	spec, err := pa.Specs.Get(item)
+	if err != nil {
 		targetItem := path.Join(pa.Target, item)
 		info, err := file.Lstat(pa.FS, targetItem)
 		switch {
@@ -66,15 +66,14 @@ func (pa PkgAnalyst) VisitPath(name string, entry fs.DirEntry, err error) error 
 		case !errors.Is(err, fs.ErrNotExist):
 			return err
 		}
-		pa.Specs[item] = spec
+		pa.Specs.Set(item, spec)
 	}
-
 	advice, err := pa.Advisor.Advise(pa.Pkg, item, entry, spec.Desired)
 	if err != nil {
 		return err
 	}
 
 	spec.Desired = advice
-	pa.Specs[item] = spec
+	pa.Specs.Set(item, spec)
 	return nil
 }
