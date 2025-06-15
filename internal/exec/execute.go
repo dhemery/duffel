@@ -28,7 +28,7 @@ func Execute(r *Request, dryRun bool, w io.Writer) error {
 		return err
 	}
 
-	index := item.NewIndex()
+	index := item.NewIndex(nil)
 	install := plan.Install{
 		FS:             r.FS,
 		TargetToSource: targetToSource,

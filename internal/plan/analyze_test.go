@@ -174,7 +174,7 @@ func TestPkgAnalystVisitPath(t *testing.T) {
 				fsys[targetItem] = *test.targetItemState
 			}
 
-			index := item.NewIndex()
+			index := item.NewIndex(nil)
 
 			pa := NewPkgAnalyst(fsys, target, source, pkg, index, advisor)
 
@@ -304,7 +304,7 @@ func TestPkgAnalystVisitPathError(t *testing.T) {
 				fsys[targetItem] = result
 			}
 
-			emptyIndex := item.NewIndex()
+			emptyIndex := item.NewIndex(nil)
 			var uncallableAdvisor Advisor = nil
 			pa := NewPkgAnalyst(fsys, target, source, pkg, emptyIndex, uncallableAdvisor)
 

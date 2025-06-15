@@ -1,6 +1,7 @@
 package item
 
 import (
+	"errors"
 	"io/fs"
 	"math/rand/v2"
 	"reflect"
@@ -9,10 +10,67 @@ import (
 	"github.com/dhemery/duffel/internal/file"
 )
 
+func TestIndexCaching(t *testing.T) {
+	aMissError := errors.New("error returned from miss")
+
+	tests := map[string]struct {
+		callCount int
+		missState *file.State
+		missErr   error
+	}{
+		"miss success": {
+			callCount: 7, // All calls must succeed, but only 1 call to miss
+			missState: &file.State{Mode: fs.ModeSymlink, Dest: "miss/success"},
+			missErr:   nil,
+		},
+		"miss error": {
+			callCount: 1,
+			missState: nil,
+			missErr:   aMissError,
+		},
+	}
+
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			const name = "item/name"
+
+			gotMiss := false
+			miss := func(gotName string) (*file.State, error) {
+				if gotMiss {
+					t.Errorf("miss: extra call with name %s", name)
+				}
+				gotMiss = true
+				if gotName != name {
+					t.Errorf("miss: want name %s, got %s", gotName, name)
+				}
+				return test.missState, test.missErr
+			}
+
+			index := NewIndex(miss)
+
+			for i := range test.callCount {
+				gotState, err := index.Desired(name)
+				if err != test.missErr {
+					t.Errorf("call %d error: want%v, got %v", i+1, test.missErr, err)
+				}
+
+				if !reflect.DeepEqual(gotState, test.missState) {
+					t.Errorf("call %d state:\nwant: %v\n got: %v", i+1, test.missState, gotState)
+				}
+
+			}
+
+			if !gotMiss {
+				t.Errorf("miss not called")
+			}
+		})
+	}
+}
+
 func TestIndexAccess(t *testing.T) {
 	item := "myItem"
 
-	index := NewIndex()
+	index := NewIndex(nil)
 
 	gotSpec, err := index.Get(item)
 	if err == nil {
@@ -67,7 +125,7 @@ func TestIndexByItem(t *testing.T) {
 		},
 	}
 
-	index := NewIndex()
+	index := NewIndex(nil)
 
 	// Add the ordered specs to the index in random order
 	for _, i := range rand.Perm(len(orderedSpecs)) {

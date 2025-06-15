@@ -10,14 +10,20 @@ import (
 	"github.com/dhemery/duffel/internal/file"
 )
 
+type MissFunc func(item string) (*file.State, error)
+
 // An Index collects Specs by item name.
 type Index struct {
 	specs map[string]Spec
+	miss  MissFunc
 }
 
-// NewIndex returns a new, empty index.
-func NewIndex() *Index {
-	return &Index{specs: map[string]Spec{}}
+// NewIndex returns a new, empty index that retrieves missing items via miss.
+func NewIndex(miss MissFunc) *Index {
+	return &Index{
+		specs: map[string]Spec{},
+		miss:  miss,
+	}
 }
 
 // Set associates spec with item in i,
@@ -27,6 +33,20 @@ func (i *Index) Set(item string, spec Spec) {
 		i.specs = make(map[string]Spec)
 	}
 	i.specs[item] = spec
+}
+
+// Desired returns the desired state of the spec associated with item.
+func (i *Index) Desired(name string) (*file.State, error) {
+	spec, ok := i.specs[name]
+	if !ok {
+		state, err := i.miss(name)
+		if err != nil {
+			return nil, err
+		}
+		spec = Spec{Current: state, Desired: state}
+		i.specs[name] = spec
+	}
+	return spec.Desired, nil
 }
 
 // Get returns the spec associated with item.
