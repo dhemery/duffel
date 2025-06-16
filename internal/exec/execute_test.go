@@ -3,7 +3,9 @@ package exec
 import (
 	"errors"
 	"io/fs"
+	"maps"
 	"path"
+	"slices"
 	"testing"
 	"testing/fstest"
 
@@ -98,7 +100,11 @@ func TestExecuteEmptyTargetNoConflictingPackageItems(t *testing.T) {
 	}
 
 	if t.Failed() {
-		t.Log("files:", fsys.M)
+		t.Error("files:")
+		for _, name := range slices.Sorted(maps.Keys(fsys.M)) {
+			file := fsys.M[name]
+			t.Errorf("   %q: %s %s", name, file.Mode, file.Data)
+		}
 	}
 }
 
@@ -126,11 +132,15 @@ func TestExecuteEmptyTargetWithConflictingPackageItems(t *testing.T) {
 
 	wantErr := &plan.ErrConflict{}
 	if !errors.Is(err, wantErr) {
-		t.Errorf("want error %#v, got %#v", wantErr, err)
+		t.Errorf("want error %v, got %v", wantErr, err)
 	}
 
 	if t.Failed() {
-		t.Log("files:", files.M)
+		t.Error("files:")
+		for _, name := range slices.Sorted(maps.Keys(files.M)) {
+			file := files.M[name]
+			t.Errorf("   %q: %s %s", name, file.Mode, file.Data)
+		}
 	}
 }
 

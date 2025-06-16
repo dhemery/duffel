@@ -1,16 +1,19 @@
 package plan
 
 import (
-	"errors"
 	"io/fs"
 	"path"
 
 	"github.com/dhemery/duffel/internal/file"
-	"github.com/dhemery/duffel/internal/item"
 )
 
 type Advisor interface {
 	Advise(pkg, item string, entry fs.DirEntry, inState *file.State) (*file.State, error)
+}
+
+type states interface {
+	Desired(item string) (*file.State, error)
+	SetDesired(item string, state *file.State)
 }
 
 type PkgAnalyst struct {
@@ -18,17 +21,16 @@ type PkgAnalyst struct {
 	Target    string
 	Pkg       string
 	SourcePkg string
-	Specs     *item.Index
+	States    states
 	Advisor   Advisor
 }
 
-func NewPkgAnalyst(fsys fs.FS, target, source, pkg string, index *item.Index, advisor Advisor) PkgAnalyst {
+func NewPkgAnalyst(fsys fs.FS, target, source, pkg string, states states, advisor Advisor) PkgAnalyst {
 	return PkgAnalyst{
 		FS:        fsys,
-		Target:    target,
 		SourcePkg: path.Join(source, pkg),
 		Pkg:       pkg,
-		Specs:     index,
+		States:    states,
 		Advisor:   advisor,
 	}
 }
@@ -41,39 +43,22 @@ func (pa PkgAnalyst) VisitPath(name string, entry fs.DirEntry, err error) error 
 	if err != nil {
 		return err
 	}
-
 	if name == pa.SourcePkg {
 		// Source pkg is not an item.
 		return nil
 	}
+
 	item := name[len(pa.SourcePkg)+1:]
-	spec, err := pa.Specs.Get(item)
-	if err != nil {
-		targetItem := path.Join(pa.Target, item)
-		info, err := fs.Lstat(pa.FS, targetItem)
-		switch {
-		case err == nil:
-			state := &file.State{Mode: info.Mode()}
-			if info.Mode()&fs.ModeSymlink != 0 {
-				dest, err := fs.ReadLink(pa.FS, targetItem)
-				if err != nil {
-					return err
-				}
-				state.Dest = dest
-			}
-			spec.Current = state
-			spec.Desired = state
-		case !errors.Is(err, fs.ErrNotExist):
-			return err
-		}
-		pa.Specs.Set(item, spec)
-	}
-	advice, err := pa.Advisor.Advise(pa.Pkg, item, entry, spec.Desired)
+	state, err := pa.States.Desired(item)
 	if err != nil {
 		return err
 	}
 
-	spec.Desired = advice
-	pa.Specs.Set(item, spec)
+	advice, err := pa.Advisor.Advise(pa.Pkg, item, entry, state)
+	if err != nil {
+		return err
+	}
+
+	pa.States.SetDesired(item, advice)
 	return nil
 }

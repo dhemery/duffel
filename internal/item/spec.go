@@ -2,7 +2,6 @@ package item
 
 import (
 	"fmt"
-	"io/fs"
 	"iter"
 	"maps"
 	"slices"
@@ -26,43 +25,32 @@ func NewIndex(miss MissFunc) *Index {
 	}
 }
 
-// Set associates spec with item in i,
-// replacing any earlier association.
-func (i *Index) Set(item string, spec Spec) {
-	if i.specs == nil {
-		i.specs = make(map[string]Spec)
-	}
-	i.specs[item] = spec
-}
-
-// Desired returns the desired state of the spec associated with item.
-func (i *Index) Desired(name string) (*file.State, error) {
-	spec, ok := i.specs[name]
+// Desired returns the desired state of item.
+func (i *Index) Desired(item string) (*file.State, error) {
+	spec, ok := i.specs[item]
 	if !ok {
-		state, err := i.miss(name)
+		state, err := i.miss(item)
 		if err != nil {
 			return nil, err
 		}
 		spec = Spec{Current: state, Desired: state}
-		i.specs[name] = spec
+		i.specs[item] = spec
 	}
 	return spec.Desired, nil
 }
 
-// Get returns the spec associated with item.
-func (i *Index) Get(item string) (Spec, error) {
-	s, ok := i.specs[item]
-	if !ok {
-		return s, fs.ErrNotExist
-	}
-	return s, nil
+// SetDesired sets the desired state of item to state.
+func (i *Index) SetDesired(item string, state *file.State) {
+	spec := i.specs[item]
+	spec.Desired = state
+	i.specs[item] = spec
 }
 
 // ByItem returns an iterator over the item/spec pairs in i.
 func (i *Index) ByItem() iter.Seq2[string, Spec] {
 	return func(yield func(string, Spec) bool) {
-		for _, name := range slices.Sorted(maps.Keys(i.specs)) {
-			if !yield(name, i.specs[name]) {
+		for _, item := range slices.Sorted(maps.Keys(i.specs)) {
+			if !yield(item, i.specs[item]) {
 				return
 			}
 		}

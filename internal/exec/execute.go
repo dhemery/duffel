@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"path/filepath"
 
+	"github.com/dhemery/duffel/internal/file"
 	"github.com/dhemery/duffel/internal/item"
 	"github.com/dhemery/duffel/internal/plan"
 )
@@ -23,7 +24,14 @@ func Execute(r *Request, dryRun bool, w io.Writer) error {
 		return err
 	}
 
-	index := item.NewIndex(nil)
+	targetFS, err := fs.Sub(r.FS, r.Target)
+	if err != nil {
+		return err
+	}
+
+	stateLoader := file.StateLoader{FS: targetFS}
+	index := item.NewIndex(stateLoader.Load)
+
 	install := plan.Install{
 		FS:             r.FS,
 		TargetToSource: targetToSource,

@@ -2,6 +2,7 @@ package file
 
 import (
 	"encoding/json"
+	"errors"
 	"io/fs"
 )
 
@@ -22,4 +23,27 @@ func (s State) MarshalJSON() ([]byte, error) {
 		Mode: s.Mode.String(),
 		Dest: s.Dest,
 	})
+}
+
+type StateLoader struct {
+	FS fs.FS
+}
+
+func (s StateLoader) Load(name string) (*State, error) {
+	info, err := fs.Lstat(s.FS, name)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	state := &State{Mode: info.Mode()}
+	if info.Mode()&fs.ModeSymlink != 0 {
+		dest, err := fs.ReadLink(s.FS, name)
+		if err != nil {
+			return nil, err
+		}
+		state.Dest = dest
+	}
+	return state, nil
 }

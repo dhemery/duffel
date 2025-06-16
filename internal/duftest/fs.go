@@ -1,6 +1,7 @@
 package duftest
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"path"
@@ -21,49 +22,66 @@ func NewFS() FS {
 }
 
 type FS struct {
-	M fstest.MapFS
+	M   fstest.MapFS
+	Dir string
 }
 
 func (f FS) Open(name string) (fs.File, error) {
 	const op = fsOp + "open"
-	if _, err := f.check(name, permRead); err != nil {
-		return nil, &fs.PathError{Op: op, Path: name, Err: err}
-	}
-	file, err := f.M.Open(name)
-	if err != nil {
-		err = &fs.PathError{Op: op, Path: name, Err: err}
-	}
-	return file, err
+	full := path.Join(f.Dir, name)
+	return nil, &fs.PathError{Op: op, Path: full, Err: errors.ErrUnsupported}
 }
 
 func (f FS) ReadDir(name string) ([]fs.DirEntry, error) {
 	const op = fsOp + "readdir"
-	if _, err := f.check(name, fs.ModeDir|permRead); err != nil {
-		return nil, &fs.PathError{Op: op, Path: name, Err: err}
+	full := path.Join(f.Dir, name)
+	if _, err := f.check(full, fs.ModeDir|permRead); err != nil {
+		return nil, &fs.PathError{Op: op, Path: full, Err: err}
 	}
-	entries, err := f.M.ReadDir(name)
+	entries, err := f.M.ReadDir(full)
 	if err != nil {
-		return nil, &fs.PathError{Op: op, Path: name, Err: err}
+		return nil, &fs.PathError{Op: op, Path: full, Err: err}
 	}
 	return entries, err
 }
 
 func (f FS) Stat(name string) (fs.FileInfo, error) {
 	const op = fsOp + "stat"
-	info, err := f.check(name, permRead)
+	full := path.Join(f.Dir, name)
+	info, err := f.check(full, permRead)
 	if err != nil {
-		return nil, &fs.PathError{Op: op, Path: name, Err: err}
+		return nil, &fs.PathError{Op: op, Path: full, Err: err}
+	}
+	return info, nil
+}
+
+func (f FS) Lstat(name string) (fs.FileInfo, error) {
+	const op = fsOp + "lstat"
+	full := path.Join(f.Dir, name)
+	info, err := f.check(full, permRead)
+	if err != nil {
+		return nil, &fs.PathError{Op: op, Path: full, Err: err}
 	}
 	return info, nil
 }
 
 func (f FS) Symlink(oldname, newname string) error {
 	const op = fsOp + "symlink"
-	if _, err := f.check(path.Dir(newname), fs.ModeDir|permWrite); err != nil {
-		return &fs.PathError{Op: op, Path: newname, Err: err}
+	full := path.Join(f.Dir, newname)
+	if _, err := f.check(path.Dir(full), fs.ModeDir|permWrite); err != nil {
+		return &fs.PathError{Op: op, Path: full, Err: err}
 	}
-	f.M[newname] = &fstest.MapFile{Mode: fs.ModeSymlink, Data: []byte(oldname)}
+	f.M[full] = &fstest.MapFile{Mode: fs.ModeSymlink, Data: []byte(oldname)}
 	return nil
+}
+
+func (f FS) Sub(dir string) (fs.FS, error) {
+	const op = fsOp + "sub"
+	full := path.Join(f.Dir, dir)
+	if !fs.ValidPath(full) {
+		return nil, &fs.PathError{Op: op, Path: full, Err: fs.ErrInvalid}
+	}
+	return FS{M: f.M, Dir: full}, nil
 }
 
 type searchError struct {

@@ -35,6 +35,14 @@ func (f dirFS) join(path string) (string, error) {
 	return filepath.Join(f.Dir, path), nil
 }
 
+func (f dirFS) Sub(dir string) (fs.FS, error) {
+	full, err := f.join(dir)
+	if err != nil {
+		return nil, &fs.PathError{Op: "sub", Path: dir, Err: err}
+	}
+	return DirFS(full), nil
+}
+
 func (f dirFS) Mkdir(path string, perm fs.FileMode) error {
 	full, err := f.join(path)
 	if err != nil {
