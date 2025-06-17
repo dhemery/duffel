@@ -13,7 +13,7 @@ func (e *ErrConflict) Error() string {
 	return ""
 }
 
-// Install is an [Advisor] that describes the installed states
+// Install is an [ItemOp] that describes the installed states
 // of the target files that correspond to the given pkg items.
 type Install struct {
 	FS             fs.FS  // The file system of the source and target files to analyze.
@@ -26,7 +26,7 @@ type Install struct {
 // Entry describes the state of the file in the source tree.
 // InState describes the desired state of the target file
 // as determined by prior analysis.
-func (i Install) Advise(pkg, item string, entry fs.DirEntry, inState *file.State) (*file.State, error) {
+func (i Install) Apply(pkg, item string, entry fs.DirEntry, inState *file.State) (*file.State, error) {
 	if inState != nil {
 		return nil, &ErrConflict{}
 	}

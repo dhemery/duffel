@@ -54,7 +54,7 @@ func TestAdviseInstall(t *testing.T) {
 				TargetToSource: targetToSource,
 			}
 
-			gotAdvice, gotErr := install.Advise(pkg, test.item, nil, test.priorAdviceArg)
+			gotAdvice, gotErr := install.Apply(pkg, test.item, nil, test.priorAdviceArg)
 
 			if !errors.Is(gotErr, test.wantErr) {
 				t.Errorf("error:\nwant %v\ngot  %v", test.wantErr, gotErr)

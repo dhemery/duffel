@@ -12,7 +12,7 @@ import (
 
 type adviseFunc func(string, string, fs.DirEntry, *file.State) (*file.State, error)
 
-func (af adviseFunc) Advise(pkg, itemName string, d fs.DirEntry, priorGoal *file.State) (*file.State, error) {
+func (af adviseFunc) Apply(pkg, itemName string, d fs.DirEntry, priorGoal *file.State) (*file.State, error) {
 	return af(pkg, itemName, d, priorGoal)
 }
 
@@ -125,7 +125,7 @@ func TestPkgAnalystVisitPath(t *testing.T) {
 				initialState: test.indexState,
 			}
 
-			pa := NewPkgAnalyst(nil, target, source, pkg, testIndex, testAdvisor)
+			pa := NewPkgWalker(nil, target, source, pkg, testIndex, testAdvisor)
 
 			sourcePkgItem := path.Join(source, pkg, itemName)
 			gotErr := pa.VisitPath(sourcePkgItem, nil, nil)
@@ -197,7 +197,7 @@ func TestPkgAnalystVisitPathError(t *testing.T) {
 				recordedState: nil,
 			}
 
-			pa := NewPkgAnalyst(nil, target, source, pkg, testIndex, nil)
+			pa := NewPkgWalker(nil, target, source, pkg, testIndex, nil)
 
 			walkPath := path.Join(source, pkg, test.item)
 

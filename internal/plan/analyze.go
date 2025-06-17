@@ -7,58 +7,57 @@ import (
 	"github.com/dhemery/duffel/internal/file"
 )
 
-type Advisor interface {
-	Advise(pkg, item string, entry fs.DirEntry, inState *file.State) (*file.State, error)
+type ItemOp interface {
+	Apply(pkg, item string, entry fs.DirEntry, inState *file.State) (*file.State, error)
 }
 
-type states interface {
+type StateIndex interface {
 	Desired(item string) (*file.State, error)
 	SetDesired(item string, state *file.State)
 }
 
-type PkgAnalyst struct {
-	FS        fs.FS
-	Target    string
-	Pkg       string
-	SourcePkg string
-	States    states
-	Advisor   Advisor
+type PkgWalker struct {
+	FS      fs.FS
+	WalkDir string
+	Pkg     string
+	Index   StateIndex
+	ItemOp  ItemOp
 }
 
-func NewPkgAnalyst(fsys fs.FS, target, source, pkg string, states states, advisor Advisor) PkgAnalyst {
-	return PkgAnalyst{
-		FS:        fsys,
-		SourcePkg: path.Join(source, pkg),
-		Pkg:       pkg,
-		States:    states,
-		Advisor:   advisor,
+func NewPkgWalker(fsys fs.FS, target, source, pkg string, index StateIndex, itemOp ItemOp) PkgWalker {
+	return PkgWalker{
+		FS:      fsys,
+		WalkDir: path.Join(source, pkg),
+		Pkg:     pkg,
+		Index:   index,
+		ItemOp:  itemOp,
 	}
 }
 
-func (pa PkgAnalyst) Analyze() error {
-	return fs.WalkDir(pa.FS, pa.SourcePkg, pa.VisitPath)
+func (pa PkgWalker) Walk() error {
+	return fs.WalkDir(pa.FS, pa.WalkDir, pa.VisitPath)
 }
 
-func (pa PkgAnalyst) VisitPath(name string, entry fs.DirEntry, err error) error {
+func (pa PkgWalker) VisitPath(name string, entry fs.DirEntry, err error) error {
 	if err != nil {
 		return err
 	}
-	if name == pa.SourcePkg {
-		// Source pkg is not an item.
+	if name == pa.WalkDir {
+		// Skip the dir being walked. It is not an item.
 		return nil
 	}
 
-	item := name[len(pa.SourcePkg)+1:]
-	state, err := pa.States.Desired(item)
+	item := name[len(pa.WalkDir)+1:]
+	priorState, err := pa.Index.Desired(item)
 	if err != nil {
 		return err
 	}
 
-	advice, err := pa.Advisor.Advise(pa.Pkg, item, entry, state)
+	newState, err := pa.ItemOp.Apply(pa.Pkg, item, entry, priorState)
 	if err != nil {
 		return err
 	}
 
-	pa.States.SetDesired(item, advice)
+	pa.Index.SetDesired(item, newState)
 	return nil
 }
