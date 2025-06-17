@@ -16,11 +16,10 @@ func (e *ErrConflict) Error() string {
 // Install is an [ItemOp] that describes the installed states
 // of the target files that correspond to the given pkg items.
 type Install struct {
-	FS             fs.FS  // The file system of the source and target files to analyze.
 	TargetToSource string // The relative path from the target dir to the source dir.
 }
 
-// Visit returns a State describing the installed state
+// Apply returns a State describing the installed state
 // of the target file that corresponds to the given item.
 // Pkg and item identify the item to be installed.
 // Entry describes the state of the file in the source tree.

@@ -7,9 +7,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"testing"
-	"testing/fstest"
 
-	"github.com/dhemery/duffel/internal/duftest"
 	"github.com/dhemery/duffel/internal/file"
 )
 
@@ -22,53 +20,42 @@ func TestAdviseInstall(t *testing.T) {
 	targetToSource, _ := filepath.Rel(target, source)
 
 	tests := map[string]struct {
-		item           string      // Item being analyzed, relative to pkg dir
-		priorAdviceArg *file.State // Desired state passed to Advise
-		wantAdvice     *file.State // Desired state returned by by Advise
-		wantErr        error       // Error returned by Advise
+		item      string      // Item being analyzed, relative to pkg dir
+		stateArg  *file.State // Desired state passed to Apply
+		wantState *file.State // Desired state returned by by Apply
+		wantErr   error       // Error returned by Apply
 	}{
-		"no prior advice": {
-			item:           "item",
-			priorAdviceArg: nil,
-			wantAdvice: &file.State{
+		"no in state": {
+			item:     "item",
+			stateArg: nil,
+			wantState: &file.State{
 				Mode: fs.ModeSymlink,
 				Dest: path.Join(targetToSource, pkg, "item"),
 			},
 			wantErr: nil,
 		},
-		"prior advice links to foreign dest": {
-			item:           "item",
-			priorAdviceArg: &file.State{Dest: "current/foreign/dest"},
-			wantAdvice:     nil,
-			wantErr:        &ErrConflict{},
+		"in state links to foreign dest": {
+			item:      "item",
+			stateArg:  &file.State{Dest: "current/foreign/dest"},
+			wantState: nil,
+			wantErr:   &ErrConflict{},
 		},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			fsys := duftest.NewFS()
-			fsys.M[target] = &fstest.MapFile{Mode: fs.ModeDir | 0o755}
-
 			install := Install{
-				FS:             fsys,
 				TargetToSource: targetToSource,
 			}
 
-			gotAdvice, gotErr := install.Apply(pkg, test.item, nil, test.priorAdviceArg)
+			gotAdvice, gotErr := install.Apply(pkg, test.item, nil, test.stateArg)
 
 			if !errors.Is(gotErr, test.wantErr) {
 				t.Errorf("error:\nwant %v\ngot  %v", test.wantErr, gotErr)
 			}
 
-			if !reflect.DeepEqual(gotAdvice, test.wantAdvice) {
-				t.Errorf("item advice:\nwant %#v\ngot  %#v", test.wantAdvice, gotAdvice)
-			}
-
-			if t.Failed() {
-				t.Log("files in fsys:")
-				for fname, entry := range fsys.M {
-					t.Logf("    %s: %v", fname, entry)
-				}
+			if !reflect.DeepEqual(gotAdvice, test.wantState) {
+				t.Errorf("item advice:\nwant %#v\ngot  %#v", test.wantState, gotAdvice)
 			}
 		})
 	}

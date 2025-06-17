@@ -33,7 +33,6 @@ func Execute(r *Request, dryRun bool, w io.Writer) error {
 	index := item.NewIndex(stateLoader.Load)
 
 	install := plan.Install{
-		FS:             r.FS,
 		TargetToSource: targetToSource,
 	}
 
