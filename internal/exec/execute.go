@@ -36,14 +36,14 @@ func Execute(r *Request, dryRun bool, w io.Writer) error {
 		TargetToSource: targetToSource,
 	}
 
-	var pkgAnalysts []plan.PkgWalker
+	var pkgOps []plan.PkgOp
 	for _, pkg := range r.Pkgs {
-		pa := plan.NewPkgWalker(r.FS, r.Source, pkg, index, install)
-		pkgAnalysts = append(pkgAnalysts, pa)
+		pkgOps = append(pkgOps, plan.PkgOp{Pkg: pkg, Apply: install.Apply})
 	}
 
-	for _, pa := range pkgAnalysts {
-		err = pa.Walk()
+	planner := plan.Planner{FS: r.FS, Source: r.Source, Index: index}
+	for _, op := range pkgOps {
+		err = planner.Plan(op)
 		if err != nil {
 			break
 		}

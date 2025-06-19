@@ -10,12 +10,6 @@ import (
 	"github.com/dhemery/duffel/internal/file"
 )
 
-type adviseFunc func(string, string, fs.DirEntry, *file.State) (*file.State, error)
-
-func (af adviseFunc) Apply(pkg, itemName string, d fs.DirEntry, priorGoal *file.State) (*file.State, error) {
-	return af(pkg, itemName, d, priorGoal)
-}
-
 type testIndex struct {
 	t             *testing.T
 	name          string
@@ -38,7 +32,7 @@ func (s *testIndex) SetDesired(name string, state *file.State) {
 	s.recordedState = state
 }
 
-func TestPkgAnalystVisitPath(t *testing.T) {
+func TestPkgOpApplyItemFunc(t *testing.T) {
 	const (
 		target         = "path/to/target"
 		source         = "path/to/source"
@@ -46,54 +40,54 @@ func TestPkgAnalystVisitPath(t *testing.T) {
 		pkg            = "pkg"
 		itemName       = "item"
 	)
-	anAdvisorError := errors.New("error returned from advisor")
+	anItemOpError := errors.New("error returned from item op")
 
 	tests := map[string]struct {
-		indexState        *file.State // The initial state of the item in the index
-		advisedState      *file.State // The advice returned by the advisor
-		advisorError      error       // Error returned by advisor
-		wantErr           error       // Error returned by VisitPath
-		wantRecordedState *file.State // The recorded state for the item after VisitPath
+		indexState        *file.State // Initial state of the item in the index
+		itemOpState       *file.State // State returned by the item op
+		itemOpError       error       // Error returned by item op
+		wantErr           error       // Error returned by visit func
+		wantRecordedState *file.State // Index's state for the item after visit func
 		skip              string      // Reason for skipping test
 	}{
-		"no index state, advisor advises": {
+		"no index state, item op returns state": {
 			indexState:        nil,
-			advisedState:      &file.State{Mode: fs.ModeSymlink, Dest: "dest/from/advisor"},
-			wantRecordedState: &file.State{Mode: fs.ModeSymlink, Dest: "dest/from/advisor"},
+			itemOpState:       &file.State{Mode: fs.ModeSymlink, Dest: "dest/from/item/op"},
+			wantRecordedState: &file.State{Mode: fs.ModeSymlink, Dest: "dest/from/item/op"},
 		},
-		"no index state, advisor reports error": {
+		"no index state, item op reports error": {
 			indexState:        nil,
-			advisorError:      anAdvisorError,
-			wantErr:           anAdvisorError,
+			itemOpError:       anItemOpError,
+			wantErr:           anItemOpError,
 			wantRecordedState: nil,
 		},
-		"index state is dir, advisor advises": {
+		"index state is dir, item op returns state": {
 			indexState:        &file.State{Mode: fs.ModeDir | 0o755},
-			advisedState:      &file.State{Mode: fs.ModeSymlink, Dest: "dest/from/advisor"},
-			wantRecordedState: &file.State{Mode: fs.ModeSymlink, Dest: "dest/from/advisor"},
+			itemOpState:       &file.State{Mode: fs.ModeSymlink, Dest: "dest/from/item/op"},
+			wantRecordedState: &file.State{Mode: fs.ModeSymlink, Dest: "dest/from/item/op"},
 		},
-		"index state is link, advisor advises": {
+		"index state is link, item op returns state": {
 			indexState:        &file.State{Mode: fs.ModeSymlink, Dest: "dest/from/index"},
-			advisedState:      &file.State{Mode: fs.ModeDir | 0o755},
+			itemOpState:       &file.State{Mode: fs.ModeDir | 0o755},
 			wantRecordedState: &file.State{Mode: fs.ModeDir | 0o755},
 		},
-		"index state is file, advisor reports error": {
+		"index state is file, item op reports error": {
 			indexState:        &file.State{Mode: 0o644},
-			advisorError:      anAdvisorError,
-			wantErr:           anAdvisorError,
+			itemOpError:       anItemOpError,
+			wantErr:           anItemOpError,
 			wantRecordedState: nil,
 		},
-		"index state is dir, advisor reports error": {
+		"index state is dir, item op reports error": {
 			indexState:        &file.State{Mode: fs.ModeDir | 0o755},
-			advisorError:      anAdvisorError,
-			wantErr:           anAdvisorError,
+			itemOpError:       anItemOpError,
+			wantErr:           anItemOpError,
 			wantRecordedState: nil,
 		},
-		"index state is link, advisor reports error": {
+		"index state is link, item op reports error": {
 			indexState:        &file.State{Mode: fs.ModeSymlink, Dest: "dest/from/index"},
-			advisedState:      nil,
-			advisorError:      anAdvisorError,
-			wantErr:           anAdvisorError,
+			itemOpState:       nil,
+			itemOpError:       anItemOpError,
+			wantErr:           anItemOpError,
 			wantRecordedState: nil,
 		},
 	}
@@ -103,21 +97,21 @@ func TestPkgAnalystVisitPath(t *testing.T) {
 			if test.skip != "" {
 				t.Skip(test.skip)
 			}
-			gotAdvisorCall := false
+			gotItemOpCall := false
 
-			testAdvisor := adviseFunc(func(gotPkg, gotItem string, gotEntry fs.DirEntry, gotState *file.State) (*file.State, error) {
-				gotAdvisorCall = true
+			itemOp := func(gotPkg, gotItem string, gotEntry fs.DirEntry, gotState *file.State) (*file.State, error) {
+				gotItemOpCall = true
 				if gotPkg != pkg {
-					t.Errorf("advisor: want pkg %q, got %q", pkg, gotPkg)
+					t.Errorf("item op: want pkg %q, got %q", pkg, gotPkg)
 				}
 				if gotItem != itemName {
-					t.Errorf("advisor: want item %q, got %q", itemName, gotItem)
+					t.Errorf("item op: want item %q, got %q", itemName, gotItem)
 				}
 				if !reflect.DeepEqual(gotState, test.indexState) {
-					t.Errorf("advisor: want state %v, got %v", test.indexState, gotState)
+					t.Errorf("item op: want state %v, got %v", test.indexState, gotState)
 				}
-				return test.advisedState, test.advisorError
-			})
+				return test.itemOpState, test.itemOpError
+			}
 
 			testIndex := &testIndex{
 				t:            t,
@@ -125,13 +119,15 @@ func TestPkgAnalystVisitPath(t *testing.T) {
 				initialState: test.indexState,
 			}
 
-			pa := NewPkgWalker(nil, source, pkg, testIndex, testAdvisor)
+			pkgOp := PkgOp{Pkg: pkg, Apply: itemOp}
 
-			sourcePkgItem := path.Join(source, pkg, itemName)
-			gotErr := pa.VisitPath(sourcePkgItem, nil, nil)
+			visit := pkgOp.VisitFunc(source, testIndex)
 
-			if !gotAdvisorCall {
-				t.Errorf("no call to advisor")
+			visitPath := path.Join(source, pkg, itemName)
+			gotErr := visit(visitPath, nil, nil)
+
+			if !gotItemOpCall {
+				t.Errorf("no call to item op")
 			}
 
 			if !errors.Is(gotErr, test.wantErr) {
@@ -146,16 +142,16 @@ func TestPkgAnalystVisitPath(t *testing.T) {
 }
 
 // Tests of situations that produce errors
-// and preclude setting the desired state or calling the item advisor.
-func TestPkgAnalystVisitPathError(t *testing.T) {
+// and preclude setting the desired state or calling the item op.
+func TestPkgOpWalkFuncError(t *testing.T) {
 	var (
 		anIndexError = errors.New("error returned from index.Desired")
-		aWalkError   = errors.New("error passed to VisitPath")
+		aWalkError   = errors.New("error passed to visit func")
 	)
 
 	tests := map[string]struct {
 		item      string // The item being visited, or . to visit the pkg dir
-		walkErr   error  // The error passed to VisitPath
+		walkErr   error  // The error passed to visit func
 		indexErr  error  // The error returned from index.Desired
 		wantError error
 	}{
@@ -174,7 +170,7 @@ func TestPkgAnalystVisitPathError(t *testing.T) {
 			walkErr:   aWalkError,
 			wantError: aWalkError,
 		},
-		"cannot get desired state": {
+		"item with index error": {
 			item:      "item",
 			indexErr:  anIndexError,
 			wantError: anIndexError,
@@ -197,18 +193,19 @@ func TestPkgAnalystVisitPathError(t *testing.T) {
 				recordedState: nil,
 			}
 
-			pa := NewPkgWalker(nil, source, pkg, testIndex, nil)
+			pkgOp := PkgOp{Pkg: pkg, Apply: nil}
 
-			walkPath := path.Join(source, pkg, test.item)
+			visit := pkgOp.VisitFunc(source, testIndex)
 
-			gotErr := pa.VisitPath(walkPath, nil, test.walkErr)
+			visitPath := path.Join(source, pkg, test.item)
+			gotErr := visit(visitPath, nil, test.walkErr)
 
 			if !errors.Is(gotErr, test.wantError) {
 				t.Errorf("want error %q, got %q", test.wantError, gotErr)
 			}
 
 			if testIndex.recordedState != nil {
-				t.Errorf("recorded state:\nwant nil\n got %v", testIndex.recordedState)
+				t.Errorf("state in index:\nwant nil\n got %v", testIndex.recordedState)
 			}
 		})
 	}
