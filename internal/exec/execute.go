@@ -38,7 +38,7 @@ func Execute(r *Request, dryRun bool, w io.Writer) error {
 
 	var pkgAnalysts []plan.PkgWalker
 	for _, pkg := range r.Pkgs {
-		pa := plan.NewPkgWalker(r.FS, r.Target, r.Source, pkg, index, install)
+		pa := plan.NewPkgWalker(r.FS, r.Source, pkg, index, install)
 		pkgAnalysts = append(pkgAnalysts, pa)
 	}
 

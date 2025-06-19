@@ -24,7 +24,7 @@ type PkgWalker struct {
 	ItemOp  ItemOp
 }
 
-func NewPkgWalker(fsys fs.FS, target, source, pkg string, index StateIndex, itemOp ItemOp) PkgWalker {
+func NewPkgWalker(fsys fs.FS, source, pkg string, index StateIndex, itemOp ItemOp) PkgWalker {
 	return PkgWalker{
 		FS:      fsys,
 		WalkDir: path.Join(source, pkg),

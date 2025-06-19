@@ -125,7 +125,7 @@ func TestPkgAnalystVisitPath(t *testing.T) {
 				initialState: test.indexState,
 			}
 
-			pa := NewPkgWalker(nil, target, source, pkg, testIndex, testAdvisor)
+			pa := NewPkgWalker(nil, source, pkg, testIndex, testAdvisor)
 
 			sourcePkgItem := path.Join(source, pkg, itemName)
 			gotErr := pa.VisitPath(sourcePkgItem, nil, nil)
@@ -197,7 +197,7 @@ func TestPkgAnalystVisitPathError(t *testing.T) {
 				recordedState: nil,
 			}
 
-			pa := NewPkgWalker(nil, target, source, pkg, testIndex, nil)
+			pa := NewPkgWalker(nil, source, pkg, testIndex, nil)
 
 			walkPath := path.Join(source, pkg, test.item)
 
