@@ -41,22 +41,21 @@ func Execute(r *Request, dryRun bool, w io.Writer) error {
 		pkgOps = append(pkgOps, plan.PkgOp{Pkg: pkg, Apply: install.Apply})
 	}
 
-	planner := plan.Planner{FS: r.FS, Source: r.Source, Index: index}
-	for _, op := range pkgOps {
-		err = planner.Plan(op)
-		if err != nil {
-			break
-		}
+	planner := plan.Planner{
+		FS:     r.FS,
+		Target: r.Target,
+		Source: r.Source,
+		Index:  index,
 	}
 
-	plan := plan.New(r.Target, index)
+	plan, err := planner.Plan(pkgOps)
+	if err != nil {
+		return err
+	}
 
 	if dryRun {
 		enc := json.NewEncoder(w)
 		return enc.Encode(plan)
-	}
-	if err != nil {
-		return err
 	}
 
 	return plan.Execute(r.FS)

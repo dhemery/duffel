@@ -2,27 +2,45 @@ package plan
 
 import (
 	"io/fs"
+	"iter"
 	"path"
 
 	"github.com/dhemery/duffel/internal/file"
+	"github.com/dhemery/duffel/internal/item"
 )
 
 type ItemOp func(pkg, item string, entry fs.DirEntry, inState *file.State) (*file.State, error)
 
-type StateIndex interface {
+type ItemStates interface {
 	Desired(item string) (*file.State, error)
 	SetDesired(item string, state *file.State)
 }
 
+type StateSequencer interface {
+	ByItem() iter.Seq2[string, item.Spec]
+}
+
+type StateIndex interface {
+	ItemStates
+	StateSequencer
+}
+
 type Planner struct {
 	FS     fs.FS
+	Target string
 	Source string
 	Index  StateIndex
 }
 
-func (p Planner) Plan(op PkgOp) error {
-	walkDir := path.Join(p.Source, op.Pkg)
-	return fs.WalkDir(p.FS, walkDir, op.VisitFunc(p.Source, p.Index))
+func (p Planner) Plan(ops []PkgOp) (Plan, error) {
+	for _, op := range ops {
+		walkDir := path.Join(p.Source, op.Pkg)
+		err := fs.WalkDir(p.FS, walkDir, op.VisitFunc(p.Source, p.Index))
+		if err != nil {
+			return Plan{}, err
+		}
+	}
+	return New(p.Target, p.Index), nil
 }
 
 type PkgOp struct {
@@ -30,7 +48,7 @@ type PkgOp struct {
 	Apply ItemOp
 }
 
-func (op PkgOp) VisitFunc(source string, index StateIndex) fs.WalkDirFunc {
+func (op PkgOp) VisitFunc(source string, index ItemStates) fs.WalkDirFunc {
 	pkgDir := path.Join(source, op.Pkg)
 	return func(name string, entry fs.DirEntry, err error) error {
 		if err != nil {
