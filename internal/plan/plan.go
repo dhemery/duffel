@@ -7,11 +7,10 @@ import (
 	"path"
 
 	"github.com/dhemery/duffel/internal/file"
-	"github.com/dhemery/duffel/internal/item"
 )
 
 type specList interface {
-	ByItem() iter.Seq2[string, item.Spec]
+	ByItem() iter.Seq2[string, Spec]
 }
 
 // A Plan is the sequence of tasks
@@ -19,26 +18,6 @@ type specList interface {
 type Plan struct {
 	Target string `json:"target"`
 	Tasks  []Task `json:"tasks"`
-}
-
-// New returns a Plan with tasks to bring
-// a set of files to their desired states.
-// Target is the root directory for the set of files.
-// SpecList delivers the specs in the plan sorted by item name.
-func New(target string, specs specList) Plan {
-	tasks := make([]Task, 0)
-	for item, spec := range specs.ByItem() {
-		if spec.Desired == nil {
-			continue
-		}
-
-		task := Task{Item: item, State: *spec.Desired}
-		tasks = append(tasks, task)
-	}
-	return Plan{
-		Target: target,
-		Tasks:  tasks,
-	}
 }
 
 func (p Plan) Execute(fsys fs.FS) error {

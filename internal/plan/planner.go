@@ -2,45 +2,43 @@ package plan
 
 import (
 	"io/fs"
-	"iter"
+	"maps"
 	"path"
+	"slices"
 
 	"github.com/dhemery/duffel/internal/file"
-	"github.com/dhemery/duffel/internal/item"
 )
 
 type ItemOp func(pkg, item string, entry fs.DirEntry, inState *file.State) (*file.State, error)
-
-type ItemStates interface {
-	Desired(item string) (*file.State, error)
-	SetDesired(item string, state *file.State)
-}
-
-type StateSequencer interface {
-	ByItem() iter.Seq2[string, item.Spec]
-}
-
-type StateIndex interface {
-	ItemStates
-	StateSequencer
-}
 
 type Planner struct {
 	FS     fs.FS
 	Target string
 	Source string
-	Index  StateIndex
 }
 
-func (p Planner) Plan(ops []PkgOp) (Plan, error) {
+func (p Planner) Plan(ops []PkgOp, miss MissFunc) (Plan, error) {
+	states := NewIndex(miss)
+
 	for _, op := range ops {
 		walkDir := path.Join(p.Source, op.Pkg)
-		err := fs.WalkDir(p.FS, walkDir, op.VisitFunc(p.Source, p.Index))
+		err := fs.WalkDir(p.FS, walkDir, op.VisitFunc(p.Source, states))
 		if err != nil {
 			return Plan{}, err
 		}
 	}
-	return New(p.Target, p.Index), nil
+
+	tasks := make([]Task, 0)
+	for _, item := range slices.Sorted(maps.Keys(states.specs)) {
+		spec := states.specs[item]
+		if spec.Desired == nil {
+			continue
+		}
+
+		task := Task{Item: item, State: *spec.Desired}
+		tasks = append(tasks, task)
+	}
+	return Plan{Target: p.Target, Tasks: tasks}, nil
 }
 
 type PkgOp struct {
@@ -48,7 +46,12 @@ type PkgOp struct {
 	Apply ItemOp
 }
 
-func (op PkgOp) VisitFunc(source string, index ItemStates) fs.WalkDirFunc {
+type States interface {
+	Desired(item string) (*file.State, error)
+	SetDesired(item string, state *file.State)
+}
+
+func (op PkgOp) VisitFunc(source string, states States) fs.WalkDirFunc {
 	pkgDir := path.Join(source, op.Pkg)
 	return func(name string, entry fs.DirEntry, err error) error {
 		if err != nil {
@@ -60,17 +63,17 @@ func (op PkgOp) VisitFunc(source string, index ItemStates) fs.WalkDirFunc {
 		}
 
 		item := name[len(pkgDir)+1:]
-		priorState, err := index.Desired(item)
+		oldState, err := states.Desired(item)
 		if err != nil {
 			return err
 		}
 
-		newState, err := op.Apply(op.Pkg, item, entry, priorState)
+		newState, err := op.Apply(op.Pkg, item, entry, oldState)
 		if err != nil {
 			return err
 		}
 
-		index.SetDesired(item, newState)
+		states.SetDesired(item, newState)
 		return nil
 	}
 }

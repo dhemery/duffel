@@ -1,13 +1,20 @@
-package item
+package plan
 
 import (
 	"fmt"
-	"iter"
-	"maps"
-	"slices"
 
 	"github.com/dhemery/duffel/internal/file"
 )
+
+// A Spec describes the current and desired states of an item.
+type Spec struct {
+	Current *file.State `json:"current,omitzero"`
+	Desired *file.State `json:"desired,omitzero"`
+}
+
+func (s Spec) String() string {
+	return fmt.Sprintf("%T{Current:%v,Desired:%v}", s, s.Current, s.Desired)
+}
 
 type MissFunc func(item string) (*file.State, error)
 
@@ -44,25 +51,4 @@ func (i *Index) SetDesired(item string, state *file.State) {
 	spec := i.specs[item]
 	spec.Desired = state
 	i.specs[item] = spec
-}
-
-// ByItem returns an iterator over the item/spec pairs in i.
-func (i *Index) ByItem() iter.Seq2[string, Spec] {
-	return func(yield func(string, Spec) bool) {
-		for _, item := range slices.Sorted(maps.Keys(i.specs)) {
-			if !yield(item, i.specs[item]) {
-				return
-			}
-		}
-	}
-}
-
-// A Spec describes the current and desired states of an item.
-type Spec struct {
-	Current *file.State `json:"current,omitzero"`
-	Desired *file.State `json:"desired,omitzero"`
-}
-
-func (s Spec) String() string {
-	return fmt.Sprintf("%T{Current:%v,Desired:%v}", s, s.Current, s.Desired)
 }

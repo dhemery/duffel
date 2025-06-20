@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 
 	"github.com/dhemery/duffel/internal/file"
-	"github.com/dhemery/duffel/internal/item"
 	"github.com/dhemery/duffel/internal/plan"
 )
 
@@ -24,14 +23,6 @@ func Execute(r *Request, dryRun bool, w io.Writer) error {
 		return err
 	}
 
-	targetFS, err := fs.Sub(r.FS, r.Target)
-	if err != nil {
-		return err
-	}
-
-	stateLoader := file.StateLoader{FS: targetFS}
-	index := item.NewIndex(stateLoader.Load)
-
 	install := plan.Install{
 		TargetToSource: targetToSource,
 	}
@@ -45,10 +36,15 @@ func Execute(r *Request, dryRun bool, w io.Writer) error {
 		FS:     r.FS,
 		Target: r.Target,
 		Source: r.Source,
-		Index:  index,
 	}
 
-	plan, err := planner.Plan(pkgOps)
+	targetFS, err := fs.Sub(r.FS, r.Target)
+	if err != nil {
+		return err
+	}
+	stateLoader := file.StateLoader{FS: targetFS}
+
+	plan, err := planner.Plan(pkgOps, stateLoader.Load)
 	if err != nil {
 		return err
 	}
