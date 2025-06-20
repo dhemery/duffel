@@ -18,7 +18,7 @@ type Planner struct {
 }
 
 func (p Planner) Plan(ops []PkgOp, miss MissFunc) (Plan, error) {
-	states := NewIndex(miss)
+	states := NewSpecCache(miss)
 
 	for _, op := range ops {
 		walkDir := path.Join(p.Source, op.Pkg)
@@ -46,12 +46,12 @@ type PkgOp struct {
 	Apply ItemOp
 }
 
-type States interface {
-	Desired(item string) (*file.State, error)
-	SetDesired(item string, state *file.State)
+type Index interface {
+	Get(item string) (*file.State, error)
+	Set(item string, state *file.State)
 }
 
-func (op PkgOp) VisitFunc(source string, states States) fs.WalkDirFunc {
+func (op PkgOp) VisitFunc(source string, states Index) fs.WalkDirFunc {
 	pkgDir := path.Join(source, op.Pkg)
 	return func(name string, entry fs.DirEntry, err error) error {
 		if err != nil {
@@ -63,7 +63,7 @@ func (op PkgOp) VisitFunc(source string, states States) fs.WalkDirFunc {
 		}
 
 		item := name[len(pkgDir)+1:]
-		oldState, err := states.Desired(item)
+		oldState, err := states.Get(item)
 		if err != nil {
 			return err
 		}
@@ -73,7 +73,7 @@ func (op PkgOp) VisitFunc(source string, states States) fs.WalkDirFunc {
 			return err
 		}
 
-		states.SetDesired(item, newState)
+		states.Set(item, newState)
 		return nil
 	}
 }

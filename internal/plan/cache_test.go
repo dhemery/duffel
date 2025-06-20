@@ -8,7 +8,7 @@ import (
 	"github.com/dhemery/duffel/internal/file"
 )
 
-func TestIndexAccess(t *testing.T) {
+func TestSpecCache(t *testing.T) {
 	name := "myItem"
 	missState := &file.State{Mode: fs.ModeSymlink, Dest: "miss/state/dest"}
 
@@ -18,25 +18,25 @@ func TestIndexAccess(t *testing.T) {
 		}
 		return missState, nil
 	}
-	index := NewIndex(miss)
+	index := NewSpecCache(miss)
 
-	gotState, err := index.Desired(name)
+	gotState, err := index.Get(name)
 	if err != nil {
 		t.Error(err)
 	}
 	if !reflect.DeepEqual(gotState, missState) {
-		t.Errorf("state before set desired:\nwant %v\n got %v", missState, gotState)
+		t.Errorf("state before set:\nwant %v\n got %v", missState, gotState)
 	}
 
 	updatedState := &file.State{Mode: fs.ModeSymlink, Dest: "updates/state/dest"}
-	index.SetDesired(name, updatedState)
+	index.Set(name, updatedState)
 
-	gotState, err = index.Desired(name)
+	gotState, err = index.Get(name)
 	if err != nil {
 		t.Error(err)
 	}
 
 	if !reflect.DeepEqual(gotState, updatedState) {
-		t.Errorf("state after set desired:\nwant %v\n got %v", updatedState, gotState)
+		t.Errorf("state after set:\nwant %v\n got %v", updatedState, gotState)
 	}
 }

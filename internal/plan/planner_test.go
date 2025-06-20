@@ -10,29 +10,25 @@ import (
 	"github.com/dhemery/duffel/internal/file"
 )
 
-type testIndex struct {
-	t             *testing.T
-	name          string
-	initialState  *file.State
-	err           error
-	recordedState *file.State
+type indexValue struct {
+	state *file.State
+	err   error
 }
+type testIndex map[string]indexValue
 
-func (s *testIndex) Desired(name string) (*file.State, error) {
-	if name != s.name {
-		s.t.Errorf("desired: want name %q, got %q", s.name, name)
+func (i testIndex) Get(name string) (*file.State, error) {
+	v, ok := i[name]
+	if !ok {
+		return nil, fs.ErrInvalid
 	}
-	return s.initialState, s.err
+	return v.state, v.err
 }
 
-func (s *testIndex) SetDesired(name string, state *file.State) {
-	if name != s.name {
-		s.t.Errorf("set desired: want name %q, got %q", s.name, name)
-	}
-	s.recordedState = state
+func (i testIndex) Set(name string, state *file.State) {
+	i[name] = indexValue{state: state}
 }
 
-func TestPkgOpApplyItemFunc(t *testing.T) {
+func TestPkgOpApplyItemOp(t *testing.T) {
 	const (
 		target         = "path/to/target"
 		source         = "path/to/source"
@@ -43,60 +39,56 @@ func TestPkgOpApplyItemFunc(t *testing.T) {
 	anItemOpError := errors.New("error returned from item op")
 
 	tests := map[string]struct {
-		indexState        *file.State // Initial state of the item in the index
-		itemOpState       *file.State // State returned by the item op
-		itemOpError       error       // Error returned by item op
-		wantErr           error       // Error returned by visit func
-		wantRecordedState *file.State // Index's state for the item after visit func
-		skip              string      // Reason for skipping test
+		indexState  *file.State // Initial state of the item in the index
+		itemOpState *file.State // State returned by the item op
+		itemOpError error       // Error returned by item op
+		wantErr     error       // Error returned by visit func
+		wantState   *file.State // Index's state for the item after visit func
 	}{
 		"no index state, item op returns state": {
-			indexState:        nil,
-			itemOpState:       &file.State{Mode: fs.ModeSymlink, Dest: "dest/from/item/op"},
-			wantRecordedState: &file.State{Mode: fs.ModeSymlink, Dest: "dest/from/item/op"},
+			indexState:  nil,
+			itemOpState: &file.State{Mode: fs.ModeSymlink, Dest: "dest/from/item/op"},
+			wantState:   &file.State{Mode: fs.ModeSymlink, Dest: "dest/from/item/op"},
 		},
 		"no index state, item op reports error": {
-			indexState:        nil,
-			itemOpError:       anItemOpError,
-			wantErr:           anItemOpError,
-			wantRecordedState: nil,
+			indexState:  nil,
+			itemOpError: anItemOpError,
+			wantErr:     anItemOpError,
+			wantState:   nil,
 		},
 		"index state is dir, item op returns state": {
-			indexState:        &file.State{Mode: fs.ModeDir | 0o755},
-			itemOpState:       &file.State{Mode: fs.ModeSymlink, Dest: "dest/from/item/op"},
-			wantRecordedState: &file.State{Mode: fs.ModeSymlink, Dest: "dest/from/item/op"},
+			indexState:  &file.State{Mode: fs.ModeDir | 0o755},
+			itemOpState: &file.State{Mode: fs.ModeSymlink, Dest: "dest/from/item/op"},
+			wantState:   &file.State{Mode: fs.ModeSymlink, Dest: "dest/from/item/op"},
 		},
 		"index state is link, item op returns state": {
-			indexState:        &file.State{Mode: fs.ModeSymlink, Dest: "dest/from/index"},
-			itemOpState:       &file.State{Mode: fs.ModeDir | 0o755},
-			wantRecordedState: &file.State{Mode: fs.ModeDir | 0o755},
+			indexState:  &file.State{Mode: fs.ModeSymlink, Dest: "dest/from/index"},
+			itemOpState: &file.State{Mode: fs.ModeDir | 0o755},
+			wantState:   &file.State{Mode: fs.ModeDir | 0o755},
 		},
 		"index state is file, item op reports error": {
-			indexState:        &file.State{Mode: 0o644},
-			itemOpError:       anItemOpError,
-			wantErr:           anItemOpError,
-			wantRecordedState: nil,
+			indexState:  &file.State{Mode: 0o644},
+			itemOpError: anItemOpError,
+			wantErr:     anItemOpError,
+			wantState:   &file.State{Mode: 0o644},
 		},
 		"index state is dir, item op reports error": {
-			indexState:        &file.State{Mode: fs.ModeDir | 0o755},
-			itemOpError:       anItemOpError,
-			wantErr:           anItemOpError,
-			wantRecordedState: nil,
+			indexState:  &file.State{Mode: fs.ModeDir | 0o755},
+			itemOpError: anItemOpError,
+			wantErr:     anItemOpError,
+			wantState:   &file.State{Mode: fs.ModeDir | 0o755},
 		},
 		"index state is link, item op reports error": {
-			indexState:        &file.State{Mode: fs.ModeSymlink, Dest: "dest/from/index"},
-			itemOpState:       nil,
-			itemOpError:       anItemOpError,
-			wantErr:           anItemOpError,
-			wantRecordedState: nil,
+			indexState:  &file.State{Mode: fs.ModeSymlink, Dest: "dest/from/index"},
+			itemOpState: nil,
+			itemOpError: anItemOpError,
+			wantErr:     anItemOpError,
+			wantState:   &file.State{Mode: fs.ModeSymlink, Dest: "dest/from/index"},
 		},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			if test.skip != "" {
-				t.Skip(test.skip)
-			}
 			gotItemOpCall := false
 
 			itemOp := func(gotPkg, gotItem string, gotEntry fs.DirEntry, gotState *file.State) (*file.State, error) {
@@ -113,11 +105,7 @@ func TestPkgOpApplyItemFunc(t *testing.T) {
 				return test.itemOpState, test.itemOpError
 			}
 
-			testIndex := &testIndex{
-				t:            t,
-				name:         itemName,
-				initialState: test.indexState,
-			}
+			testIndex := testIndex{itemName: indexValue{state: test.indexState}}
 
 			pkgOp := PkgOp{Pkg: pkg, Apply: itemOp}
 
@@ -134,8 +122,12 @@ func TestPkgOpApplyItemFunc(t *testing.T) {
 				t.Fatalf("error:\nwant %v\ngot  %v", test.wantErr, gotErr)
 			}
 
-			if !reflect.DeepEqual(testIndex.recordedState, test.wantRecordedState) {
-				t.Errorf("desired state:\nwant %v\ngot  %v", test.wantRecordedState, testIndex.recordedState)
+			var gotState *file.State
+			if v, ok := testIndex[itemName]; ok {
+				gotState = v.state
+			}
+			if !reflect.DeepEqual(gotState, test.wantState) {
+				t.Errorf("desired state:\nwant %v\ngot  %v", test.wantState, gotState)
 			}
 		})
 	}
@@ -185,13 +177,7 @@ func TestPkgOpWalkFuncError(t *testing.T) {
 				pkg    = "pkg"
 			)
 
-			testIndex := &testIndex{
-				t:             t,
-				name:          test.item,
-				err:           test.indexErr,
-				initialState:  &file.State{Mode: fs.ModeSymlink, Dest: "bogus/initial/state"},
-				recordedState: nil,
-			}
+			testIndex := testIndex{test.item: indexValue{err: test.indexErr}}
 
 			pkgOp := PkgOp{Pkg: pkg, Apply: nil}
 
@@ -204,8 +190,12 @@ func TestPkgOpWalkFuncError(t *testing.T) {
 				t.Errorf("want error %q, got %q", test.wantError, gotErr)
 			}
 
-			if testIndex.recordedState != nil {
-				t.Errorf("state in index:\nwant nil\n got %v", testIndex.recordedState)
+			var gotState *file.State
+			if v, ok := testIndex[test.item]; ok {
+				gotState = v.state
+			}
+			if gotState != nil {
+				t.Errorf("state in index:\nwant nil\n got %v", gotState)
 			}
 		})
 	}

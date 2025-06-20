@@ -19,36 +19,39 @@ func (s Spec) String() string {
 type MissFunc func(item string) (*file.State, error)
 
 // An Index collects Specs by item name.
-type Index struct {
+type SpecCache struct {
 	specs map[string]Spec
 	miss  MissFunc
 }
 
-// NewIndex returns a new, empty index that retrieves missing items via miss.
-func NewIndex(miss MissFunc) *Index {
-	return &Index{
+// NewSpecCache returns a new, empty index that retrieves missing items via miss.
+func NewSpecCache(miss MissFunc) *SpecCache {
+	return &SpecCache{
 		specs: map[string]Spec{},
 		miss:  miss,
 	}
 }
 
-// Desired returns the desired state of item.
-func (i *Index) Desired(item string) (*file.State, error) {
-	spec, ok := i.specs[item]
+// Get returns the desired state of item.
+// If c does not already contain the item
+// Get sets the current and desired states
+// to the state returned by miss.
+func (c *SpecCache) Get(item string) (*file.State, error) {
+	spec, ok := c.specs[item]
 	if !ok {
-		state, err := i.miss(item)
+		state, err := c.miss(item)
 		if err != nil {
 			return nil, err
 		}
 		spec = Spec{Current: state, Desired: state}
-		i.specs[item] = spec
+		c.specs[item] = spec
 	}
 	return spec.Desired, nil
 }
 
-// SetDesired sets the desired state of item to state.
-func (i *Index) SetDesired(item string, state *file.State) {
-	spec := i.specs[item]
+// Set sets the desired state of item to state.
+func (c *SpecCache) Set(item string, state *file.State) {
+	spec := c.specs[item]
 	spec.Desired = state
-	i.specs[item] = spec
+	c.specs[item] = spec
 }
