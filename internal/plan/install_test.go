@@ -34,6 +34,16 @@ func TestInstallOp(t *testing.T) {
 			},
 			wantErr: nil,
 		},
+		"in state is dir": {
+			item:     "item",
+			stateArg: &file.State{Mode: fs.ModeDir | 0o755},
+			wantErr:  ErrIsDir,
+		},
+		"in state is file": {
+			item:     "item",
+			stateArg: &file.State{Mode: 0o644},
+			wantErr:  ErrIsFile,
+		},
 		"in state links to current pkg item": {
 			item: "item",
 			stateArg: &file.State{
@@ -48,9 +58,9 @@ func TestInstallOp(t *testing.T) {
 		},
 		"in state links to foreign dest": {
 			item:      "item",
-			stateArg:  &file.State{Dest: "current/foreign/dest"},
+			stateArg:  &file.State{Mode: fs.ModeSymlink, Dest: "current/foreign/dest"},
 			wantState: nil,
-			wantErr:   &ErrConflict{},
+			wantErr:   ErrNotPkgItem,
 		},
 	}
 
