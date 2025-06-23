@@ -11,7 +11,7 @@ import (
 	"github.com/dhemery/duffel/internal/file"
 )
 
-func TestAdviseInstall(t *testing.T) {
+func TestInstallOp(t *testing.T) {
 	const (
 		target = "path/to/target"
 		source = "path/to/source"
@@ -28,6 +28,18 @@ func TestAdviseInstall(t *testing.T) {
 		"no in state": {
 			item:     "item",
 			stateArg: nil,
+			wantState: &file.State{
+				Mode: fs.ModeSymlink,
+				Dest: path.Join(targetToSource, pkg, "item"),
+			},
+			wantErr: nil,
+		},
+		"in state links to current pkg item": {
+			item: "item",
+			stateArg: &file.State{
+				Mode: fs.ModeSymlink,
+				Dest: path.Join(targetToSource, pkg, "item"),
+			},
 			wantState: &file.State{
 				Mode: fs.ModeSymlink,
 				Dest: path.Join(targetToSource, pkg, "item"),

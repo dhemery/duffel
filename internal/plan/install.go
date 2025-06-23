@@ -26,10 +26,17 @@ type Install struct {
 // InState describes the desired state of the target file
 // as determined by prior analysis.
 func (i Install) Apply(pkg, item string, entry fs.DirEntry, inState *file.State) (*file.State, error) {
-	if inState != nil {
-		return nil, &ErrConflict{}
+	targetToItem := path.Join(i.TargetToSource, pkg, item)
+
+	if inState == nil {
+		// No conflicting target state. Link to this pkg item.
+		return &file.State{Mode: fs.ModeSymlink, Dest: targetToItem}, nil
 	}
 
-	dest := path.Join(i.TargetToSource, pkg, item)
-	return &file.State{Mode: fs.ModeSymlink, Dest: dest}, nil
+	if inState.Dest == targetToItem {
+		// Target already links to this pkg item.
+		return inState, nil
+	}
+
+	return nil, &ErrConflict{}
 }
