@@ -13,6 +13,7 @@ var (
 	ErrNotPkgItem = errors.New("destination is not a package item")
 	ErrIsDir      = errors.New("is a directory")
 	ErrIsFile     = errors.New("is a file")
+	ErrTargetType = errors.New("is not file, dir, or link")
 )
 
 type ErrConflict struct {
@@ -54,6 +55,11 @@ func (i Install) Apply(pkg, item string, entry fs.DirEntry, inState *file.State)
 
 	if inState.Mode.IsDir() {
 		return nil, &ErrConflict{Op: "install", Item: pkgItem, Err: ErrIsDir}
+	}
+
+	if inState.Mode.Type() != fs.ModeSymlink {
+		// InState is not file, dir, or link.
+		return nil, &ErrConflict{Op: "install", Item: pkgItem, Err: ErrTargetType}
 	}
 
 	if inState.Dest == targetToItem {

@@ -62,6 +62,11 @@ func TestInstallOp(t *testing.T) {
 			wantState: nil,
 			wantErr:   ErrNotPkgItem,
 		},
+		"in state is not file, dir, or link": {
+			item:     "item",
+			stateArg: &file.State{Mode: fs.ModeDevice},
+			wantErr:  ErrTargetType,
+		},
 	}
 
 	for name, test := range tests {
