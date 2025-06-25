@@ -39,7 +39,7 @@ func TestInstallOp(t *testing.T) {
 		"no target state, item is non-dir": {
 			item:        "item",
 			targetState: nil,
-			entry:       testDirEntry{mode: 0o644}, // Plain file
+			entry:       testDirEntry{mode: 0o644},
 			wantState: &file.State{
 				Mode: fs.ModeSymlink,
 				Dest: path.Join(targetToSource, pkg, "item"),
@@ -56,8 +56,22 @@ func TestInstallOp(t *testing.T) {
 			targetState: &file.State{Mode: 0o644},
 			wantErr:     ErrIsFile,
 		},
-		"target item links to current pkg item": {
-			item: "item",
+		"target item links to current pkg item dir": {
+			item:  "item",
+			entry: testDirEntry{mode: fs.ModeDir | 0o755},
+			targetState: &file.State{
+				Mode: fs.ModeSymlink,
+				Dest: path.Join(targetToSource, pkg, "item"),
+			},
+			wantState: &file.State{
+				Mode: fs.ModeSymlink,
+				Dest: path.Join(targetToSource, pkg, "item"),
+			},
+			wantErr: fs.SkipDir, // Do not walk the dir. It's already linked.
+		},
+		"target item links to current pkg item non-dir": {
+			item:  "item",
+			entry: testDirEntry{mode: 0o644},
 			targetState: &file.State{
 				Mode: fs.ModeSymlink,
 				Dest: path.Join(targetToSource, pkg, "item"),

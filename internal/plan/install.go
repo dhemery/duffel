@@ -47,7 +47,6 @@ func (i Install) Apply(pkg, item string, entry fs.DirEntry, targetState *file.St
 	if targetState == nil {
 		var err error
 		if entry.IsDir() {
-			// Don't walk the dir. Linking to it effectively links its contents.
 			err = fs.SkipDir
 		}
 		return &file.State{Mode: fs.ModeSymlink, Dest: targetToItem}, err
@@ -67,8 +66,11 @@ func (i Install) Apply(pkg, item string, entry fs.DirEntry, targetState *file.St
 	}
 
 	if targetState.Dest == targetToItem {
-		// Target already links to this pkg item.
-		return targetState, nil
+		var err error
+		if entry.IsDir() {
+			err = fs.SkipDir
+		}
+		return targetState, err
 	}
 
 	return nil, &ErrConflict{Op: "install", Item: pkgItem, Err: ErrNotPkgItem}
