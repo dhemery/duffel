@@ -5,25 +5,57 @@ import (
 	"fmt"
 	"io/fs"
 	"path"
+	"strings"
 
 	"github.com/dhemery/duffel/internal/file"
 )
 
 var (
-	ErrNotPkgItem = errors.New("destination is not a package item")
-	ErrIsDir      = errors.New("is a directory")
-	ErrIsFile     = errors.New("is a file")
-	ErrTargetType = errors.New("is not file, dir, or link")
+	ErrNotPkgItem  = errors.New("not a package item")
+	ErrIsDir       = errors.New("is a directory")
+	ErrIsFile      = errors.New("is a file")
+	ErrUnknownType = errors.New("not file, dir, or link")
 )
 
-type ErrConflict struct {
+type ErrTargetDest struct {
 	Op   string
 	Item string
+	Dest string
 	Err  error
 }
 
+func (e *ErrTargetDest) Error() string {
+	return fmt.Sprintf("%s target %s destination %s: %s",
+		e.Op, e.Item, e.Dest, e.Err)
+}
+
+func (e *ErrTargetDest) Unwrap() error { return e.Err }
+
+type ErrTargetType struct {
+	Op   string
+	Item string
+	Mode fs.FileMode
+	Err  error
+}
+
+func (e *ErrTargetType) Error() string {
+	return fmt.Sprintf("%s target %s (%s): %s",
+		e.Op, e.Item, e.Mode, e.Err)
+}
+
+func (e *ErrTargetType) Unwrap() error { return e.Err }
+
+type ErrConflict struct {
+	Op         string
+	Item       string
+	ItemType   fs.FileMode
+	TargetMode fs.FileMode
+	Err        error
+}
+
 func (e *ErrConflict) Error() string {
-	return fmt.Sprintf("%s item %s conflicts with target: %s", e.Op, e.Item, e.Err)
+	return fmt.Sprintf("%s cannot replace/merge target %s (%s) with pkg item (%s): %s",
+		e.Op, e.Item, e.TargetMode, e.ItemType, e.Err)
 }
 
 func (e *ErrConflict) Unwrap() error { return e.Err }
@@ -42,7 +74,9 @@ type Install struct {
 // after earlier tasks.
 func (i Install) Apply(pkg, item string, entry fs.DirEntry, targetState *file.State) (*file.State, error) {
 	pkgItem := path.Join(pkg, item)
-	targetToItem := path.Join(i.TargetToSource, pkgItem)
+	depth := strings.Count(item, "/")
+	prefix := strings.Repeat("../", depth)
+	targetToItem := path.Join(prefix, i.TargetToSource, pkgItem)
 
 	if targetState == nil {
 		var err error
@@ -53,16 +87,29 @@ func (i Install) Apply(pkg, item string, entry fs.DirEntry, targetState *file.St
 	}
 
 	if targetState.Mode.IsRegular() {
-		return nil, &ErrConflict{Op: "install", Item: pkgItem, Err: ErrIsFile}
+		return nil, &ErrTargetType{
+			Op:   "install",
+			Item: pkgItem, Mode: targetState.Mode, Err: ErrIsFile,
+		}
 	}
 
 	if targetState.Mode.IsDir() {
-		return nil, &ErrConflict{Op: "install", Item: pkgItem, Err: ErrIsDir}
+		// If target and pkg item are both dirs, install the pkg item's contents
+		if entry.IsDir() {
+			return targetState, nil
+		}
+		return nil, &ErrConflict{
+			Op:   "install",
+			Item: pkgItem, ItemType: entry.Type(), TargetMode: targetState.Mode, Err: ErrIsDir,
+		}
 	}
 
 	if targetState.Mode.Type() != fs.ModeSymlink {
-		// InState is not file, dir, or link.
-		return nil, &ErrConflict{Op: "install", Item: pkgItem, Err: ErrTargetType}
+		// Target item is not file, dir, or link.
+		return nil, &ErrTargetType{
+			Op:   "install",
+			Item: pkgItem, Mode: targetState.Mode, Err: ErrUnknownType,
+		}
 	}
 
 	if targetState.Dest == targetToItem {
@@ -73,5 +120,8 @@ func (i Install) Apply(pkg, item string, entry fs.DirEntry, targetState *file.St
 		return targetState, err
 	}
 
-	return nil, &ErrConflict{Op: "install", Item: pkgItem, Err: ErrNotPkgItem}
+	return nil, &ErrTargetDest{
+		Op:   "install",
+		Item: pkgItem, Dest: targetState.Dest, Err: ErrNotPkgItem,
+	}
 }

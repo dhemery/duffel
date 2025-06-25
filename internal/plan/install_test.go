@@ -36,6 +36,16 @@ func TestInstallOp(t *testing.T) {
 			},
 			wantErr: fs.SkipDir, // Do not walk the dir. Linking to it suffices.
 		},
+		"no target state, item is sub-item": {
+			item:        "dir/sub1/sub2/item",
+			targetState: nil,
+			entry:       testDirEntry{mode: 0o644},
+			wantState: &file.State{
+				Mode: fs.ModeSymlink,
+				Dest: path.Join("..", "..", "..", targetToSource, pkg, "dir/sub1/sub2/item"),
+			},
+			wantErr: nil,
+		},
 		"no target state, item is non-dir": {
 			item:        "item",
 			targetState: nil,
@@ -46,8 +56,18 @@ func TestInstallOp(t *testing.T) {
 			},
 			wantErr: nil,
 		},
-		"target item is dir": {
+		"target item is dir, pkg item is dir": {
 			item:        "item",
+			entry:       testDirEntry{mode: fs.ModeDir | 0o755},
+			targetState: &file.State{Mode: fs.ModeDir | 0o755},
+			// No change in state
+			wantState: &file.State{Mode: fs.ModeDir | 0o755},
+			// No error, so walk will continue with pkg item's contents
+			wantErr: nil,
+		},
+		"target item is dir, pkg item is non-dir": {
+			item:        "item",
+			entry:       testDirEntry{mode: 0o644},
 			targetState: &file.State{Mode: fs.ModeDir | 0o755},
 			wantErr:     ErrIsDir,
 		},
@@ -67,9 +87,10 @@ func TestInstallOp(t *testing.T) {
 				Mode: fs.ModeSymlink,
 				Dest: path.Join(targetToSource, pkg, "item"),
 			},
-			wantErr: fs.SkipDir, // Do not walk the dir. It's already linked.
+			// Do not walk the dir. It's already linked.
+			wantErr: fs.SkipDir,
 		},
-		"target item links to current pkg item non-dir": {
+		"target item links to current item": {
 			item:  "item",
 			entry: testDirEntry{mode: 0o644},
 			targetState: &file.State{
@@ -82,6 +103,19 @@ func TestInstallOp(t *testing.T) {
 			},
 			wantErr: nil,
 		},
+		"target item links to current sub-item": {
+			item:  "dir/sub1/sub2/item",
+			entry: testDirEntry{mode: 0o644},
+			targetState: &file.State{
+				Mode: fs.ModeSymlink,
+				Dest: path.Join("..", "..", "..", targetToSource, pkg, "dir/sub1/sub2/item"),
+			},
+			wantState: &file.State{
+				Mode: fs.ModeSymlink,
+				Dest: path.Join("..", "..", "..", targetToSource, pkg, "dir/sub1/sub2/item"),
+			},
+			wantErr: nil,
+		},
 		"target item links to foreign dest": {
 			item:        "item",
 			targetState: &file.State{Mode: fs.ModeSymlink, Dest: "current/foreign/dest"},
@@ -91,7 +125,7 @@ func TestInstallOp(t *testing.T) {
 		"target item is not file, dir, or link": {
 			item:        "item",
 			targetState: &file.State{Mode: fs.ModeDevice},
-			wantErr:     ErrTargetType,
+			wantErr:     ErrUnknownType,
 		},
 	}
 
@@ -101,14 +135,14 @@ func TestInstallOp(t *testing.T) {
 				TargetToSource: targetToSource,
 			}
 
-			gotAdvice, gotErr := install.Apply(pkg, test.item, test.entry, test.targetState)
+			gotState, gotErr := install.Apply(pkg, test.item, test.entry, test.targetState)
 
 			if !errors.Is(gotErr, test.wantErr) {
 				t.Errorf("error:\nwant %v\ngot  %v", test.wantErr, gotErr)
 			}
 
-			if !reflect.DeepEqual(gotAdvice, test.wantState) {
-				t.Errorf("item advice:\nwant %#v\ngot  %#v", test.wantState, gotAdvice)
+			if !reflect.DeepEqual(gotState, test.wantState) {
+				t.Errorf("state result:\nwant %#v\ngot  %#v", test.wantState, gotState)
 			}
 		})
 	}
