@@ -50,6 +50,13 @@ func TestPkgOpApplyItemOp(t *testing.T) {
 			itemOpState: &file.State{Mode: fs.ModeSymlink, Dest: "dest/from/item/op"},
 			wantState:   &file.State{Mode: fs.ModeSymlink, Dest: "dest/from/item/op"},
 		},
+		"no index state, item op returns state and SkipDir error": {
+			indexState:  nil,
+			itemOpState: &file.State{Mode: fs.ModeSymlink, Dest: "dest/from/item/op"},
+			itemOpError: fs.SkipDir,
+			wantErr:     fs.SkipDir,
+			wantState:   &file.State{Mode: fs.ModeSymlink, Dest: "dest/from/item/op"},
+		},
 		"no index state, item op reports error": {
 			indexState:  nil,
 			itemOpError: anItemOpError,

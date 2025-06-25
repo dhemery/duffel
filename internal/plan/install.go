@@ -34,37 +34,41 @@ type Install struct {
 	TargetToSource string // The relative path from the target dir to the source dir.
 }
 
-// Apply returns a State describing the installed state
+// Apply describes the installed state
 // of the target file that corresponds to the given item.
 // Pkg and item identify the item to be installed.
 // Entry describes the state of the file in the source tree.
-// InState describes the desired state of the target file
-// as determined by prior analysis.
-func (i Install) Apply(pkg, item string, entry fs.DirEntry, inState *file.State) (*file.State, error) {
+// TargetState describes the state of the target file
+// after earlier tasks.
+func (i Install) Apply(pkg, item string, entry fs.DirEntry, targetState *file.State) (*file.State, error) {
 	pkgItem := path.Join(pkg, item)
 	targetToItem := path.Join(i.TargetToSource, pkgItem)
 
-	if inState == nil {
-		// No conflicting target state. Link to this pkg item.
-		return &file.State{Mode: fs.ModeSymlink, Dest: targetToItem}, nil
+	if targetState == nil {
+		var err error
+		if entry.IsDir() {
+			// Don't walk the dir. Linking to it effectively links its contents.
+			err = fs.SkipDir
+		}
+		return &file.State{Mode: fs.ModeSymlink, Dest: targetToItem}, err
 	}
 
-	if inState.Mode.IsRegular() {
+	if targetState.Mode.IsRegular() {
 		return nil, &ErrConflict{Op: "install", Item: pkgItem, Err: ErrIsFile}
 	}
 
-	if inState.Mode.IsDir() {
+	if targetState.Mode.IsDir() {
 		return nil, &ErrConflict{Op: "install", Item: pkgItem, Err: ErrIsDir}
 	}
 
-	if inState.Mode.Type() != fs.ModeSymlink {
+	if targetState.Mode.Type() != fs.ModeSymlink {
 		// InState is not file, dir, or link.
 		return nil, &ErrConflict{Op: "install", Item: pkgItem, Err: ErrTargetType}
 	}
 
-	if inState.Dest == targetToItem {
+	if targetState.Dest == targetToItem {
 		// Target already links to this pkg item.
-		return inState, nil
+		return targetState, nil
 	}
 
 	return nil, &ErrConflict{Op: "install", Item: pkgItem, Err: ErrNotPkgItem}

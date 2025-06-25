@@ -69,11 +69,11 @@ func (op PkgOp) VisitFunc(source string, states Index) fs.WalkDirFunc {
 		}
 
 		newState, err := op.Apply(op.Pkg, item, entry, oldState)
-		if err != nil {
-			return err
+
+		if err == nil || err == fs.SkipDir {
+			states.Set(item, newState)
 		}
 
-		states.Set(item, newState)
-		return nil
+		return err
 	}
 }

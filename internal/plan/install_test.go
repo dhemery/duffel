@@ -20,33 +20,45 @@ func TestInstallOp(t *testing.T) {
 	targetToSource, _ := filepath.Rel(target, source)
 
 	tests := map[string]struct {
-		item      string      // Item being analyzed, relative to pkg dir
-		stateArg  *file.State // Desired state passed to Apply
-		wantState *file.State // Desired state returned by by Apply
-		wantErr   error       // Error returned by Apply
+		item        string      // Item being analyzed, relative to pkg dir
+		entry       fs.DirEntry // Pkg item entry passed to Apply
+		targetState *file.State // Target state passed to Apply
+		wantState   *file.State // State returned by by Apply
+		wantErr     error       // Error returned by Apply
 	}{
-		"no in state": {
-			item:     "item",
-			stateArg: nil,
+		"no target state, item is dir": {
+			item:        "item",
+			entry:       testDirEntry{mode: fs.ModeDir | 0o755},
+			targetState: nil,
+			wantState: &file.State{
+				Mode: fs.ModeSymlink,
+				Dest: path.Join(targetToSource, pkg, "item"),
+			},
+			wantErr: fs.SkipDir, // Do not walk the dir. Linking to it suffices.
+		},
+		"no target state, item is non-dir": {
+			item:        "item",
+			targetState: nil,
+			entry:       testDirEntry{mode: 0o644}, // Plain file
 			wantState: &file.State{
 				Mode: fs.ModeSymlink,
 				Dest: path.Join(targetToSource, pkg, "item"),
 			},
 			wantErr: nil,
 		},
-		"in state is dir": {
-			item:     "item",
-			stateArg: &file.State{Mode: fs.ModeDir | 0o755},
-			wantErr:  ErrIsDir,
+		"target item is dir": {
+			item:        "item",
+			targetState: &file.State{Mode: fs.ModeDir | 0o755},
+			wantErr:     ErrIsDir,
 		},
-		"in state is file": {
-			item:     "item",
-			stateArg: &file.State{Mode: 0o644},
-			wantErr:  ErrIsFile,
+		"target item is file": {
+			item:        "item",
+			targetState: &file.State{Mode: 0o644},
+			wantErr:     ErrIsFile,
 		},
-		"in state links to current pkg item": {
+		"target item links to current pkg item": {
 			item: "item",
-			stateArg: &file.State{
+			targetState: &file.State{
 				Mode: fs.ModeSymlink,
 				Dest: path.Join(targetToSource, pkg, "item"),
 			},
@@ -56,16 +68,16 @@ func TestInstallOp(t *testing.T) {
 			},
 			wantErr: nil,
 		},
-		"in state links to foreign dest": {
-			item:      "item",
-			stateArg:  &file.State{Mode: fs.ModeSymlink, Dest: "current/foreign/dest"},
-			wantState: nil,
-			wantErr:   ErrNotPkgItem,
+		"target item links to foreign dest": {
+			item:        "item",
+			targetState: &file.State{Mode: fs.ModeSymlink, Dest: "current/foreign/dest"},
+			wantState:   nil,
+			wantErr:     ErrNotPkgItem,
 		},
-		"in state is not file, dir, or link": {
-			item:     "item",
-			stateArg: &file.State{Mode: fs.ModeDevice},
-			wantErr:  ErrTargetType,
+		"target item is not file, dir, or link": {
+			item:        "item",
+			targetState: &file.State{Mode: fs.ModeDevice},
+			wantErr:     ErrTargetType,
 		},
 	}
 
@@ -75,7 +87,7 @@ func TestInstallOp(t *testing.T) {
 				TargetToSource: targetToSource,
 			}
 
-			gotAdvice, gotErr := install.Apply(pkg, test.item, nil, test.stateArg)
+			gotAdvice, gotErr := install.Apply(pkg, test.item, test.entry, test.targetState)
 
 			if !errors.Is(gotErr, test.wantErr) {
 				t.Errorf("error:\nwant %v\ngot  %v", test.wantErr, gotErr)
@@ -86,4 +98,29 @@ func TestInstallOp(t *testing.T) {
 			}
 		})
 	}
+}
+
+type testDirEntry struct {
+	name string
+	mode fs.FileMode
+}
+
+func (e testDirEntry) Info() (fs.FileInfo, error) {
+	return nil, nil
+}
+
+func (e testDirEntry) IsDir() bool {
+	return e.Mode().IsDir()
+}
+
+func (e testDirEntry) Mode() fs.FileMode {
+	return e.mode
+}
+
+func (e testDirEntry) Name() string {
+	return e.name
+}
+
+func (e testDirEntry) Type() fs.FileMode {
+	return e.Mode().Type()
 }
