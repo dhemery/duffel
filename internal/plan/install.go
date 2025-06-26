@@ -33,21 +33,6 @@ func (e *ErrTargetDest) Error() string {
 
 func (e *ErrTargetDest) Unwrap() error { return e.Err }
 
-type ErrDestType struct {
-	Op   string
-	Pkg  string
-	Item string
-	Type fs.FileMode
-	Err  error
-}
-
-func (e *ErrDestType) Error() string {
-	return fmt.Sprintf("%s package %s item %s (%s): %s",
-		e.Op, e.Pkg, e.Item, e.Type, e.Err)
-}
-
-func (e *ErrDestType) Unwrap() error { return e.Err }
-
 type ErrTargetType struct {
 	Op   string
 	Pkg  string
@@ -69,15 +54,26 @@ type ErrConflict struct {
 	Item       string
 	ItemType   fs.FileMode
 	TargetMode fs.FileMode
-	Err        error
+}
+
+func typeString(t fs.FileMode) string {
+	switch {
+	case t.IsRegular():
+		return "regular file"
+	case t.IsDir():
+		return "directory"
+	case t&fs.ModeSymlink != 0:
+		return "symlink"
+	default:
+		return "unknown file type " + t.String()
+	}
 }
 
 func (e *ErrConflict) Error() string {
-	return fmt.Sprintf("%s cannot replace/merge target %s (%s) with package %s item %s (%s): %s",
-		e.Op, e.Item, e.TargetMode, e.Pkg, e.Item, e.ItemType, e.Err)
+	pkgItem := path.Join(e.Pkg, e.Item)
+	return fmt.Sprintf("%s cannot replace or merge target %s (%s) with source %s (%s)",
+		e.Op, pkgItem, typeString(e.TargetMode), pkgItem, typeString(e.ItemType))
 }
-
-func (e *ErrConflict) Unwrap() error { return e.Err }
 
 // Install is an [ItemOp] that describes the installed states
 // of the target files that correspond to the given pkg items.
@@ -117,7 +113,7 @@ func (i Install) Apply(pkg, item string, entry fs.DirEntry, targetState *file.St
 		}
 		return nil, &ErrConflict{
 			Op: "install", Pkg: pkg, Item: item,
-			ItemType: entry.Type(), TargetMode: targetState.Mode, Err: ErrIsDir,
+			ItemType: entry.Type(), TargetMode: targetState.Mode,
 		}
 	}
 
@@ -138,9 +134,9 @@ func (i Install) Apply(pkg, item string, entry fs.DirEntry, targetState *file.St
 	}
 
 	if !entry.IsDir() {
-		return nil, &ErrDestType{
+		return nil, &ErrConflict{
 			Op: "install", Pkg: pkg, Item: item,
-			Type: entry.Type(), Err: ErrNotDir,
+			ItemType: entry.Type(), TargetMode: targetState.Mode,
 		}
 	}
 
