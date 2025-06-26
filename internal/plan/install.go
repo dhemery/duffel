@@ -11,49 +11,43 @@ import (
 )
 
 var (
-	ErrNotPkgItem  = errors.New("not a package item")
-	ErrNotDir      = errors.New("is not a directory")
-	ErrIsDir       = errors.New("target is a directory")
-	ErrIsFile      = errors.New("target is a file")
-	ErrUnknownType = errors.New("not file, dir, or link")
+	ErrDestNotPkgItem = errors.New("destination is not a package item")
+	ErrNotDir         = errors.New("is not a directory")
+	ErrIsDir          = errors.New("is a directory")
+	ErrIsFile         = errors.New("is a file")
+	ErrUnknownType    = errors.New("is not a file, dir, or link")
 )
 
-type ErrTargetDest struct {
-	Op   string
-	Pkg  string
-	Item string
-	Dest string
-	Err  error
+type ErrInvalidTarget struct {
+	Op    string
+	Pkg   string
+	Item  string
+	State *file.State
+	Err   error
 }
 
-func (e *ErrTargetDest) Error() string {
-	return fmt.Sprintf("%s package %s item %s existing target link destination %s: %s",
-		e.Op, e.Pkg, e.Item, e.Dest, e.Err)
+func (e *ErrInvalidTarget) Error() string {
+	pkgItem := path.Join(e.Pkg, e.Item)
+	return fmt.Sprintf("cannot %s source %s: existing target %s (%s) %s",
+		e.Op, pkgItem, e.Item, stateString(e.State), e.Err)
 }
 
-func (e *ErrTargetDest) Unwrap() error { return e.Err }
-
-type ErrTargetType struct {
-	Op   string
-	Pkg  string
-	Item string
-	Type fs.FileMode
-	Err  error
+func stateString(s *file.State) string {
+	result := typeString(s.Mode)
+	if s.Dest != "" {
+		result += " " + s.Dest
+	}
+	return result
 }
 
-func (e *ErrTargetType) Error() string {
-	return fmt.Sprintf("%s package %s item %s existing target (%s): %s",
-		e.Op, e.Pkg, e.Item, e.Type, e.Err)
-}
-
-func (e *ErrTargetType) Unwrap() error { return e.Err }
+func (e *ErrInvalidTarget) Unwrap() error { return e.Err }
 
 type ErrConflict struct {
-	Op         string
-	Pkg        string
-	Item       string
-	ItemType   fs.FileMode
-	TargetMode fs.FileMode
+	Op          string
+	Pkg         string
+	Item        string
+	SourceType  fs.FileMode
+	TargetState *file.State
 }
 
 func typeString(t fs.FileMode) string {
@@ -72,7 +66,7 @@ func typeString(t fs.FileMode) string {
 func (e *ErrConflict) Error() string {
 	pkgItem := path.Join(e.Pkg, e.Item)
 	return fmt.Sprintf("%s cannot replace or merge target %s (%s) with source %s (%s)",
-		e.Op, pkgItem, typeString(e.TargetMode), pkgItem, typeString(e.ItemType))
+		e.Op, e.Item, stateString(e.TargetState), pkgItem, typeString(e.SourceType))
 }
 
 // Install is an [ItemOp] that describes the installed states
@@ -100,9 +94,9 @@ func (i Install) Apply(pkg, item string, entry fs.DirEntry, targetState *file.St
 	}
 
 	if targetState.Mode.IsRegular() {
-		return nil, &ErrTargetType{
+		return nil, &ErrInvalidTarget{
 			Op: "install", Pkg: pkg, Item: item,
-			Type: targetState.Mode.Type(), Err: ErrIsFile,
+			State: targetState, Err: ErrIsFile,
 		}
 	}
 
@@ -113,15 +107,15 @@ func (i Install) Apply(pkg, item string, entry fs.DirEntry, targetState *file.St
 		}
 		return nil, &ErrConflict{
 			Op: "install", Pkg: pkg, Item: item,
-			ItemType: entry.Type(), TargetMode: targetState.Mode,
+			SourceType: entry.Type(), TargetState: targetState,
 		}
 	}
 
 	if targetState.Mode.Type() != fs.ModeSymlink {
 		// Target item is not file, dir, or link.
-		return nil, &ErrTargetType{
+		return nil, &ErrInvalidTarget{
 			Op: "install", Pkg: pkg, Item: item,
-			Type: targetState.Mode.Type(), Err: ErrUnknownType,
+			State: targetState, Err: ErrUnknownType,
 		}
 	}
 
@@ -136,13 +130,13 @@ func (i Install) Apply(pkg, item string, entry fs.DirEntry, targetState *file.St
 	if !entry.IsDir() {
 		return nil, &ErrConflict{
 			Op: "install", Pkg: pkg, Item: item,
-			ItemType: entry.Type(), TargetMode: targetState.Mode,
+			SourceType: entry.Type(), TargetState: targetState,
 		}
 	}
 
-	return nil, &ErrTargetDest{
+	return nil, &ErrInvalidTarget{
 		Op: "install", Pkg: pkg, Item: item,
-		Dest: targetState.Dest, Err: ErrNotPkgItem,
+		State: targetState, Err: ErrDestNotPkgItem,
 	}
 }
 

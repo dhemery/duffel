@@ -130,7 +130,7 @@ func TestExecuteEmptyTargetWithConflictingPackageItems(t *testing.T) {
 
 	err := Execute(req, false, nil)
 
-	wantErr := plan.ErrForeignDest
+	wantErr := plan.ErrDestNotPkgItem
 	if !errors.Is(err, wantErr) {
 		t.Errorf("want error %v, got %v", wantErr, err)
 	}

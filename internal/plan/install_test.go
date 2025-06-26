@@ -11,14 +11,15 @@ import (
 	"github.com/dhemery/duffel/internal/file"
 )
 
-func TestInstallOp(t *testing.T) {
-	const (
-		target = "path/to/target"
-		source = "path/to/source"
-		pkg    = "pkg"
-	)
-	targetToSource, _ := filepath.Rel(target, source)
+const (
+	target = "path/to/target"
+	source = "path/to/source"
+	pkg    = "pkg"
+)
 
+var targetToSource, _ = filepath.Rel(target, source)
+
+func TestInstallOp(t *testing.T) {
 	tests := map[string]struct {
 		item        string      // Item being analyzed, relative to pkg dir
 		entry       fs.DirEntry // Pkg item entry passed to Apply
@@ -65,11 +66,6 @@ func TestInstallOp(t *testing.T) {
 			// No error, so walk will continue with pkg item's contents
 			wantErr: nil,
 		},
-		"target is file": {
-			item:        "item",
-			targetState: &file.State{Mode: 0o644},
-			wantErr:     ErrIsFile,
-		},
 		"target links to current item dir": {
 			item:  "item",
 			entry: testDirEntry{mode: fs.ModeDir | 0o755},
@@ -110,28 +106,17 @@ func TestInstallOp(t *testing.T) {
 			},
 			wantErr: nil,
 		},
-		"target is dir, source is not dir": {
+		"target is file": {
 			item:        "item",
-			entry:       testDirEntry{mode: 0o644},
-			targetState: &file.State{Mode: fs.ModeDir | 0o755},
-			wantErr: &ErrConflict{
-				Op: "install", Pkg: pkg, Item: "item",
-				ItemType: 0644, TargetMode: fs.ModeDir | 0o755,
-			},
-		},
-		"target is link, source is not dir": {
-			item:        "item",
-			entry:       testDirEntry{mode: 0o644},
-			targetState: &file.State{Mode: fs.ModeSymlink, Dest: "target/some/dest"},
-			wantState:   nil,
-			wantErr:     &ErrConflict{Op: "install", Pkg: pkg, Item: "item"},
+			targetState: &file.State{Mode: 0o644},
+			wantErr:     ErrIsFile,
 		},
 		"target links to foreign dest": {
 			item:        "item",
 			entry:       testDirEntry{mode: fs.ModeDir | 0o755},
 			targetState: &file.State{Mode: fs.ModeSymlink, Dest: "target/foreign/dest"},
 			wantState:   nil,
-			wantErr:     ErrNotPkgItem,
+			wantErr:     ErrDestNotPkgItem,
 		},
 		"target is not file, dir, or link": {
 			item:        "item",
@@ -159,6 +144,49 @@ func TestInstallOp(t *testing.T) {
 	}
 }
 
+func TestInstallOpConflictError(t *testing.T) {
+	tests := map[string]struct {
+		sourceEntry fs.DirEntry
+		targetState *file.State
+	}{
+		"target is dir, source is not dir": {
+			sourceEntry: testDirEntry{mode: 0o644},
+			targetState: &file.State{Mode: fs.ModeDir | 0o755},
+		},
+		"target is link, source is not dir": {
+			sourceEntry: testDirEntry{mode: 0o644},
+			targetState: &file.State{Mode: fs.ModeSymlink, Dest: "target/some/dest"},
+		},
+	}
+	targetToSource, _ := filepath.Rel(target, source)
+
+	for name, test := range tests {
+		const item = "item"
+		t.Run(name, func(t *testing.T) {
+			install := Install{
+				TargetToSource: targetToSource,
+			}
+
+			gotState, gotErr := install.Apply(pkg, item, test.sourceEntry, test.targetState)
+
+			if gotState != nil {
+				t.Errorf("state: want nil, got %v", gotState)
+			}
+
+			wantErr := &ErrConflict{
+				Op:          "install",
+				Pkg:         pkg,
+				Item:        item,
+				SourceType:  test.sourceEntry.Type(),
+				TargetState: test.targetState,
+			}
+			if !reflect.DeepEqual(gotErr, wantErr) {
+				t.Errorf("error:\nwant %#v\n got %#v", wantErr, gotErr)
+			}
+		})
+	}
+}
+
 type testDirEntry struct {
 	name string
 	mode fs.FileMode
@@ -169,11 +197,7 @@ func (e testDirEntry) Info() (fs.FileInfo, error) {
 }
 
 func (e testDirEntry) IsDir() bool {
-	return e.Mode().IsDir()
-}
-
-func (e testDirEntry) Mode() fs.FileMode {
-	return e.mode
+	return e.mode.IsDir()
 }
 
 func (e testDirEntry) Name() string {
@@ -181,5 +205,5 @@ func (e testDirEntry) Name() string {
 }
 
 func (e testDirEntry) Type() fs.FileMode {
-	return e.Mode().Type()
+	return e.mode.Type()
 }
