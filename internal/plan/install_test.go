@@ -22,12 +22,12 @@ var targetToSource, _ = filepath.Rel(target, source)
 func TestInstallOp(t *testing.T) {
 	tests := map[string]struct {
 		item        string      // Item being analyzed, relative to pkg dir
-		entry       fs.DirEntry // Pkg item entry passed to Apply
+		entry       fs.DirEntry // Dir entry passed to Apply for the item
 		targetState *file.State // Target state passed to Apply
-		wantState   *file.State // State returned by by Apply
+		wantState   *file.State // State returned by Apply
 		wantErr     error       // Error returned by Apply
 	}{
-		"no target state, source is dir": {
+		"link target to new dir item": {
 			item:        "item",
 			entry:       testDirEntry{mode: fs.ModeDir | 0o755},
 			targetState: nil,
@@ -37,7 +37,7 @@ func TestInstallOp(t *testing.T) {
 			},
 			wantErr: fs.SkipDir, // Do not walk the dir. Linking to it suffices.
 		},
-		"no target state, source is sub-item": {
+		"link target to new sub-item": {
 			item:        "dir/sub1/sub2/item",
 			targetState: nil,
 			entry:       testDirEntry{mode: 0o644},
@@ -47,7 +47,7 @@ func TestInstallOp(t *testing.T) {
 			},
 			wantErr: nil,
 		},
-		"no target state, source is non-dir": {
+		"link target to new non-dir item": {
 			item:        "item",
 			targetState: nil,
 			entry:       testDirEntry{mode: 0o644},
@@ -57,16 +57,16 @@ func TestInstallOp(t *testing.T) {
 			},
 			wantErr: nil,
 		},
-		"target is dir, source is dir": {
+		"install dir item contents to existing target dir": {
 			item:        "item",
 			entry:       testDirEntry{mode: fs.ModeDir | 0o755},
 			targetState: &file.State{Mode: fs.ModeDir | 0o755},
 			// No change in state
 			wantState: &file.State{Mode: fs.ModeDir | 0o755},
-			// No error, so walk will continue with pkg item's contents
+			// No error, so walk will continue with the item's contents
 			wantErr: nil,
 		},
-		"target links to current item dir": {
+		"target already links to current dir item": {
 			item:  "item",
 			entry: testDirEntry{mode: fs.ModeDir | 0o755},
 			targetState: &file.State{
@@ -77,10 +77,10 @@ func TestInstallOp(t *testing.T) {
 				Mode: fs.ModeSymlink,
 				Dest: path.Join(targetToSource, pkg, "item"),
 			},
-			// Do not walk the dir. It's already linked.
+			// Do not walk the dir item. It's already linked.
 			wantErr: fs.SkipDir,
 		},
-		"target links to current item": {
+		"target already links to current non-dir item": {
 			item:  "item",
 			entry: testDirEntry{mode: 0o644},
 			targetState: &file.State{
@@ -93,7 +93,7 @@ func TestInstallOp(t *testing.T) {
 			},
 			wantErr: nil,
 		},
-		"target links to current sub-item": {
+		"target already links to current sub-item": {
 			item:  "dir/sub1/sub2/item",
 			entry: testDirEntry{mode: 0o644},
 			targetState: &file.State{
@@ -129,8 +129,8 @@ func TestInstallOp(t *testing.T) {
 
 func TestInstallOpConflictError(t *testing.T) {
 	tests := map[string]struct {
-		sourceEntry fs.DirEntry
-		targetState *file.State
+		sourceEntry fs.DirEntry // The dir entry for the item
+		targetState *file.State // The existing target state for the item
 	}{
 		"target is dir, source is not dir": {
 			sourceEntry: testDirEntry{mode: 0o644},
@@ -172,9 +172,9 @@ func TestInstallOpConflictError(t *testing.T) {
 
 func TestInstallOpInvalidTarget(t *testing.T) {
 	tests := map[string]struct {
-		targetState *file.State
-		wantErr     error
-		skip        string
+		targetState *file.State // The invalid target state
+		wantErr     error       // The error wrapped by the resulting ErrInvalidTarget
+		skip        string      // The reason to skip this test
 	}{
 		"target is file": {
 			targetState: &file.State{Mode: 0o644},
@@ -202,7 +202,7 @@ func TestInstallOpInvalidTarget(t *testing.T) {
 				TargetToSource: targetToSource,
 			}
 
-			gotState, gotErr := install.Apply(pkg, item, testDirEntry{mode: 0o644}, test.targetState)
+			gotState, gotErr := install.Apply(pkg, item, nil, test.targetState)
 
 			if gotState != nil {
 				t.Errorf("state: want nil, got %v", gotState)
