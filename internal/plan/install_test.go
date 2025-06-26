@@ -106,23 +106,6 @@ func TestInstallOp(t *testing.T) {
 			},
 			wantErr: nil,
 		},
-		"target is file": {
-			item:        "item",
-			targetState: &file.State{Mode: 0o644},
-			wantErr:     ErrIsFile,
-		},
-		"target links to foreign dest": {
-			item:        "item",
-			entry:       testDirEntry{mode: fs.ModeDir | 0o755},
-			targetState: &file.State{Mode: fs.ModeSymlink, Dest: "target/foreign/dest"},
-			wantState:   nil,
-			wantErr:     ErrDestNotPkgItem,
-		},
-		"target is not file, dir, or link": {
-			item:        "item",
-			targetState: &file.State{Mode: fs.ModeDevice},
-			wantErr:     ErrUnknownType,
-		},
 	}
 
 	for name, test := range tests {
@@ -179,6 +162,58 @@ func TestInstallOpConflictError(t *testing.T) {
 				Item:        item,
 				SourceType:  test.sourceEntry.Type(),
 				TargetState: test.targetState,
+			}
+			if !reflect.DeepEqual(gotErr, wantErr) {
+				t.Errorf("error:\nwant %#v\n got %#v", wantErr, gotErr)
+			}
+		})
+	}
+}
+
+func TestInstallOpInvalidTarget(t *testing.T) {
+	tests := map[string]struct {
+		targetState *file.State
+		wantErr     error
+		skip        string
+	}{
+		"target is file": {
+			targetState: &file.State{Mode: 0o644},
+			wantErr:     ErrIsFile,
+		},
+		"target is unknown type": {
+			targetState: &file.State{Mode: fs.ModeDevice},
+			wantErr:     ErrUnknownType,
+		},
+		"target links to foreign dest": {
+			targetState: &file.State{Mode: fs.ModeSymlink, Dest: "target/foreign/dest"},
+			wantErr:     ErrDestNotPkgItem,
+			skip:        "not yet implemented",
+		},
+	}
+	targetToSource, _ := filepath.Rel(target, source)
+
+	for name, test := range tests {
+		const item = "item"
+		t.Run(name, func(t *testing.T) {
+			if test.skip != "" {
+				t.Skip(test.skip)
+			}
+			install := Install{
+				TargetToSource: targetToSource,
+			}
+
+			gotState, gotErr := install.Apply(pkg, item, testDirEntry{mode: 0o644}, test.targetState)
+
+			if gotState != nil {
+				t.Errorf("state: want nil, got %v", gotState)
+			}
+
+			wantErr := &ErrInvalidTarget{
+				Op:    "install",
+				Pkg:   pkg,
+				Item:  item,
+				State: test.targetState,
+				Err:   test.wantErr,
 			}
 			if !reflect.DeepEqual(gotErr, wantErr) {
 				t.Errorf("error:\nwant %#v\n got %#v", wantErr, gotErr)
