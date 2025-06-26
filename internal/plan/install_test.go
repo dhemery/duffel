@@ -116,9 +116,17 @@ func TestInstallOp(t *testing.T) {
 			},
 			wantErr: nil,
 		},
+		"target is link, pkg item is not dir": {
+			item:        "item",
+			entry:       testDirEntry{mode: 0o644},
+			targetState: &file.State{Mode: fs.ModeSymlink, Dest: "target/some/dest"},
+			wantState:   nil,
+			wantErr:     ErrNotDir,
+		},
 		"target item links to foreign dest": {
 			item:        "item",
-			targetState: &file.State{Mode: fs.ModeSymlink, Dest: "current/foreign/dest"},
+			entry:       testDirEntry{mode: fs.ModeDir | 0o755},
+			targetState: &file.State{Mode: fs.ModeSymlink, Dest: "target/foreign/dest"},
 			wantState:   nil,
 			wantErr:     ErrNotPkgItem,
 		},

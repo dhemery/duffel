@@ -12,8 +12,9 @@ import (
 
 var (
 	ErrNotPkgItem  = errors.New("not a package item")
-	ErrIsDir       = errors.New("is a directory")
-	ErrIsFile      = errors.New("is a file")
+	ErrNotDir      = errors.New("is not a directory")
+	ErrIsDir       = errors.New("target is a directory")
+	ErrIsFile      = errors.New("target is a file")
 	ErrUnknownType = errors.New("not file, dir, or link")
 )
 
@@ -31,6 +32,21 @@ func (e *ErrTargetDest) Error() string {
 }
 
 func (e *ErrTargetDest) Unwrap() error { return e.Err }
+
+type ErrDestType struct {
+	Op   string
+	Pkg  string
+	Item string
+	Type fs.FileMode
+	Err  error
+}
+
+func (e *ErrDestType) Error() string {
+	return fmt.Sprintf("%s package %s item %s (%s): %s",
+		e.Op, e.Pkg, e.Item, e.Type, e.Err)
+}
+
+func (e *ErrDestType) Unwrap() error { return e.Err }
 
 type ErrTargetType struct {
 	Op   string
@@ -119,6 +135,13 @@ func (i Install) Apply(pkg, item string, entry fs.DirEntry, targetState *file.St
 			err = fs.SkipDir
 		}
 		return targetState, err
+	}
+
+	if !entry.IsDir() {
+		return nil, &ErrDestType{
+			Op: "install", Pkg: pkg, Item: item,
+			Type: entry.Type(), Err: ErrNotDir,
+		}
 	}
 
 	return nil, &ErrTargetDest{
