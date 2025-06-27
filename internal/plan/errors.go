@@ -5,19 +5,16 @@ import (
 	"fmt"
 	"io/fs"
 	"path"
-
-	"github.com/dhemery/duffel/internal/file"
 )
 
 var (
 	ErrDestNotPkgItem = errors.New("destination is not a package item")
-	ErrNotDir         = errors.New("is not a directory")
 	ErrIsDir          = errors.New("is a directory")
 	ErrIsFile         = errors.New("is a file")
 	ErrUnknownType    = errors.New("is not a file, dir, or link")
 )
 
-type ErrInvalidTarget struct {
+type TargetError struct {
 	Op   string
 	Pkg  string
 	Item string
@@ -26,28 +23,20 @@ type ErrInvalidTarget struct {
 	Err  error
 }
 
-func (e *ErrInvalidTarget) Error() string {
+func (e *TargetError) Error() string {
 	pkgItem := path.Join(e.Pkg, e.Item)
-	return fmt.Sprintf("%s %s cannot alter target %s (%s): %s",
+	return fmt.Sprintf("%s %q: cannot alter target %q (%s): %s",
 		e.Op, pkgItem, e.Item, typeString(e.Type), e.Err)
 }
 
-func stateString(s *file.State) string {
-	result := typeString(s.Mode)
-	if s.Dest != "" {
-		result += " " + s.Dest
-	}
-	return result
-}
+func (e *TargetError) Unwrap() error { return e.Err }
 
-func (e *ErrInvalidTarget) Unwrap() error { return e.Err }
-
-type ErrConflict struct {
-	Op          string
-	Pkg         string
-	Item        string
-	SourceType  fs.FileMode
-	TargetState *file.State
+type ConflictError struct {
+	Op         string
+	Pkg        string
+	Item       string
+	ItemType   fs.FileMode
+	TargetType fs.FileMode
 }
 
 func typeString(t fs.FileMode) string {
@@ -63,8 +52,8 @@ func typeString(t fs.FileMode) string {
 	}
 }
 
-func (e *ErrConflict) Error() string {
+func (e *ConflictError) Error() string {
 	pkgItem := path.Join(e.Pkg, e.Item)
-	return fmt.Sprintf("%s cannot replace or merge target %s (%s) with source %s (%s)",
-		e.Op, e.Item, stateString(e.TargetState), pkgItem, typeString(e.SourceType))
+	return fmt.Sprintf("%s %q: cannot replace or merge target %q with package item %q: target is a %s, package item is a %s",
+		e.Op, pkgItem, e.Item, pkgItem, typeString(e.TargetType), typeString(e.ItemType))
 }

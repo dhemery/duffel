@@ -156,15 +156,15 @@ func TestInstallOpConflictError(t *testing.T) {
 				t.Errorf("state: want nil, got %v", gotState)
 			}
 
-			wantErr := &ErrConflict{
-				Op:          "install",
-				Pkg:         pkg,
-				Item:        item,
-				SourceType:  test.sourceEntry.Type(),
-				TargetState: test.targetState,
+			wantErr := &ConflictError{
+				Op:         "install",
+				Pkg:        pkg,
+				Item:       item,
+				ItemType:   test.sourceEntry.Type(),
+				TargetType: test.targetState.Mode.Type(),
 			}
 			if gotErr.Error() != wantErr.Error() {
-				t.Errorf("error:\nwant %#v\n got %#v", wantErr, gotErr)
+				t.Errorf("error:\nwant %s\n got %s", wantErr, gotErr)
 			}
 		})
 	}
@@ -208,7 +208,7 @@ func TestInstallOpInvalidTarget(t *testing.T) {
 				t.Errorf("state: want nil, got %v", gotState)
 			}
 
-			wantErr := &ErrInvalidTarget{
+			wantErr := &TargetError{
 				Op:   "install",
 				Pkg:  pkg,
 				Item: item,
@@ -217,7 +217,7 @@ func TestInstallOpInvalidTarget(t *testing.T) {
 				Err:  test.wantErr,
 			}
 			if gotErr.Error() != wantErr.Error() {
-				t.Errorf("error:\nwant %#v\n got %#v", wantErr, gotErr)
+				t.Errorf("error:\nwant %s\n got %s", wantErr, gotErr)
 			}
 		})
 	}

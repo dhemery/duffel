@@ -33,7 +33,7 @@ func (i Install) Apply(pkg, item string, entry fs.DirEntry, targetState *file.St
 	}
 
 	if targetState.Mode.IsRegular() {
-		return nil, &ErrInvalidTarget{
+		return nil, &TargetError{
 			Op: "install", Pkg: pkg, Item: item,
 			Type: targetState.Mode.Type(),
 			Err:  ErrIsFile,
@@ -45,15 +45,15 @@ func (i Install) Apply(pkg, item string, entry fs.DirEntry, targetState *file.St
 		if entry.IsDir() {
 			return targetState, nil
 		}
-		return nil, &ErrConflict{
+		return nil, &ConflictError{
 			Op: "install", Pkg: pkg, Item: item,
-			SourceType: entry.Type(), TargetState: targetState,
+			ItemType: entry.Type(), TargetType: targetState.Mode.Type(),
 		}
 	}
 
 	if targetState.Mode.Type() != fs.ModeSymlink {
 		// Target item is not file, dir, or link.
-		return nil, &ErrInvalidTarget{
+		return nil, &TargetError{
 			Op: "install", Pkg: pkg, Item: item,
 			Type: targetState.Mode.Type(),
 			Err:  ErrUnknownType,
@@ -69,13 +69,13 @@ func (i Install) Apply(pkg, item string, entry fs.DirEntry, targetState *file.St
 	}
 
 	if !entry.IsDir() {
-		return nil, &ErrConflict{
+		return nil, &ConflictError{
 			Op: "install", Pkg: pkg, Item: item,
-			SourceType: entry.Type(), TargetState: targetState,
+			ItemType: entry.Type(), TargetType: targetState.Mode.Type(),
 		}
 	}
 
-	return nil, &ErrInvalidTarget{
+	return nil, &TargetError{
 		Op: "install", Pkg: pkg, Item: item,
 		Type: targetState.Mode.Type(),
 		Err:  ErrDestNotPkgItem,
