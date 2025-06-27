@@ -3,15 +3,10 @@ package plan
 import (
 	"encoding/json"
 	"io/fs"
-	"iter"
 	"path"
 
 	"github.com/dhemery/duffel/internal/file"
 )
-
-type specList interface {
-	ByItem() iter.Seq2[string, Spec]
-}
 
 // A Plan is the sequence of tasks
 // to bring the file tree rooted at Target to the desired state.
