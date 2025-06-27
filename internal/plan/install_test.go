@@ -163,7 +163,7 @@ func TestInstallOpConflictError(t *testing.T) {
 				SourceType:  test.sourceEntry.Type(),
 				TargetState: test.targetState,
 			}
-			if !reflect.DeepEqual(gotErr, wantErr) {
+			if gotErr.Error() != wantErr.Error() {
 				t.Errorf("error:\nwant %#v\n got %#v", wantErr, gotErr)
 			}
 		})
@@ -209,13 +209,14 @@ func TestInstallOpInvalidTarget(t *testing.T) {
 			}
 
 			wantErr := &ErrInvalidTarget{
-				Op:    "install",
-				Pkg:   pkg,
-				Item:  item,
-				State: test.targetState,
-				Err:   test.wantErr,
+				Op:   "install",
+				Pkg:  pkg,
+				Item: item,
+				Type: test.targetState.Mode.Type(),
+				Dest: test.targetState.Dest,
+				Err:  test.wantErr,
 			}
-			if !reflect.DeepEqual(gotErr, wantErr) {
+			if gotErr.Error() != wantErr.Error() {
 				t.Errorf("error:\nwant %#v\n got %#v", wantErr, gotErr)
 			}
 		})

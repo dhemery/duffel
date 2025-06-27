@@ -1,73 +1,12 @@
 package plan
 
 import (
-	"errors"
-	"fmt"
 	"io/fs"
 	"path"
 	"strings"
 
 	"github.com/dhemery/duffel/internal/file"
 )
-
-var (
-	ErrDestNotPkgItem = errors.New("destination is not a package item")
-	ErrNotDir         = errors.New("is not a directory")
-	ErrIsDir          = errors.New("is a directory")
-	ErrIsFile         = errors.New("is a file")
-	ErrUnknownType    = errors.New("is not a file, dir, or link")
-)
-
-type ErrInvalidTarget struct {
-	Op    string
-	Pkg   string
-	Item  string
-	State *file.State
-	Err   error
-}
-
-func (e *ErrInvalidTarget) Error() string {
-	pkgItem := path.Join(e.Pkg, e.Item)
-	return fmt.Sprintf("cannot %s source %s: existing target %s (%s) %s",
-		e.Op, pkgItem, e.Item, stateString(e.State), e.Err)
-}
-
-func stateString(s *file.State) string {
-	result := typeString(s.Mode)
-	if s.Dest != "" {
-		result += " " + s.Dest
-	}
-	return result
-}
-
-func (e *ErrInvalidTarget) Unwrap() error { return e.Err }
-
-type ErrConflict struct {
-	Op          string
-	Pkg         string
-	Item        string
-	SourceType  fs.FileMode
-	TargetState *file.State
-}
-
-func typeString(t fs.FileMode) string {
-	switch {
-	case t.IsRegular():
-		return "regular file"
-	case t.IsDir():
-		return "directory"
-	case t&fs.ModeSymlink != 0:
-		return "symlink"
-	default:
-		return "unknown file type " + t.String()
-	}
-}
-
-func (e *ErrConflict) Error() string {
-	pkgItem := path.Join(e.Pkg, e.Item)
-	return fmt.Sprintf("%s cannot replace or merge target %s (%s) with source %s (%s)",
-		e.Op, e.Item, stateString(e.TargetState), pkgItem, typeString(e.SourceType))
-}
 
 // Install is an [ItemOp] that describes the installed states
 // of the target files that correspond to the given pkg items.
@@ -96,7 +35,8 @@ func (i Install) Apply(pkg, item string, entry fs.DirEntry, targetState *file.St
 	if targetState.Mode.IsRegular() {
 		return nil, &ErrInvalidTarget{
 			Op: "install", Pkg: pkg, Item: item,
-			State: targetState, Err: ErrIsFile,
+			Type: targetState.Mode.Type(),
+			Err:  ErrIsFile,
 		}
 	}
 
@@ -115,7 +55,8 @@ func (i Install) Apply(pkg, item string, entry fs.DirEntry, targetState *file.St
 		// Target item is not file, dir, or link.
 		return nil, &ErrInvalidTarget{
 			Op: "install", Pkg: pkg, Item: item,
-			State: targetState, Err: ErrUnknownType,
+			Type: targetState.Mode.Type(),
+			Err:  ErrUnknownType,
 		}
 	}
 
@@ -136,7 +77,8 @@ func (i Install) Apply(pkg, item string, entry fs.DirEntry, targetState *file.St
 
 	return nil, &ErrInvalidTarget{
 		Op: "install", Pkg: pkg, Item: item,
-		State: targetState, Err: ErrDestNotPkgItem,
+		Type: targetState.Mode.Type(),
+		Err:  ErrDestNotPkgItem,
 	}
 }
 
