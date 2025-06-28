@@ -110,9 +110,7 @@ func TestInstallOp(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			install := Install{
-				TargetToSource: targetToSource,
-			}
+			install := Install{Source: source, Target: target}
 
 			gotState, gotErr := install.Apply(pkg, test.item, test.entry, test.targetState)
 
@@ -141,14 +139,11 @@ func TestInstallOpConflictError(t *testing.T) {
 			targetState: &file.State{Mode: fs.ModeSymlink, Dest: "target/some/dest"},
 		},
 	}
-	targetToSource, _ := filepath.Rel(target, source)
 
 	for name, test := range tests {
 		const item = "item"
 		t.Run(name, func(t *testing.T) {
-			install := Install{
-				TargetToSource: targetToSource,
-			}
+			install := Install{Source: source, Target: target}
 
 			gotState, gotErr := install.Apply(pkg, item, test.sourceEntry, test.targetState)
 
@@ -186,7 +181,6 @@ func TestInstallOpInvalidTarget(t *testing.T) {
 			skip:        "not yet implemented",
 		},
 	}
-	targetToSource, _ := filepath.Rel(target, source)
 
 	for name, test := range tests {
 		const item = "item"
@@ -194,9 +188,7 @@ func TestInstallOpInvalidTarget(t *testing.T) {
 			if test.skip != "" {
 				t.Skip(test.skip)
 			}
-			install := Install{
-				TargetToSource: targetToSource,
-			}
+			install := Install{Source: source, Target: target}
 
 			gotState, gotErr := install.Apply(pkg, item, nil, test.targetState)
 

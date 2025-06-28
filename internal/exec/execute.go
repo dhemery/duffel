@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"io"
 	"io/fs"
-	"path/filepath"
 
 	"github.com/dhemery/duffel/internal/file"
 	"github.com/dhemery/duffel/internal/plan"
@@ -18,14 +17,7 @@ type Request struct {
 }
 
 func Execute(r *Request, dryRun bool, w io.Writer) error {
-	targetToSource, err := filepath.Rel(r.Target, r.Source)
-	if err != nil {
-		return err
-	}
-
-	install := plan.Install{
-		TargetToSource: targetToSource,
-	}
+	install := plan.Install{Source: r.Source, Target: r.Target}
 
 	var pkgOps []plan.PkgOp
 	for _, pkg := range r.Pkgs {

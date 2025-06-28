@@ -3,6 +3,7 @@ package plan
 import (
 	"io/fs"
 	"path"
+	"path/filepath"
 	"strings"
 
 	"github.com/dhemery/duffel/internal/file"
@@ -11,7 +12,8 @@ import (
 // Install is an [ItemOp] that describes the installed states
 // of the target files that correspond to the given pkg items.
 type Install struct {
-	TargetToSource string // The relative path from the target dir to the source dir.
+	Source string
+	Target string
 }
 
 // Apply describes the installed state
@@ -21,8 +23,7 @@ type Install struct {
 // TargetState describes the state of the target file
 // after earlier tasks.
 func (i Install) Apply(pkg, item string, entry fs.DirEntry, targetState *file.State) (*file.State, error) {
-	pkgItem := path.Join(pkg, item)
-	itemAsDest := i.toLinkDest(pkgItem)
+	itemAsDest := i.toLinkDest(pkg, item)
 
 	if targetState == nil {
 		// There is no target item, so we're free to create a link to the pkg item.
@@ -96,8 +97,12 @@ func (i Install) Apply(pkg, item string, entry fs.DirEntry, targetState *file.St
 	}
 }
 
-func (i Install) toLinkDest(pkgItem string) string {
-	depth := strings.Count(pkgItem, "/") - 1
-	prefix := strings.Repeat("../", depth)
-	return path.Join(prefix, i.TargetToSource, pkgItem)
+func (i Install) toLinkDest(pkg, item string) string {
+	targetToSource, err := filepath.Rel(i.Target, i.Source)
+	if err != nil {
+		panic(err)
+	}
+	itemDepth := strings.Count(item, "/")
+	itemToTarget := strings.Repeat("../", itemDepth)
+	return path.Join(itemToTarget, targetToSource, pkg, item)
 }
