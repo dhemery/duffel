@@ -4,12 +4,14 @@ import (
 	"encoding/json"
 	"errors"
 	"io/fs"
+	"path"
 )
 
 // A State describes the state of an existing or planned file.
 type State struct {
-	Mode fs.FileMode
-	Dest string
+	Mode     fs.FileMode
+	Dest     string
+	DestMode fs.FileMode
 }
 
 // MarshalJSON returns the JSON representation of s.
@@ -43,7 +45,13 @@ func (s StateLoader) Load(name string) (*State, error) {
 		if err != nil {
 			return nil, err
 		}
+		destFull := path.Join(path.Dir(name), dest)
+		destInfo, err := fs.Lstat(s.FS, destFull)
+		if err != nil {
+			return nil, err
+		}
 		state.Dest = dest
+		state.DestMode = destInfo.Mode()
 	}
 	return state, nil
 }

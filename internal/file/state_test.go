@@ -12,39 +12,59 @@ import (
 )
 
 func TestStateLoader(t *testing.T) {
-	const itemName = "item"
 	var (
-		anLstatError   = errors.New("error returned from lstat")
-		aReadLinkError = errors.New("error returned from readlink")
+		anLstatError    = errors.New("error returned from lstat")
+		aReadLinkError  = errors.New("error returned from readlink")
+		aDestLstatError = errors.New("error returned from dest lstat")
 	)
 
 	tests := map[string]struct {
-		file      duftest.TestFile
+		itemName  string
+		files     fs.FS
 		wantState *State
 		wantError error
 	}{
 		"file": {
-			file:      duftest.TestFile{Mode: 0o644},
+			itemName:  "item",
+			files:     duftest.TestFS{"item": duftest.TestFile{Mode: 0o644}},
 			wantState: &State{Mode: 0o644},
 		},
 		"dir": {
-			file:      duftest.TestFile{Mode: fs.ModeDir | 0o755},
+			itemName:  "item",
+			files:     duftest.TestFS{"item": duftest.TestFile{Mode: fs.ModeDir | 0o755}},
 			wantState: &State{Mode: fs.ModeDir | 0o755},
 		},
 		"link": {
-			file:      duftest.TestFile{Mode: fs.ModeSymlink, Dest: "test/link/dest"},
-			wantState: &State{Mode: fs.ModeSymlink, Dest: "test/link/dest"},
+			itemName: "dir1/dir2/item",
+			files: duftest.TestFS{
+				"dir1/dir2/item": duftest.TestFile{Mode: fs.ModeSymlink, Dest: "../dest"},
+				"dir1/dest":      duftest.TestFile{Mode: 0o644},
+			},
+			wantState: &State{Mode: fs.ModeSymlink, Dest: "../dest", DestMode: 0o644},
 		},
-		"lstat error": {
-			file:      duftest.TestFile{LstatErr: anLstatError},
+		"file lstat error": {
+			itemName:  "item",
+			files:     duftest.TestFS{"item": duftest.TestFile{LstatErr: anLstatError}},
 			wantError: anLstatError,
 		},
-		"readlink error": {
-			file:      duftest.TestFile{Mode: fs.ModeSymlink, ReadLinkErr: aReadLinkError},
+		"file readlink error": {
+			itemName: "item",
+			files: duftest.TestFS{
+				"item": duftest.TestFile{Mode: fs.ModeSymlink, ReadLinkErr: aReadLinkError},
+			},
 			wantError: aReadLinkError,
 		},
+		"dest lstat error": {
+			itemName: "dir1/item",
+			files: duftest.TestFS{
+				"dir1/item": duftest.TestFile{Mode: fs.ModeSymlink, Dest: "../dest"},
+				"dest":      duftest.TestFile{LstatErr: aDestLstatError},
+			},
+			wantError: aDestLstatError,
+		},
 		"no file": {
-			file:      duftest.TestFile{LstatErr: fs.ErrNotExist},
+			itemName:  "item",
+			files:     duftest.TestFS{"item": duftest.TestFile{LstatErr: fs.ErrNotExist}},
 			wantState: nil,
 			wantError: nil,
 		},
@@ -52,10 +72,10 @@ func TestStateLoader(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			fsys := duftest.TestFS{itemName: test.file}
+			fsys := test.files
 			loader := StateLoader{FS: fsys}
 
-			state, err := loader.Load(itemName)
+			state, err := loader.Load(test.itemName)
 
 			if !errors.Is(err, test.wantError) {
 				t.Errorf("error: want %v, got %v", test.wantError, err)

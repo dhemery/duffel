@@ -50,10 +50,11 @@ func (fsys TestFS) ReadLink(name string) (string, error) {
 }
 
 type TestFile struct {
-	Mode        fs.FileMode
-	Dest        string
-	LstatErr    error
-	ReadLinkErr error
+	Mode         fs.FileMode
+	Dest         string
+	LstatErr     error
+	ReadLinkErr  error
+	DestLstatErr error
 }
 
 type TestFileInfo struct {

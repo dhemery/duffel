@@ -18,7 +18,7 @@ func (s Spec) String() string {
 
 type MissFunc func(item string) (*file.State, error)
 
-// An Index collects Specs by item name.
+// A SpecCache collects Specs by item name.
 type SpecCache struct {
 	specs map[string]Spec
 	miss  MissFunc
