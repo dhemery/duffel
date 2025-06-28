@@ -84,6 +84,14 @@ func (i Install) Apply(pkg, item string, entry fs.DirEntry, targetState *file.St
 		return targetState, err
 	}
 
+	if !targetState.DestMode.IsDir() {
+		// Target links to a non-dir. Cannot merge with that.
+		return nil, &TargetError{
+			Op: "install", Pkg: pkg, Item: item,
+			State: targetState,
+		}
+	}
+
 	if !entry.IsDir() {
 		return nil, &ConflictError{
 			Op: "install", Pkg: pkg, Item: item,

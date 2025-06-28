@@ -130,13 +130,13 @@ func TestInstallOpConflictError(t *testing.T) {
 		sourceEntry fs.DirEntry // The dir entry for the item
 		targetState *file.State // The existing target state for the item
 	}{
-		"target is dir, source is not dir": {
+		"target is a dir, source is not a dir": {
 			sourceEntry: testDirEntry{mode: 0o644},
 			targetState: &file.State{Mode: fs.ModeDir | 0o755},
 		},
-		"target is link, source is not dir": {
+		"target links to a dir, source is not a dir": {
 			sourceEntry: testDirEntry{mode: 0o644},
-			targetState: &file.State{Mode: fs.ModeSymlink, Dest: "target/some/dest"},
+			targetState: &file.State{Mode: fs.ModeSymlink, Dest: "target/some/dest", DestMode: fs.ModeDir | 0o755},
 		},
 	}
 
@@ -170,15 +170,14 @@ func TestInstallOpInvalidTarget(t *testing.T) {
 		targetState *file.State // The invalid target state
 		skip        string      // The reason to skip this test
 	}{
-		"target is file": {
+		"target is a file": {
 			targetState: &file.State{Mode: 0o644},
 		},
 		"target is unknown type": {
 			targetState: &file.State{Mode: fs.ModeDevice},
 		},
-		"target links to foreign dest": {
-			targetState: &file.State{Mode: fs.ModeSymlink, Dest: "target/foreign/dest"},
-			skip:        "not yet implemented",
+		"target links to a non-dir": {
+			targetState: &file.State{Mode: fs.ModeSymlink, Dest: "link/to/file", DestMode: 0o644},
 		},
 	}
 
