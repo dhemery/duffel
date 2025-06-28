@@ -27,7 +27,7 @@ func TestInstallOp(t *testing.T) {
 		wantState   *file.State // State returned by Apply
 		wantErr     error       // Error returned by Apply
 	}{
-		"link target to new dir item": {
+		"create new target link to dir item": {
 			item:        "item",
 			entry:       testDirEntry{mode: fs.ModeDir | 0o755},
 			targetState: nil,
@@ -37,23 +37,23 @@ func TestInstallOp(t *testing.T) {
 			},
 			wantErr: fs.SkipDir, // Do not walk the dir. Linking to it suffices.
 		},
-		"link target to new sub-item": {
-			item:        "dir/sub1/sub2/item",
-			targetState: nil,
-			entry:       testDirEntry{mode: 0o644},
-			wantState: &file.State{
-				Mode: fs.ModeSymlink,
-				Dest: path.Join("..", "..", "..", targetToSource, pkg, "dir/sub1/sub2/item"),
-			},
-			wantErr: nil,
-		},
-		"link target to new non-dir item": {
+		"create new target link to non-dir item": {
 			item:        "item",
 			targetState: nil,
 			entry:       testDirEntry{mode: 0o644},
 			wantState: &file.State{
 				Mode: fs.ModeSymlink,
 				Dest: path.Join(targetToSource, pkg, "item"),
+			},
+			wantErr: nil,
+		},
+		"create new target link to sub-item": {
+			item:        "dir/sub1/sub2/item",
+			targetState: nil,
+			entry:       testDirEntry{mode: 0o644},
+			wantState: &file.State{
+				Mode: fs.ModeSymlink,
+				Dest: path.Join("..", "..", "..", targetToSource, pkg, "dir/sub1/sub2/item"),
 			},
 			wantErr: nil,
 		},
@@ -157,11 +157,11 @@ func TestInstallOpConflictError(t *testing.T) {
 			}
 
 			wantErr := &ConflictError{
-				Op:         "install",
-				Pkg:        pkg,
-				Item:       item,
-				ItemType:   test.sourceEntry.Type(),
-				TargetType: test.targetState.Mode.Type(),
+				Op:          "install",
+				Pkg:         pkg,
+				Item:        item,
+				ItemType:    test.sourceEntry.Type(),
+				TargetState: test.targetState,
 			}
 			if gotErr.Error() != wantErr.Error() {
 				t.Errorf("error:\nwant %s\n got %s", wantErr, gotErr)
@@ -173,20 +173,16 @@ func TestInstallOpConflictError(t *testing.T) {
 func TestInstallOpInvalidTarget(t *testing.T) {
 	tests := map[string]struct {
 		targetState *file.State // The invalid target state
-		wantErr     error       // The error wrapped by the resulting ErrInvalidTarget
 		skip        string      // The reason to skip this test
 	}{
 		"target is file": {
 			targetState: &file.State{Mode: 0o644},
-			wantErr:     ErrIsFile,
 		},
 		"target is unknown type": {
 			targetState: &file.State{Mode: fs.ModeDevice},
-			wantErr:     ErrUnknownType,
 		},
 		"target links to foreign dest": {
 			targetState: &file.State{Mode: fs.ModeSymlink, Dest: "target/foreign/dest"},
-			wantErr:     ErrDestNotPkgItem,
 			skip:        "not yet implemented",
 		},
 	}
@@ -209,12 +205,10 @@ func TestInstallOpInvalidTarget(t *testing.T) {
 			}
 
 			wantErr := &TargetError{
-				Op:   "install",
-				Pkg:  pkg,
-				Item: item,
-				Type: test.targetState.Mode.Type(),
-				Dest: test.targetState.Dest,
-				Err:  test.wantErr,
+				Op:    "install",
+				Pkg:   pkg,
+				Item:  item,
+				State: test.targetState,
 			}
 			if gotErr.Error() != wantErr.Error() {
 				t.Errorf("error:\nwant %s\n got %s", wantErr, gotErr)

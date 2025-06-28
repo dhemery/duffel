@@ -10,6 +10,7 @@ import (
 	"testing/fstest"
 
 	"github.com/dhemery/duffel/internal/duftest"
+	"github.com/dhemery/duffel/internal/file"
 	"github.com/dhemery/duffel/internal/plan"
 )
 
@@ -117,9 +118,9 @@ func TestExecuteEmptyTargetWithConflictingPackageItems(t *testing.T) {
 	files := duftest.NewFS()
 	files.M[target] = &fstest.MapFile{Mode: fs.ModeDir | 0o755}
 
-	// Conflict: pkg2/dirItem and pkg1/dirItem install to same target path
-	files.M[path.Join(source, "pkg1/dirItem")] = &fstest.MapFile{Mode: fs.ModeDir | 0o755}
-	files.M[path.Join(source, "pkg2/dirItem")] = &fstest.MapFile{Mode: fs.ModeDir | 0o755}
+	// Conflict: pkg1/fileItem and pkg2/fileItem install to same target path
+	files.M[path.Join(source, "pkg1/fileItem")] = &fstest.MapFile{Mode: 0o644}
+	files.M[path.Join(source, "pkg2/fileItem")] = &fstest.MapFile{Mode: 0o644}
 
 	req := &Request{
 		FS:     files,
@@ -130,9 +131,13 @@ func TestExecuteEmptyTargetWithConflictingPackageItems(t *testing.T) {
 
 	err := Execute(req, false, nil)
 
-	wantErr := plan.ErrDestNotPkgItem
-	if !errors.Is(err, wantErr) {
-		t.Errorf("want error %v, got %v", wantErr, err)
+	wantErr := &plan.ConflictError{
+		Op: "install", Pkg: "pkg2", Item: "fileItem",
+		ItemType:    0o644,
+		TargetState: &file.State{Mode: fs.ModeSymlink, Dest: "../source/pkg1/fileItem", DestMode: 0o644},
+	}
+	if err.Error() != wantErr.Error() {
+		t.Errorf("error:\nwant %v\n got %v", wantErr, err)
 	}
 
 	if t.Failed() {

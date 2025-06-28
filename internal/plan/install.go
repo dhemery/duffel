@@ -25,29 +25,40 @@ func (i Install) Apply(pkg, item string, entry fs.DirEntry, targetState *file.St
 	itemAsDest := i.toLinkDest(pkgItem)
 
 	if targetState == nil {
+		// There is no target item, so we're free to create a link to the pkg item.
 		var err error
 		if entry.IsDir() {
+			// Linking to the dir installs the dir and its contents.
+			// There's no need to walk its contents.
 			err = fs.SkipDir
 		}
 		return &file.State{Mode: fs.ModeSymlink, Dest: itemAsDest}, err
 	}
 
+	// At this point, we know that the target exists,
+	// either on the file system or as planned by a previous operation.
+
 	if targetState.Mode.IsRegular() {
+		// Cannot modify an existing regular file.
 		return nil, &TargetError{
 			Op: "install", Pkg: pkg, Item: item,
-			Type: targetState.Mode.Type(),
-			Err:  ErrIsFile,
+			State: targetState,
 		}
 	}
 
 	if targetState.Mode.IsDir() {
-		// If target and pkg item are both dirs, install the pkg item's contents
 		if entry.IsDir() {
+			// The target and pkg item are both dirs.
+			// Return the target state unchanged,
+			// and a nil error to walk the pkg item's contents.
 			return targetState, nil
 		}
+
+		// The target is a dir, but the pkg item is not.
+		// Cannot merge the target dir with a non-dir pkg item.
 		return nil, &ConflictError{
 			Op: "install", Pkg: pkg, Item: item,
-			ItemType: entry.Type(), TargetType: targetState.Mode.Type(),
+			ItemType: entry.Type(), TargetState: targetState,
 		}
 	}
 
@@ -55,14 +66,18 @@ func (i Install) Apply(pkg, item string, entry fs.DirEntry, targetState *file.St
 		// Target item is not file, dir, or link.
 		return nil, &TargetError{
 			Op: "install", Pkg: pkg, Item: item,
-			Type: targetState.Mode.Type(),
-			Err:  ErrUnknownType,
+			State: targetState,
 		}
 	}
 
+	// At this point, we know that the existing target is a symlink.
+
 	if targetState.Dest == itemAsDest {
+		// The target already links to this pkg item.
+		// There's nothing more to do.
 		var err error
 		if entry.IsDir() {
+			// We're done with this item. Do not walk its contents.
 			err = fs.SkipDir
 		}
 		return targetState, err
@@ -71,14 +86,13 @@ func (i Install) Apply(pkg, item string, entry fs.DirEntry, targetState *file.St
 	if !entry.IsDir() {
 		return nil, &ConflictError{
 			Op: "install", Pkg: pkg, Item: item,
-			ItemType: entry.Type(), TargetType: targetState.Mode.Type(),
+			ItemType: entry.Type(), TargetState: targetState,
 		}
 	}
 
 	return nil, &TargetError{
 		Op: "install", Pkg: pkg, Item: item,
-		Type: targetState.Mode.Type(),
-		Err:  ErrDestNotPkgItem,
+		State: targetState,
 	}
 }
 
