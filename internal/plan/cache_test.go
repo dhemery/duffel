@@ -2,10 +2,10 @@ package plan
 
 import (
 	"io/fs"
-	"reflect"
 	"testing"
 
 	"github.com/dhemery/duffel/internal/file"
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestSpecCache(t *testing.T) {
@@ -24,7 +24,7 @@ func TestSpecCache(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	if !reflect.DeepEqual(gotState, missState) {
+	if !cmp.Equal(gotState, missState) {
 		t.Errorf("state before set:\nwant %v\n got %v", missState, gotState)
 	}
 
@@ -36,7 +36,7 @@ func TestSpecCache(t *testing.T) {
 		t.Error(err)
 	}
 
-	if !reflect.DeepEqual(gotState, updatedState) {
+	if !cmp.Equal(gotState, updatedState) {
 		t.Errorf("state after set:\nwant %v\n got %v", updatedState, gotState)
 	}
 }

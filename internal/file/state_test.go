@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"errors"
 	"io/fs"
-	"reflect"
 	"testing"
 
 	"github.com/dhemery/duffel/internal/duftest"
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestStateLoader(t *testing.T) {
@@ -81,7 +81,7 @@ func TestStateLoader(t *testing.T) {
 				t.Errorf("error: want %v, got %v", test.wantError, err)
 			}
 
-			if !reflect.DeepEqual(state, test.wantState) {
+			if !cmp.Equal(state, test.wantState) {
 				t.Errorf("state:\nwant %v\n got %v", test.wantState, state)
 			}
 		})

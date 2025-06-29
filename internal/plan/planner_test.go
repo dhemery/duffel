@@ -4,10 +4,10 @@ import (
 	"errors"
 	"io/fs"
 	"path"
-	"reflect"
 	"testing"
 
 	"github.com/dhemery/duffel/internal/file"
+	"github.com/google/go-cmp/cmp"
 )
 
 type indexValue struct {
@@ -106,7 +106,7 @@ func TestPkgOpApplyItemOp(t *testing.T) {
 				if gotItem != itemName {
 					t.Errorf("item op: want item %q, got %q", itemName, gotItem)
 				}
-				if !reflect.DeepEqual(gotState, test.indexState) {
+				if !cmp.Equal(gotState, test.indexState) {
 					t.Errorf("item op: want state %v, got %v", test.indexState, gotState)
 				}
 				return test.itemOpState, test.itemOpError
@@ -133,7 +133,7 @@ func TestPkgOpApplyItemOp(t *testing.T) {
 			if v, ok := testIndex[itemName]; ok {
 				gotState = v.state
 			}
-			if !reflect.DeepEqual(gotState, test.wantState) {
+			if !cmp.Equal(gotState, test.wantState) {
 				t.Errorf("desired state:\nwant %v\ngot  %v", test.wantState, gotState)
 			}
 		})

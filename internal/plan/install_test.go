@@ -5,10 +5,11 @@ import (
 	"io/fs"
 	"path"
 	"path/filepath"
-	"reflect"
 	"testing"
 
 	"github.com/dhemery/duffel/internal/file"
+
+	"github.com/google/go-cmp/cmp"
 )
 
 const (
@@ -118,7 +119,7 @@ func TestInstallOp(t *testing.T) {
 				t.Errorf("error:\nwant %v\ngot  %v", test.wantErr, gotErr)
 			}
 
-			if !reflect.DeepEqual(gotState, test.wantState) {
+			if !cmp.Equal(gotState, test.wantState) {
 				t.Errorf("state result:\nwant %#v\ngot  %#v", test.wantState, gotState)
 			}
 		})
