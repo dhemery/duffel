@@ -14,7 +14,7 @@ func TestSpecCache(t *testing.T) {
 
 	miss := func(gotName string) (*file.State, error) {
 		if gotName != name {
-			t.Errorf("miss: want name %s, got %s", gotName, name)
+			t.Errorf("miss: got name %s, want %s", name, gotName)
 		}
 		return missState, nil
 	}
@@ -25,7 +25,7 @@ func TestSpecCache(t *testing.T) {
 		t.Error(err)
 	}
 	if !cmp.Equal(gotState, missState) {
-		t.Errorf("state before set:\nwant %v\n got %v", missState, gotState)
+		t.Errorf("state before set:\n got %v\nwant %v", gotState, missState)
 	}
 
 	updatedState := &file.State{Mode: fs.ModeSymlink, Dest: "updates/state/dest"}
@@ -37,6 +37,6 @@ func TestSpecCache(t *testing.T) {
 	}
 
 	if !cmp.Equal(gotState, updatedState) {
-		t.Errorf("state after set:\nwant %v\n got %v", updatedState, gotState)
+		t.Errorf("state after set:\n got %v\nwant %v", gotState, updatedState)
 	}
 }

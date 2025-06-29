@@ -87,13 +87,13 @@ func TestExecuteEmptyTargetNoConflictingPackageItems(t *testing.T) {
 			wantMode := fs.ModeSymlink
 			gotMode := gotFile.Mode
 			if gotMode != wantMode {
-				t.Errorf("%q want mode %s, got %s", wantTargetItem, wantMode, gotMode)
+				t.Errorf("%q mode: got%s, want %s", wantTargetItem, gotMode, wantMode)
 			}
 
 			wantDest := path.Join(targetToSource, pkg, item.name)
 			gotDest := string(gotFile.Data)
 			if gotDest != wantDest {
-				t.Errorf("%q want dest %s, got %s", wantTargetItem, wantDest, gotDest)
+				t.Errorf("%q dest: got %q, want %q", wantTargetItem, gotDest, wantDest)
 			}
 		}
 	}
@@ -189,7 +189,7 @@ func TestExecuteDirErrors(t *testing.T) {
 			err := Execute(r, false, nil)
 
 			if !errors.Is(err, test.wantError) {
-				t.Errorf("want error %v, got %v", test.wantError, err)
+				t.Errorf("Execute(): got %v, want %v", err, test.wantError)
 			}
 		})
 	}

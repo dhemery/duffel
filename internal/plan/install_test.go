@@ -116,11 +116,11 @@ func TestInstallOp(t *testing.T) {
 			gotState, gotErr := install.Apply(pkg, test.item, test.entry, test.targetState)
 
 			if !errors.Is(gotErr, test.wantErr) {
-				t.Errorf("error:\nwant %v\ngot  %v", test.wantErr, gotErr)
+				t.Errorf("Apply() error:\n got %v\nwant %v", gotErr, test.wantErr)
 			}
 
 			if !cmp.Equal(gotState, test.wantState) {
-				t.Errorf("state result:\nwant %#v\ngot  %#v", test.wantState, gotState)
+				t.Errorf("Apply() state result:\n got %#v\nwant %#v", gotState, test.wantState)
 			}
 		})
 	}
@@ -149,7 +149,7 @@ func TestInstallOpConflictError(t *testing.T) {
 			gotState, gotErr := install.Apply(pkg, item, test.sourceEntry, test.targetState)
 
 			if gotState != nil {
-				t.Errorf("state: want nil, got %v", gotState)
+				t.Errorf("Apply() state: want nil, got %v", gotState)
 			}
 
 			wantErr := &ConflictError{
@@ -160,7 +160,7 @@ func TestInstallOpConflictError(t *testing.T) {
 				TargetState: test.targetState,
 			}
 			if gotErr.Error() != wantErr.Error() {
-				t.Errorf("error:\nwant %s\n got %s", wantErr, gotErr)
+				t.Errorf("Apply() error:\n got %s\nwant %s", gotErr, wantErr)
 			}
 		})
 	}
@@ -193,7 +193,7 @@ func TestInstallOpInvalidTarget(t *testing.T) {
 			gotState, gotErr := install.Apply(pkg, item, nil, test.targetState)
 
 			if gotState != nil {
-				t.Errorf("state: want nil, got %v", gotState)
+				t.Errorf("Apply() state: got %v, want nil", gotState)
 			}
 
 			wantErr := &TargetError{
@@ -203,7 +203,7 @@ func TestInstallOpInvalidTarget(t *testing.T) {
 				State: test.targetState,
 			}
 			if gotErr.Error() != wantErr.Error() {
-				t.Errorf("error:\nwant %s\n got %s", wantErr, gotErr)
+				t.Errorf("Apply() error:\n got %s\nwant %s", gotErr, wantErr)
 			}
 		})
 	}

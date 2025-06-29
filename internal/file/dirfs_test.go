@@ -18,33 +18,33 @@ func TestLstat(t *testing.T) {
 
 	fsys := DirFS(root)
 
-	e, err := fs.Lstat(fsys, "sub/dir")
+	info, err := fs.Lstat(fsys, "sub/dir")
 	if err != nil {
-		t.Error("unexpected error:", err)
-	} else if !e.IsDir() {
-		t.Errorf("%q want dir, got %s", "sub/dir", fs.FormatFileInfo(e))
+		t.Errorf("Lstat(%s): unexpected error: %s", "sub/dir", err)
+	} else if !info.IsDir() {
+		t.Errorf("Lstat(%s) got %s, want dir", "sub/dir", fs.FormatFileInfo(info))
 	}
 
-	e, err = fs.Lstat(fsys, "sub/file")
+	info, err = fs.Lstat(fsys, "sub/file")
 	if err != nil {
 		t.Error("unexpected error:", err)
-	} else if !e.Mode().IsRegular() {
-		t.Errorf("%q want regular file, got %s", "sub/file", fs.FormatFileInfo(e))
+	} else if !info.Mode().IsRegular() {
+		t.Errorf("Lstat(%s) got %s, want regular file", "sub/file", fs.FormatFileInfo(info))
 	}
 
-	e, err = fs.Lstat(fsys, "sub/link")
+	info, err = fs.Lstat(fsys, "sub/link")
 	if err != nil {
 		t.Error("unexpected error:", err)
-	} else if e.Mode()&fs.ModeType != fs.ModeSymlink {
-		t.Errorf("%q want symlink got %s", "sub/link", fs.FormatFileInfo(e))
+	} else if info.Mode()&fs.ModeType != fs.ModeSymlink {
+		t.Errorf("Lstat(%s) got %s, want symlink", "sub/link", fs.FormatFileInfo(info))
 	}
 
-	e, err = fs.Lstat(fsys, "no/such/entry")
+	info, err = fs.Lstat(fsys, "no/such/entry")
 	if !errors.Is(err, fs.ErrNotExist) {
-		t.Errorf("%q want error %s, got %s", "no/such/entry", fs.ErrNotExist, err)
+		t.Errorf("Lstat(%s) error: got %s, want error %s", "no/such/entry", err, fs.ErrNotExist)
 	}
-	if e != nil {
-		t.Errorf("%q want entry to be nil, got %s", "no/such/entry", fs.FormatFileInfo(e))
+	if info != nil {
+		t.Errorf("Lstat(%s) info: got %s, want nil", "no/such/entry", fs.FormatFileInfo(info))
 	}
 }
 
@@ -61,22 +61,22 @@ func TestMkdir(t *testing.T) {
 	newDir := "existing-dir/new-dir"
 	err := fsys.Mkdir(newDir, newPerm)
 	if err != nil {
-		t.Fatal("unexpected error:", err)
+		t.Fatalf("MkDir(%s): unexpected error: %s", "existing-dir/new-dir", err)
 	}
 
-	e := must.Lstat(filepath.Join(root, newDir))
-	if !e.IsDir() {
-		t.Errorf("%q want dir, got %s", newDir, fs.FormatFileInfo(e))
+	info := must.Lstat(filepath.Join(root, newDir))
+	if !info.IsDir() {
+		t.Errorf("Lstat(%s) info: got %s, want dir", newDir, fs.FormatFileInfo(info))
 	}
-	if e.Mode().Perm() != newPerm {
-		t.Errorf("%q want permission %s, got %s", newDir, newPerm, fs.FormatFileInfo(e))
+	if info.Mode().Perm() != newPerm {
+		t.Errorf("Lstat(%s) perm: got %s, want %s", newDir, fs.FormatFileInfo(info), newPerm)
 	}
 
 	badDir := "no-such-parent/new-dir"
 	gotErr := fsys.Mkdir(badDir, 0o755)
 	wantErr := fs.ErrNotExist
 	if !errors.Is(gotErr, wantErr) {
-		t.Errorf("%s want error %s, got %v", badDir, wantErr, gotErr)
+		t.Errorf("Mkdir(%s) error: got %v, want %s", badDir, gotErr, wantErr)
 	}
 }
 
@@ -93,7 +93,7 @@ func TestReadDir(t *testing.T) {
 
 	entries, err := fs.ReadDir(fsys, "sub")
 	if err != nil {
-		t.Error("unexpected error:", err)
+		t.Errorf("ReadDir(%s) unexpected error: %s", "sub", err)
 	}
 	entryNamed := map[string]fs.DirEntry{}
 	for _, e := range entries {
@@ -102,7 +102,7 @@ func TestReadDir(t *testing.T) {
 
 	if e, ok := entryNamed["dir"]; ok {
 		if !e.IsDir() {
-			t.Errorf("%q want dir", fs.FormatDirEntry(e))
+			t.Errorf("%q mode: got %s, want dir", "dir", fs.FormatDirEntry(e))
 		}
 		assertEntryMode(t, e, fs.ModeDir|dirPerm)
 	} else {
@@ -111,7 +111,7 @@ func TestReadDir(t *testing.T) {
 
 	if e, ok := entryNamed["file"]; ok {
 		if !e.Type().IsRegular() {
-			t.Errorf("%q want regular file, got %s", "file", fs.FormatDirEntry(e))
+			t.Errorf("%q mode: got %s, want regular file", "file", fs.FormatDirEntry(e))
 		}
 		assertEntryMode(t, e, filePerm) // No other mode bits on for regular files
 	} else {
@@ -120,10 +120,10 @@ func TestReadDir(t *testing.T) {
 
 	if e, ok := entryNamed["link"]; ok {
 		if e.Type()&fs.ModeType != fs.ModeSymlink {
-			t.Errorf("%q want symlink", fs.FormatDirEntry(e))
+			t.Errorf("%q mode: got %s, want symlink", "link", fs.FormatDirEntry(e))
 		}
 	} else {
-		t.Error("no entry for", "link")
+		t.Errorf("ReadDir(%s): no entry for link", "sub")
 	}
 }
 
@@ -142,7 +142,7 @@ func TestSymlink(t *testing.T) {
 		e := must.Lstat(filepath.Join(root, goodPath))
 		gotType := e.Mode().Type()
 		if gotType != fs.ModeSymlink {
-			t.Errorf("%q want symlink, got %s", e.Name(), &gotType)
+			t.Errorf("Lstat(%s) type: got %s, want symlink", e.Name(), &gotType)
 		}
 	} else {
 		t.Error("unexpected error:", err)
@@ -152,7 +152,7 @@ func TestSymlink(t *testing.T) {
 	err = fsys.Symlink(linkDest, badPath)
 	wantErr := fs.ErrNotExist
 	if !errors.Is(err, wantErr) {
-		t.Errorf("%q want error %q, got %q", badPath, wantErr, err)
+		t.Errorf("Symlink(%s) error: got %s, want %s", badPath, err, wantErr)
 	}
 }
 
@@ -163,17 +163,17 @@ func TestValidatesPath(t *testing.T) {
 
 	_, err := fs.Lstat(fsys, "foo/../lstat")
 	if !errors.Is(err, fs.ErrInvalid) {
-		t.Errorf("lstat want %v, got %v", fs.ErrInvalid, err)
+		t.Errorf("lstat got %v, want %v", err, fs.ErrInvalid)
 	}
 
 	err = fsys.Mkdir("foo/../mkdir", 0o755)
 	if !errors.Is(err, fs.ErrInvalid) {
-		t.Errorf("mkdir want %v, got %v", fs.ErrInvalid, err)
+		t.Errorf("mkdir got %v, want %v", err, fs.ErrInvalid)
 	}
 
 	err = fsys.Symlink("link/dest", "foo/../symlink")
 	if !errors.Is(err, fs.ErrInvalid) {
-		t.Errorf("symlink want %v, got %v", fs.ErrInvalid, err)
+		t.Errorf("symlink got %v, want %v", err, fs.ErrInvalid)
 	}
 }
 
@@ -181,12 +181,12 @@ func assertEntryMode(t *testing.T, entry fs.DirEntry, wantMode fs.FileMode) {
 	t.Helper()
 	info, err := entry.Info()
 	if err != nil {
-		t.Errorf("%q.Info(): %s", entry, err)
+		t.Errorf("Info(%s): %s", entry, err)
 		return
 	}
 	gotMode := info.Mode()
 	if gotMode != wantMode {
-		t.Errorf("%q want mode %O, got %O",
-			fs.FormatDirEntry(entry), wantMode, gotMode)
+		t.Errorf("%q mode: got %O, want %O",
+			fs.FormatDirEntry(entry), gotMode, wantMode)
 	}
 }

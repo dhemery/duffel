@@ -78,11 +78,11 @@ func TestStateLoader(t *testing.T) {
 			state, err := loader.Load(test.itemName)
 
 			if !errors.Is(err, test.wantError) {
-				t.Errorf("error: want %v, got %v", test.wantError, err)
+				t.Errorf("Load(%s) error: got %v, want %v", test.itemName, err, test.wantError)
 			}
 
 			if !cmp.Equal(state, test.wantState) {
-				t.Errorf("state:\nwant %v\n got %v", test.wantState, state)
+				t.Errorf("Load(%s) state:\n got %v\nwant %v", test.itemName, state, test.wantState)
 			}
 		})
 	}
@@ -124,7 +124,7 @@ func TestStateEncodeJSON(t *testing.T) {
 
 		want := test.want + "\n"
 		if got != want {
-			t.Errorf("%s\n  want: %q\n  got : %q", test.state, want, got)
+			t.Errorf("%s\n got: %q\nwant: %q", test.state, got, want)
 		}
 	}
 }
