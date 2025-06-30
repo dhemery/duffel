@@ -55,3 +55,37 @@ func (c *SpecCache) Set(item string, state *file.State) {
 	spec.Desired = state
 	c.specs[item] = spec
 }
+
+type Index struct {
+	states map[string]*file.State
+	miss   Stater
+}
+
+// NewIndex returns a new, empty index that retrieves missing items via miss.
+func NewIndex(miss Stater) *Index {
+	return &Index{
+		states: map[string]*file.State{},
+		miss:   miss,
+	}
+}
+
+// State returns the state of item.
+// If c does not already contain the item
+// Get retrieves and caches the state returned by miss.
+func (i *Index) State(item string) (*file.State, error) {
+	cached, ok := i.states[item]
+	if !ok {
+		state, err := i.miss.State(item)
+		if err != nil {
+			return nil, err
+		}
+		i.states[item] = state
+		cached = state
+	}
+	return cached, nil
+}
+
+// SetState sets the state of item to state.
+func (i *Index) SetState(item string, state *file.State) {
+	i.states[item] = state
+}

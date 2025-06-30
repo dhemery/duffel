@@ -46,12 +46,16 @@ type PkgOp struct {
 	Apply ItemOp
 }
 
-type Index interface {
+type Stater interface {
+	State(name string) (*file.State, error)
+}
+
+type states interface {
 	Get(item string) (*file.State, error)
 	Set(item string, state *file.State)
 }
 
-func (op PkgOp) VisitFunc(source string, states Index) fs.WalkDirFunc {
+func (op PkgOp) VisitFunc(source string, states states) fs.WalkDirFunc {
 	pkgDir := path.Join(source, op.Pkg)
 	return func(name string, entry fs.DirEntry, err error) error {
 		if err != nil {
