@@ -55,3 +55,34 @@ func (s StateLoader) Load(name string) (*State, error) {
 	}
 	return state, nil
 }
+
+type DirStater struct {
+	FS  fs.FS
+	Dir string
+}
+
+func (s DirStater) State(name string) (*State, error) {
+	fullname := path.Join(s.Dir, name)
+	info, err := fs.Lstat(s.FS, fullname)
+	if errors.Is(err, fs.ErrNotExist) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	state := &State{Mode: info.Mode()}
+	if info.Mode()&fs.ModeSymlink != 0 {
+		dest, err := fs.ReadLink(s.FS, fullname)
+		if err != nil {
+			return nil, err
+		}
+		destFull := path.Join(path.Dir(fullname), dest)
+		destInfo, err := fs.Lstat(s.FS, destFull)
+		if err != nil {
+			return nil, err
+		}
+		state.Dest = dest
+		state.DestMode = destInfo.Mode()
+	}
+	return state, nil
+}
