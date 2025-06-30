@@ -17,25 +17,25 @@ type Planner struct {
 	Source string
 }
 
-func (p Planner) Plan(ops []PkgOp, miss MissFunc) (Plan, error) {
-	states := NewSpecCache(miss)
+func (p Planner) Plan(ops []PkgOp, fileStater Stater) (Plan, error) {
+	index := NewStateCache(fileStater)
 
 	for _, op := range ops {
 		walkDir := path.Join(p.Source, op.Pkg)
-		err := fs.WalkDir(p.FS, walkDir, op.VisitFunc(p.Source, states))
+		err := fs.WalkDir(p.FS, walkDir, op.VisitFunc(p.Source, index))
 		if err != nil {
 			return Plan{}, err
 		}
 	}
 
 	tasks := make([]Task, 0)
-	for _, item := range slices.Sorted(maps.Keys(states.specs)) {
-		spec := states.specs[item]
-		if spec.Desired == nil {
+	for _, item := range slices.Sorted(maps.Keys(index.states)) {
+		state := index.states[item]
+		if state == nil {
 			continue
 		}
 
-		task := Task{Item: item, State: *spec.Desired}
+		task := Task{Item: item, State: *state}
 		tasks = append(tasks, task)
 	}
 	return Plan{Target: p.Target, Tasks: tasks}, nil
@@ -50,12 +50,12 @@ type Stater interface {
 	State(name string) (*file.State, error)
 }
 
-type states interface {
-	Get(item string) (*file.State, error)
-	Set(item string, state *file.State)
+type Index interface {
+	Stater
+	SetState(item string, state *file.State)
 }
 
-func (op PkgOp) VisitFunc(source string, states states) fs.WalkDirFunc {
+func (op PkgOp) VisitFunc(source string, index Index) fs.WalkDirFunc {
 	pkgDir := path.Join(source, op.Pkg)
 	return func(name string, entry fs.DirEntry, err error) error {
 		if err != nil {
@@ -67,7 +67,7 @@ func (op PkgOp) VisitFunc(source string, states states) fs.WalkDirFunc {
 		}
 
 		item := name[len(pkgDir)+1:]
-		oldState, err := states.Get(item)
+		oldState, err := index.State(item)
 		if err != nil {
 			return err
 		}
@@ -75,7 +75,7 @@ func (op PkgOp) VisitFunc(source string, states states) fs.WalkDirFunc {
 		newState, err := op.Apply(op.Pkg, item, entry, oldState)
 
 		if err == nil || err == fs.SkipDir {
-			states.Set(item, newState)
+			index.SetState(item, newState)
 		}
 
 		return err

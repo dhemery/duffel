@@ -32,7 +32,7 @@ func Execute(r *Request, dryRun bool, w io.Writer) error {
 
 	stater := file.DirStater{FS: r.FS, Dir: r.Target}
 
-	plan, err := planner.Plan(pkgOps, stater.State)
+	plan, err := planner.Plan(pkgOps, stater)
 	if err != nil {
 		return err
 	}

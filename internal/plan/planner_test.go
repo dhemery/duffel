@@ -16,7 +16,7 @@ type indexValue struct {
 }
 type testIndex map[string]indexValue
 
-func (i testIndex) Get(name string) (*file.State, error) {
+func (i testIndex) State(name string) (*file.State, error) {
 	v, ok := i[name]
 	if !ok {
 		return nil, fs.ErrInvalid
@@ -24,7 +24,7 @@ func (i testIndex) Get(name string) (*file.State, error) {
 	return v.state, v.err
 }
 
-func (i testIndex) Set(name string, state *file.State) {
+func (i testIndex) SetState(name string, state *file.State) {
 	i[name] = indexValue{state: state}
 }
 
