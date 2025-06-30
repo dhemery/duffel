@@ -30,13 +30,9 @@ func Execute(r *Request, dryRun bool, w io.Writer) error {
 		Source: r.Source,
 	}
 
-	targetFS, err := fs.Sub(r.FS, r.Target)
-	if err != nil {
-		return err
-	}
-	stateLoader := file.StateLoader{FS: targetFS}
+	stater := file.DirStater{FS: r.FS, Dir: r.Target}
 
-	plan, err := planner.Plan(pkgOps, stateLoader.Load)
+	plan, err := planner.Plan(pkgOps, stater.State)
 	if err != nil {
 		return err
 	}

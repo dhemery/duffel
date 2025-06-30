@@ -27,35 +27,6 @@ func (s State) MarshalJSON() ([]byte, error) {
 	})
 }
 
-type StateLoader struct {
-	FS fs.FS
-}
-
-func (s StateLoader) Load(name string) (*State, error) {
-	info, err := fs.Lstat(s.FS, name)
-	if errors.Is(err, fs.ErrNotExist) {
-		return nil, nil
-	}
-	if err != nil {
-		return nil, err
-	}
-	state := &State{Mode: info.Mode()}
-	if info.Mode()&fs.ModeSymlink != 0 {
-		dest, err := fs.ReadLink(s.FS, name)
-		if err != nil {
-			return nil, err
-		}
-		destFull := path.Join(path.Dir(name), dest)
-		destInfo, err := fs.Lstat(s.FS, destFull)
-		if err != nil {
-			return nil, err
-		}
-		state.Dest = dest
-		state.DestMode = destInfo.Mode()
-	}
-	return state, nil
-}
-
 type DirStater struct {
 	FS  fs.FS
 	Dir string
