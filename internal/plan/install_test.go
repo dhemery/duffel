@@ -126,11 +126,23 @@ func TestInstallOp(t *testing.T) {
 	}
 }
 
-func TestInstallOpConflictError(t *testing.T) {
+func TestInstallErrors(t *testing.T) {
 	tests := map[string]struct {
 		sourceEntry fs.DirEntry // The dir entry for the item
 		targetState *file.State // The existing target state for the item
 	}{
+		"target is a file, source is a dir": {
+			sourceEntry: testDirEntry{mode: fs.ModeDir | 0o755},
+			targetState: &file.State{Mode: 0o644},
+		},
+		"target is unknown type, source is a dir": {
+			sourceEntry: testDirEntry{mode: fs.ModeDir | 0o755},
+			targetState: &file.State{Mode: fs.ModeDevice},
+		},
+		"target links to a non-dir, source is a dir": {
+			sourceEntry: testDirEntry{mode: fs.ModeDir | 0o755},
+			targetState: &file.State{Mode: fs.ModeSymlink, Dest: "link/to/file", DestMode: 0o644},
+		},
 		"target is a dir, source is not a dir": {
 			sourceEntry: testDirEntry{mode: 0o644},
 			targetState: &file.State{Mode: fs.ModeDir | 0o755},
@@ -152,58 +164,10 @@ func TestInstallOpConflictError(t *testing.T) {
 				t.Errorf("Apply() state: want nil, got %v", gotState)
 			}
 
-			wantErr := &ConflictError{
-				Op:          "install",
-				Pkg:         pkg,
-				Item:        item,
-				ItemType:    test.sourceEntry.Type(),
-				TargetState: test.targetState,
-			}
-			if gotErr.Error() != wantErr.Error() {
-				t.Errorf("Apply() error:\n got %s\nwant %s", gotErr, wantErr)
-			}
-		})
-	}
-}
+			var wantErr *InstallError
 
-func TestInstallOpInvalidTarget(t *testing.T) {
-	tests := map[string]struct {
-		targetState *file.State // The invalid target state
-		skip        string      // The reason to skip this test
-	}{
-		"target is a file": {
-			targetState: &file.State{Mode: 0o644},
-		},
-		"target is unknown type": {
-			targetState: &file.State{Mode: fs.ModeDevice},
-		},
-		"target links to a non-dir": {
-			targetState: &file.State{Mode: fs.ModeSymlink, Dest: "link/to/file", DestMode: 0o644},
-		},
-	}
-
-	for name, test := range tests {
-		const item = "item"
-		t.Run(name, func(t *testing.T) {
-			if test.skip != "" {
-				t.Skip(test.skip)
-			}
-			install := Install{Source: source, Target: target}
-
-			gotState, gotErr := install.Apply(pkg, item, nil, test.targetState)
-
-			if gotState != nil {
-				t.Errorf("Apply() state: got %v, want nil", gotState)
-			}
-
-			wantErr := &TargetError{
-				Op:    "install",
-				Pkg:   pkg,
-				Item:  item,
-				State: test.targetState,
-			}
-			if gotErr.Error() != wantErr.Error() {
-				t.Errorf("Apply() error:\n got %s\nwant %s", gotErr, wantErr)
+			if !errors.As(gotErr, &wantErr) {
+				t.Errorf("Apply() error:\n got %s\nwant *InstallError", gotErr)
 			}
 		})
 	}

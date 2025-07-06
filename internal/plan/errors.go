@@ -1,7 +1,6 @@
 package plan
 
 import (
-	"errors"
 	"fmt"
 	"io/fs"
 	"path"
@@ -9,25 +8,7 @@ import (
 	"github.com/dhemery/duffel/internal/file"
 )
 
-var (
-	ErrDestNotPkgItem = errors.New("destination is not a package item")
-	ErrIsDir          = errors.New("is a directory")
-)
-
-type TargetError struct {
-	Op    string
-	Pkg   string
-	Item  string
-	State *file.State
-}
-
-func (e *TargetError) Error() string {
-	pkgItem := path.Join(e.Pkg, e.Item)
-	return fmt.Sprintf("%s %q: cannot alter target %q: target is %s",
-		e.Op, pkgItem, e.Item, stateString(e.State))
-}
-
-type ConflictError struct {
+type InstallError struct {
 	Op          string
 	Pkg         string
 	Item        string
@@ -35,9 +16,9 @@ type ConflictError struct {
 	TargetState *file.State
 }
 
-func (e *ConflictError) Error() string {
+func (e *InstallError) Error() string {
 	pkgItem := path.Join(e.Pkg, e.Item)
-	return fmt.Sprintf("%s %q: cannot replace or merge target %q with package item %q: target is %s, package item is %s",
+	return fmt.Sprintf("%s %q conflict: target %q is %s, package item %q is %s",
 		e.Op, pkgItem, e.Item, pkgItem, stateString(e.TargetState), modeTypeString(e.ItemType))
 }
 

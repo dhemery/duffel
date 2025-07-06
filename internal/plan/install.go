@@ -41,9 +41,9 @@ func (i Install) Apply(pkg, item string, entry fs.DirEntry, targetState *file.St
 
 	if targetState.Mode.IsRegular() {
 		// Cannot modify an existing regular file.
-		return nil, &TargetError{
+		return nil, &InstallError{
 			Op: "install", Pkg: pkg, Item: item,
-			State: targetState,
+			ItemType: entry.Type(), TargetState: targetState,
 		}
 	}
 
@@ -57,7 +57,7 @@ func (i Install) Apply(pkg, item string, entry fs.DirEntry, targetState *file.St
 
 		// The target is a dir, but the pkg item is not.
 		// Cannot merge the target dir with a non-dir pkg item.
-		return nil, &ConflictError{
+		return nil, &InstallError{
 			Op: "install", Pkg: pkg, Item: item,
 			ItemType: entry.Type(), TargetState: targetState,
 		}
@@ -65,9 +65,9 @@ func (i Install) Apply(pkg, item string, entry fs.DirEntry, targetState *file.St
 
 	if targetState.Mode.Type() != fs.ModeSymlink {
 		// Target item is not file, dir, or link.
-		return nil, &TargetError{
+		return nil, &InstallError{
 			Op: "install", Pkg: pkg, Item: item,
-			State: targetState,
+			ItemType: entry.Type(), TargetState: targetState,
 		}
 	}
 
@@ -86,22 +86,22 @@ func (i Install) Apply(pkg, item string, entry fs.DirEntry, targetState *file.St
 
 	if !targetState.DestMode.IsDir() {
 		// Target links to a non-dir. Cannot merge with that.
-		return nil, &TargetError{
-			Op: "install", Pkg: pkg, Item: item,
-			State: targetState,
-		}
-	}
-
-	if !entry.IsDir() {
-		return nil, &ConflictError{
+		return nil, &InstallError{
 			Op: "install", Pkg: pkg, Item: item,
 			ItemType: entry.Type(), TargetState: targetState,
 		}
 	}
 
-	return nil, &TargetError{
+	if !entry.IsDir() {
+		return nil, &InstallError{
+			Op: "install", Pkg: pkg, Item: item,
+			ItemType: entry.Type(), TargetState: targetState,
+		}
+	}
+
+	return nil, &InstallError{
 		Op: "install", Pkg: pkg, Item: item,
-		State: targetState,
+		ItemType: entry.Type(), TargetState: targetState,
 	}
 }
 
