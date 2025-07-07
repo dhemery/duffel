@@ -28,6 +28,12 @@ func (i testIndex) SetState(name string, state *file.State) {
 	i[name] = indexValue{state: state}
 }
 
+type itemOpFunc func(pkg, item string, entry fs.DirEntry, inState *file.State) (*file.State, error)
+
+func (f itemOpFunc) Apply(pkg, item string, entry fs.DirEntry, inState *file.State) (*file.State, error) {
+	return f(pkg, item, entry, inState)
+}
+
 func TestPkgOpApplyItemOp(t *testing.T) {
 	const (
 		target         = "path/to/target"
@@ -98,7 +104,7 @@ func TestPkgOpApplyItemOp(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			gotItemOpCall := false
 
-			itemOp := func(gotPkg, gotItem string, gotEntry fs.DirEntry, gotState *file.State) (*file.State, error) {
+			itemOp := itemOpFunc(func(gotPkg, gotItem string, gotEntry fs.DirEntry, gotState *file.State) (*file.State, error) {
 				gotItemOpCall = true
 				if gotPkg != pkg {
 					t.Errorf("item op: got pkg %q, want %q", gotPkg, pkg)
@@ -110,11 +116,11 @@ func TestPkgOpApplyItemOp(t *testing.T) {
 					t.Errorf("item op: got state %v, want %v", gotState, test.indexState)
 				}
 				return test.itemOpState, test.itemOpError
-			}
+			})
 
 			testIndex := testIndex{itemName: indexValue{state: test.indexState}}
 
-			pkgOp := PkgOp{Pkg: pkg, Apply: itemOp}
+			pkgOp := PkgOp{Pkg: pkg, ItemOp: itemOp}
 
 			visit := pkgOp.VisitFunc(source, testIndex)
 
@@ -186,7 +192,7 @@ func TestPkgOpWalkFuncError(t *testing.T) {
 
 			testIndex := testIndex{test.item: indexValue{err: test.indexErr}}
 
-			pkgOp := PkgOp{Pkg: pkg, Apply: nil}
+			pkgOp := PkgOp{Pkg: pkg, ItemOp: nil}
 
 			visit := pkgOp.VisitFunc(source, testIndex)
 

@@ -9,7 +9,9 @@ import (
 	"github.com/dhemery/duffel/internal/file"
 )
 
-type ItemOp func(pkg, item string, entry fs.DirEntry, inState *file.State) (*file.State, error)
+type ItemOp interface {
+	Apply(pkg, item string, entry fs.DirEntry, inState *file.State) (*file.State, error)
+}
 
 type Planner struct {
 	FS     fs.FS
@@ -42,8 +44,8 @@ func (p Planner) Plan(ops []PkgOp, fileStater Stater) (Plan, error) {
 }
 
 type PkgOp struct {
-	Pkg   string
-	Apply ItemOp
+	Pkg    string
+	ItemOp ItemOp
 }
 
 type Stater interface {
@@ -55,8 +57,8 @@ type Index interface {
 	SetState(item string, state *file.State)
 }
 
-func (op PkgOp) VisitFunc(source string, index Index) fs.WalkDirFunc {
-	pkgDir := path.Join(source, op.Pkg)
+func (po PkgOp) VisitFunc(source string, index Index) fs.WalkDirFunc {
+	pkgDir := path.Join(source, po.Pkg)
 	return func(name string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -72,7 +74,7 @@ func (op PkgOp) VisitFunc(source string, index Index) fs.WalkDirFunc {
 			return err
 		}
 
-		newState, err := op.Apply(op.Pkg, item, entry, oldState)
+		newState, err := po.ItemOp.Apply(po.Pkg, item, entry, oldState)
 
 		if err == nil || err == fs.SkipDir {
 			index.SetState(item, newState)

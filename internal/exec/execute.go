@@ -21,7 +21,7 @@ func Execute(r *Request, dryRun bool, w io.Writer) error {
 
 	var pkgOps []plan.PkgOp
 	for _, pkg := range r.Pkgs {
-		pkgOps = append(pkgOps, plan.PkgOp{Pkg: pkg, Apply: install.Apply})
+		pkgOps = append(pkgOps, plan.PkgOp{Pkg: pkg, ItemOp: install})
 	}
 
 	planner := plan.Planner{
