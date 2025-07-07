@@ -126,7 +126,7 @@ func TestInstallOp(t *testing.T) {
 	}
 }
 
-func TestInstallErrors(t *testing.T) {
+func TestInstallOpConlictErrors(t *testing.T) {
 	tests := map[string]struct {
 		sourceEntry fs.DirEntry // The dir entry for the item
 		targetState *file.State // The existing target state for the item
@@ -149,7 +149,11 @@ func TestInstallErrors(t *testing.T) {
 		},
 		"target links to a dir, source is not a dir": {
 			sourceEntry: testDirEntry{mode: 0o644},
-			targetState: &file.State{Mode: fs.ModeSymlink, Dest: "target/some/dest", DestMode: fs.ModeDir | 0o755},
+			targetState: &file.State{
+				Mode:     fs.ModeSymlink,
+				Dest:     "target/some/dest",
+				DestMode: fs.ModeDir | 0o755,
+			},
 		},
 	}
 
@@ -168,6 +172,80 @@ func TestInstallErrors(t *testing.T) {
 
 			if !errors.As(gotErr, &wantErr) {
 				t.Errorf("Apply() error:\n got %s\nwant *InstallError", gotErr)
+			}
+		})
+	}
+}
+
+type mergeFunc func(name string) error
+
+func (f mergeFunc) Merge(name string) error {
+	return f(name)
+}
+
+// If the packge item is a dir and the target is a link to a dir,
+// Install should call Merge with the target's destination.
+func TestInstallOpMerge(t *testing.T) {
+	aMergeError := errors.New("error returned from Merge")
+
+	tests := map[string]struct {
+		mergeErr  error
+		wantState *file.State
+		wantErr   error
+	}{
+		"success": {
+			mergeErr: nil,
+			// On merge success, replace the target link with a dir
+			wantState: &file.State{Mode: fs.ModeDir | 0o755},
+			// Walk the package item's contents
+			wantErr: nil,
+		},
+		"merge error": {
+			mergeErr:  aMergeError,
+			wantState: nil,
+			wantErr:   aMergeError,
+		},
+	}
+
+	for name, test := range tests {
+		const (
+			item = "item"
+			dest = "link/to/dest"
+		)
+
+		t.Run(name, func(t *testing.T) {
+			// Install merges only if the package item is a dir
+			entry := testDirEntry{name: item, mode: fs.ModeDir | 0o755}
+			// Install merges only if the target is a link to a dir
+			state := &file.State{Mode: fs.ModeSymlink, Dest: dest, DestMode: fs.ModeDir | 0o755}
+
+			wantMergeName := path.Join(target, dest)
+
+			var mergeCalled bool
+			merger := mergeFunc(func(gotName string) error {
+				t.Helper()
+				mergeCalled = true
+				if gotName != wantMergeName {
+					t.Errorf("Merge() called with %q, want %q", gotName, wantMergeName)
+				}
+
+				return test.mergeErr
+			})
+
+			install := Install{Source: source, Target: target, Merger: merger}
+
+			gotState, gotErr := install.Apply(pkg, item, entry, state)
+
+			if !mergeCalled {
+				t.Errorf("Merge() not called")
+			}
+
+			if !cmp.Equal(gotState, test.wantState) {
+				t.Errorf("Apply() state result:\n got %#v\nwant %#v", gotState, test.wantState)
+			}
+
+			if !errors.Is(gotErr, test.wantErr) {
+				t.Errorf("Apply() error:\n got %v\nwant %v", gotErr, test.wantErr)
 			}
 		})
 	}

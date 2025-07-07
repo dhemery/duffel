@@ -9,11 +9,16 @@ import (
 	"github.com/dhemery/duffel/internal/file"
 )
 
+type Merger interface {
+	Merge(name string) error
+}
+
 // Install is an [ItemOp] that describes the installed states
 // of the target files that correspond to the given pkg items.
 type Install struct {
 	Source string
 	Target string
+	Merger Merger
 }
 
 // Apply describes the installed state
@@ -99,10 +104,23 @@ func (i Install) Apply(pkg, item string, entry fs.DirEntry, targetState *file.St
 		}
 	}
 
-	return nil, &InstallError{
-		Op: "install", Pkg: pkg, Item: item,
-		ItemType: entry.Type(), TargetState: targetState,
+	// The package item is a dir and the target is a link to a dir.
+	// Merge the two by changeing the target to a dir,
+	// then installing the contents of both the target's destination
+	// and the package item into the new dir.
+	//
+	// First, install the contents of the target's destination,
+	// as if the target were already a dir.
+	mergePath := path.Join(i.Target, targetState.Dest)
+	if err := i.Merger.Merge(mergePath); err != nil {
+		return nil, err
 	}
+
+	// No conflicts installing the target destination's contents.
+	// Now change the target to a dir, and walk the package item
+	// to install its contents into the dir.
+	dirState := &file.State{Mode: fs.ModeDir | 0o755}
+	return dirState, nil
 }
 
 func (i Install) toLinkDest(pkg, item string) string {

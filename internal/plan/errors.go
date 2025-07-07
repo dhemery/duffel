@@ -19,7 +19,7 @@ type InstallError struct {
 func (e *InstallError) Error() string {
 	pkgItem := path.Join(e.Pkg, e.Item)
 	return fmt.Sprintf("%s %q conflict: target %q is %s, package item %q is %s",
-		e.Op, pkgItem, e.Item, pkgItem, stateString(e.TargetState), modeTypeString(e.ItemType))
+		e.Op, pkgItem, e.Item, stateString(e.TargetState), pkgItem, modeTypeString(e.ItemType))
 }
 
 func modeTypeString(t fs.FileMode) string {
