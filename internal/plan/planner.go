@@ -2,21 +2,19 @@ package plan
 
 import (
 	"io/fs"
-	"maps"
 	"path"
-	"slices"
 
 	"github.com/dhemery/duffel/internal/file"
 )
-
-type ItemOp interface {
-	Apply(pkg, item string, entry fs.DirEntry, inState *file.State) (*file.State, error)
-}
 
 type Planner struct {
 	FS     fs.FS
 	Target string
 	Source string
+}
+
+type Stater interface {
+	State(name string) (*file.State, error)
 }
 
 func (p Planner) Plan(ops []PkgOp, fileStater Stater) (Plan, error) {
@@ -31,8 +29,7 @@ func (p Planner) Plan(ops []PkgOp, fileStater Stater) (Plan, error) {
 	}
 
 	tasks := make([]Task, 0)
-	for _, item := range slices.Sorted(maps.Keys(index.states)) {
-		state := index.states[item]
+	for item, state := range index.Sorted() {
 		if state == nil {
 			continue
 		}
@@ -43,13 +40,13 @@ func (p Planner) Plan(ops []PkgOp, fileStater Stater) (Plan, error) {
 	return Plan{Target: p.Target, Tasks: tasks}, nil
 }
 
+type ItemOp interface {
+	Apply(pkg, item string, entry fs.DirEntry, inState *file.State) (*file.State, error)
+}
+
 type PkgOp struct {
 	Pkg    string
 	ItemOp ItemOp
-}
-
-type Stater interface {
-	State(name string) (*file.State, error)
 }
 
 type Index interface {
