@@ -1,6 +1,10 @@
 package plan
 
 import (
+	"iter"
+	"maps"
+	"slices"
+
 	"github.com/dhemery/duffel/internal/file"
 )
 
@@ -36,4 +40,14 @@ func (c *StateCache) State(item string) (*file.State, error) {
 // SetState sets the cached state of item to state.
 func (c *StateCache) SetState(item string, state *file.State) {
 	c.states[item] = state
+}
+
+func (c *StateCache) Sorted() iter.Seq2[string, *file.State] {
+	return func(yield func(string, *file.State) bool) {
+		for _, k := range slices.Sorted(maps.Keys(c.states)) {
+			if !yield(k, c.states[k]) {
+				return
+			}
+		}
+	}
 }
