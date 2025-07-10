@@ -32,16 +32,7 @@ func (p Planner) Plan(ops []PkgOp, itemStates states) (Plan, error) {
 		}
 	}
 
-	tasks := make([]Task, 0)
-	for item, state := range itemStates.Sorted() {
-		if state == nil {
-			continue
-		}
-
-		task := Task{Item: item, State: *state}
-		tasks = append(tasks, task)
-	}
-	return Plan{Target: p.Target, Tasks: tasks}, nil
+	return New(p.Target, itemStates), nil
 }
 
 type ItemOp interface {

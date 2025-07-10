@@ -3,6 +3,7 @@ package plan
 import (
 	"encoding/json"
 	"io/fs"
+	"iter"
 	"path"
 
 	"github.com/dhemery/duffel/internal/file"
@@ -13,6 +14,23 @@ import (
 type Plan struct {
 	Target string `json:"target"`
 	Tasks  []Task `json:"tasks"`
+}
+
+type States interface {
+	Sorted() iter.Seq2[string, *file.State]
+}
+
+func New(target string, states States) Plan {
+	p := Plan{Target: target, Tasks: []Task{}}
+	for item, state := range states.Sorted() {
+		if state == nil {
+			continue
+		}
+
+		task := Task{Item: item, State: *state}
+		p.Tasks = append(p.Tasks, task)
+	}
+	return p
 }
 
 func (p Plan) Execute(fsys fs.FS) error {
