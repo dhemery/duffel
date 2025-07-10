@@ -17,11 +17,14 @@ type Request struct {
 }
 
 func Execute(r *Request, dryRun bool, w io.Writer) error {
-	install := plan.Install{Source: r.Source, Target: r.Target}
+	stater := file.DirStater{FS: r.FS, Dir: r.Target}
+	index := plan.NewStateCache(stater)
 
+	install := plan.Install{Source: r.Source, Target: r.Target}
 	var pkgOps []plan.PkgOp
 	for _, pkg := range r.Pkgs {
-		pkgOps = append(pkgOps, plan.PkgOp{Pkg: pkg, ItemOp: install})
+		pkgOp := plan.PkgOp{Pkg: pkg, ItemOp: install, Index: index}
+		pkgOps = append(pkgOps, pkgOp)
 	}
 
 	planner := plan.Planner{
@@ -30,9 +33,7 @@ func Execute(r *Request, dryRun bool, w io.Writer) error {
 		Source: r.Source,
 	}
 
-	stater := file.DirStater{FS: r.FS, Dir: r.Target}
-
-	plan, err := planner.Plan(pkgOps, stater)
+	plan, err := planner.Plan(pkgOps, index)
 	if err != nil {
 		return err
 	}

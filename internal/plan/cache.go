@@ -8,6 +8,10 @@ import (
 	"github.com/dhemery/duffel/internal/file"
 )
 
+type Stater interface {
+	State(name string) (*file.State, error)
+}
+
 type StateCache struct {
 	states map[string]*file.State
 	miss   Stater
