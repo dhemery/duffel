@@ -19,11 +19,15 @@ type states interface {
 type Planner struct {
 	Target   string
 	Analyzer analyzer
+	States   states
 }
 
-func (p Planner) Plan(ops []PkgOp, itemStates states) (Plan, error) {
-	p.Analyzer.Analyze(ops)
-	return New(p.Target, itemStates), nil
+func (p Planner) Plan(ops []PkgOp) (Plan, error) {
+	err := p.Analyzer.Analyze(ops)
+	if err != nil {
+		return Plan{}, err
+	}
+	return New(p.Target, p.States), nil
 }
 
 type Analyst struct {

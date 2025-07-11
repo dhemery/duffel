@@ -21,6 +21,7 @@ func Execute(r *Request, dryRun bool, w io.Writer) error {
 	index := plan.NewStateCache(stater)
 
 	install := plan.Install{Source: r.Source, Target: r.Target}
+
 	var pkgOps []plan.PkgOp
 	for _, pkg := range r.Pkgs {
 		pkgOp := plan.PkgOp{Source: r.Source, Pkg: pkg, ItemOp: install, Index: index}
@@ -30,9 +31,10 @@ func Execute(r *Request, dryRun bool, w io.Writer) error {
 	planner := plan.Planner{
 		Target:   r.Target,
 		Analyzer: plan.Analyst{FS: r.FS},
+		States:   index,
 	}
 
-	plan, err := planner.Plan(pkgOps, index)
+	plan, err := planner.Plan(pkgOps)
 	if err != nil {
 		return err
 	}
