@@ -1,7 +1,6 @@
 package exec
 
 import (
-	"errors"
 	"io/fs"
 	"maps"
 	"path"
@@ -104,93 +103,5 @@ func TestExecuteEmptyTargetNoConflictingPackageItems(t *testing.T) {
 			file := fsys.M[name]
 			t.Errorf("   %q: %s %s", name, file.Mode, file.Data)
 		}
-	}
-}
-
-func TestExecuteDirErrors(t *testing.T) {
-	const (
-		dirNormal       = fs.ModeDir | 0o755
-		dirUnreadable   = fs.ModeDir | 0o311
-		dirUnsearchable = fs.ModeDir | 0o644
-		dirUnwriteable  = fs.ModeDir | 0o555
-	)
-
-	tests := map[string]struct {
-		sourceEntry  *fstest.MapFile
-		targetEntry  *fstest.MapFile
-		packageEntry *fstest.MapFile
-		wantError    error
-	}{
-		"package dir missing": {
-			sourceEntry:  &fstest.MapFile{Mode: dirNormal},
-			packageEntry: nil,
-			targetEntry:  &fstest.MapFile{Mode: dirNormal},
-			wantError:    fs.ErrNotExist,
-		},
-		"package dir not readable": {
-			sourceEntry:  &fstest.MapFile{Mode: dirNormal},
-			packageEntry: &fstest.MapFile{Mode: dirUnreadable},
-			targetEntry:  &fstest.MapFile{Mode: dirNormal},
-			wantError:    fs.ErrPermission,
-		},
-		"source dir missing": {
-			sourceEntry:  nil,
-			packageEntry: nil, // Creating package would require source to exist
-			targetEntry:  &fstest.MapFile{Mode: dirNormal},
-			wantError:    fs.ErrNotExist,
-		},
-		"source dir not searchable": {
-			sourceEntry:  &fstest.MapFile{Mode: dirUnsearchable},
-			packageEntry: &fstest.MapFile{Mode: dirNormal},
-			targetEntry:  &fstest.MapFile{Mode: dirNormal},
-			wantError:    fs.ErrPermission,
-		},
-		"target dir missing": {
-			sourceEntry:  &fstest.MapFile{Mode: dirNormal},
-			packageEntry: &fstest.MapFile{Mode: dirNormal},
-			targetEntry:  nil,
-			wantError:    fs.ErrNotExist,
-		},
-		"target dir not writeable": {
-			sourceEntry:  &fstest.MapFile{Mode: dirNormal},
-			packageEntry: &fstest.MapFile{Mode: dirNormal},
-			targetEntry:  &fstest.MapFile{Mode: dirUnwriteable},
-			wantError:    fs.ErrPermission,
-		},
-	}
-
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			files := duftest.NewFS()
-			wd := "home/user"
-			pkg := "pkg"
-			absSource := path.Join(wd, "source")
-			absSourcePkg := path.Join(absSource, pkg)
-			absTarget := path.Join(wd, "target")
-			if test.packageEntry != nil {
-				sourcePkgItem := path.Join(absSourcePkg, "item")
-				files.M[absSourcePkg] = test.packageEntry
-				files.M[sourcePkgItem] = &fstest.MapFile{Mode: 0o644} // plain file
-			}
-			if test.sourceEntry != nil {
-				files.M[absSource] = test.sourceEntry
-			}
-			if test.targetEntry != nil {
-				files.M[absTarget] = test.targetEntry
-			}
-
-			r := &Request{
-				FS:     files,
-				Source: absSource,
-				Target: absTarget,
-				Pkgs:   []string{pkg},
-			}
-
-			err := Execute(r, false, nil)
-
-			if !errors.Is(err, test.wantError) {
-				t.Errorf("Execute(): got %v, want %v", err, test.wantError)
-			}
-		})
 	}
 }

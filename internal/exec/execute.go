@@ -23,14 +23,13 @@ func Execute(r *Request, dryRun bool, w io.Writer) error {
 	install := plan.Install{Source: r.Source, Target: r.Target}
 	var pkgOps []plan.PkgOp
 	for _, pkg := range r.Pkgs {
-		pkgOp := plan.PkgOp{Pkg: pkg, ItemOp: install, Index: index}
+		pkgOp := plan.PkgOp{Source: r.Source, Pkg: pkg, ItemOp: install, Index: index}
 		pkgOps = append(pkgOps, pkgOp)
 	}
 
 	planner := plan.Planner{
-		FS:     r.FS,
-		Target: r.Target,
-		Source: r.Source,
+		Target:   r.Target,
+		Analyzer: plan.Analyst{FS: r.FS},
 	}
 
 	plan, err := planner.Plan(pkgOps, index)

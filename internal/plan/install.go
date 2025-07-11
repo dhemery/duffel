@@ -13,7 +13,7 @@ type Merger interface {
 	Merge(name string) error
 }
 
-// Install is an [ItemOp] that describes the installed states
+// Install is an [itemOp] that describes the installed states
 // of the target files that correspond to the given pkg items.
 type Install struct {
 	Source string
