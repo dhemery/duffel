@@ -59,56 +59,65 @@ func TestDirStater(t *testing.T) {
 		aDestLstatError = errors.New("error returned from dest lstat")
 	)
 
+	type testFile struct {
+		name   string
+		mode   fs.FileMode
+		option fileOption
+	}
 	tests := map[string]struct {
 		staterDir string
 		fileName  string
-		files     fs.FS
+		files     []testFile
 		wantState *State
 		wantError error
 	}{
 		"file": {
 			staterDir: "stater-dir",
 			fileName:  "file",
-			files: duftest.TestFS{
-				"stater-dir/file": duftest.TestFile{Mode: 0o644},
-			},
+			files:     []testFile{{name: "stater-dir/file", mode: 0o644}},
 			wantState: &State{Mode: 0o644},
 		},
 		"dir": {
 			staterDir: "stater-dir",
 			fileName:  "dir",
-			files: duftest.TestFS{
-				"stater-dir/dir": duftest.TestFile{Mode: fs.ModeDir | 0o755},
-			},
+			files:     []testFile{{name: "stater-dir/dir", mode: fs.ModeDir | 0o755}},
 			wantState: &State{Mode: fs.ModeDir | 0o755},
 		},
 		"link": {
 			staterDir: "stater-dir",
 			fileName:  "link",
-			files: duftest.TestFS{
-				"stater-dir/link": duftest.TestFile{
-					Mode: fs.ModeSymlink,
-					Dest: "../dest-dir/dest-file",
+			files: []testFile{
+				{
+					name:   "stater-dir/link",
+					mode:   fs.ModeSymlink,
+					option: dest("../dest-dir/dest-file"),
 				},
-				"dest-dir/dest-file": duftest.TestFile{Mode: 0o644},
+				{
+					name: "dest-dir/dest-file",
+					mode: 0o644,
+				},
 			},
 			wantState: &State{Mode: fs.ModeSymlink, Dest: "../dest-dir/dest-file", DestMode: 0o644},
 		},
 		"file lstat error": {
 			staterDir: "stater-dir",
 			fileName:  "file",
-			files: duftest.TestFS{
-				"stater-dir/file": duftest.TestFile{LstatErr: anLstatError},
+			files: []testFile{
+				{
+					name:   "stater-dir/file",
+					option: lstatErr(anLstatError),
+				},
 			},
 			wantError: anLstatError,
 		},
 		"file readlink error": {
 			staterDir: "stater-dir",
 			fileName:  "link",
-			files: duftest.TestFS{
-				"stater-dir/link": duftest.TestFile{
-					Mode:        fs.ModeSymlink,
-					ReadLinkErr: aReadLinkError,
+			files: []testFile{
+				{
+					name:   "stater-dir/link",
+					mode:   fs.ModeSymlink,
+					option: readLinkErr(aReadLinkError),
 				},
 			},
 			wantError: aReadLinkError,
@@ -116,19 +125,23 @@ func TestDirStater(t *testing.T) {
 		"dest lstat error": {
 			staterDir: "stater-dir",
 			fileName:  "link",
-			files: duftest.TestFS{
-				"stater-dir/link": duftest.TestFile{
-					Mode: fs.ModeSymlink,
-					Dest: "../dest-dir/dest-file",
+			files: []testFile{
+				{
+					name:   "stater-dir/link",
+					mode:   fs.ModeSymlink,
+					option: dest("../dest-dir/dest-file"),
 				},
-				"dest-dir/dest-file": duftest.TestFile{LstatErr: aDestLstatError},
+				{
+					name:   "dest-dir/dest-file",
+					option: lstatErr(aDestLstatError),
+				},
 			},
 			wantError: aDestLstatError,
 		},
 		"no file": {
 			staterDir: "stater-dir",
 			fileName:  "missing-file",
-			files:     duftest.TestFS{},
+			files:     []testFile{},
 			wantState: nil,
 			wantError: nil,
 		},
@@ -136,17 +149,45 @@ func TestDirStater(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			stater := DirStater{FS: test.files, Dir: test.staterDir}
+			testFS := duftest.NewTestFS()
+
+			for _, tf := range test.files {
+				f, _ := testFS.Create(tf.name, tf.mode)
+				if tf.option != nil {
+					tf.option(f)
+				}
+			}
+			stater := DirStater{FS: testFS, Dir: test.staterDir}
 
 			state, err := stater.State(test.fileName)
 
 			if !errors.Is(err, test.wantError) {
-				t.Errorf("State(%s) error: got %v, want %v", test.fileName, err, test.wantError)
+				t.Errorf("State(%s) error:\n got %v\nwant %v", test.fileName, err, test.wantError)
 			}
 
 			if !cmp.Equal(state, test.wantState) {
 				t.Errorf("State(%s) state:\n got %v\nwant %v", test.fileName, state, test.wantState)
 			}
 		})
+	}
+}
+
+type fileOption func(t *duftest.TestFile)
+
+func readLinkErr(err error) fileOption {
+	return func(t *duftest.TestFile) {
+		t.ReadLinkErr = err
+	}
+}
+
+func lstatErr(err error) fileOption {
+	return func(t *duftest.TestFile) {
+		t.LstatErr = err
+	}
+}
+
+func dest(dest string) fileOption {
+	return func(t *duftest.TestFile) {
+		t.Dest = dest
 	}
 }
