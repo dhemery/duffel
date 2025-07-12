@@ -7,7 +7,7 @@ import (
 	"io/fs"
 	"testing"
 
-	"github.com/dhemery/duffel/internal/duftest"
+	"github.com/dhemery/duffel/internal/errfs"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -97,7 +97,10 @@ func TestDirStater(t *testing.T) {
 					mode: 0o644,
 				},
 			},
-			wantState: &State{Mode: fs.ModeSymlink, Dest: "../dest-dir/dest-file", DestMode: 0o644},
+			wantState: &State{
+				Mode: fs.ModeSymlink,
+				Dest: "../dest-dir/dest-file", DestMode: 0o644,
+			},
 		},
 		"file lstat error": {
 			staterDir: "stater-dir",
@@ -141,7 +144,7 @@ func TestDirStater(t *testing.T) {
 		"no file": {
 			staterDir: "stater-dir",
 			fileName:  "missing-file",
-			files:     []testFile{},
+			files:     nil,
 			wantState: nil,
 			wantError: nil,
 		},
@@ -149,7 +152,7 @@ func TestDirStater(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			testFS := duftest.NewTestFS()
+			testFS := errfs.New()
 
 			for _, tf := range test.files {
 				f, _ := testFS.Create(tf.name, tf.mode)
@@ -162,32 +165,34 @@ func TestDirStater(t *testing.T) {
 			state, err := stater.State(test.fileName)
 
 			if !errors.Is(err, test.wantError) {
-				t.Errorf("State(%s) error:\n got %v\nwant %v", test.fileName, err, test.wantError)
+				t.Errorf("State(%s) error:\n got %v\nwant %v",
+					test.fileName, err, test.wantError)
 			}
 
 			if !cmp.Equal(state, test.wantState) {
-				t.Errorf("State(%s) state:\n got %v\nwant %v", test.fileName, state, test.wantState)
+				t.Errorf("State(%s) state:\n got %v\nwant %v",
+					test.fileName, state, test.wantState)
 			}
 		})
 	}
 }
 
-type fileOption func(t *duftest.TestFile)
+type fileOption func(t *errfs.File)
 
 func readLinkErr(err error) fileOption {
-	return func(t *duftest.TestFile) {
+	return func(t *errfs.File) {
 		t.ReadLinkErr = err
 	}
 }
 
 func lstatErr(err error) fileOption {
-	return func(t *duftest.TestFile) {
+	return func(t *errfs.File) {
 		t.LstatErr = err
 	}
 }
 
 func dest(dest string) fileOption {
-	return func(t *duftest.TestFile) {
+	return func(t *errfs.File) {
 		t.Dest = dest
 	}
 }
