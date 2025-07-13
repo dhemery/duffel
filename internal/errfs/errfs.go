@@ -62,35 +62,35 @@ func (fsys *FS) AddLink(name string, dest string, errs ...Error) error {
 // with the given name, mode, destination, and prepared errors.
 // Any missing ancestor directories are also added.
 func (fsys *FS) Add(name string, mode fs.FileMode, dest string, errs ...Error) error {
-	f := newFile(path.Base(name), mode, dest, errs...)
-	return fsys.add(path.Dir(name), f)
+	_, err := fsys.addFile(name, mode, dest, errs...)
+	return err
 }
 
-func (fsys *FS) add(dir string, f *file) error {
+func (fsys *FS) addFile(name string, mode fs.FileMode, dest string, errs ...Error) (*file, error) {
 	const op = fsOp + "add"
-	name := f.info.Name()
-	fullName := path.Join(dir, name)
 
-	if fullName == "." {
-		return &fs.PathError{Op: op, Path: fullName, Err: fs.ErrInvalid}
+	if name == "." {
+		return nil, &fs.PathError{Op: op, Path: name, Err: fs.ErrInvalid}
 	}
 
+	dir := path.Dir(name)
 	parent, err := fsys.find(dir)
 	if errors.Is(err, fs.ErrNotExist) {
-		parent = newFile(path.Base(dir), fs.ModeDir|0o755, "")
-		err = fsys.add(path.Dir(dir), parent)
+		parent, err = fsys.addFile(dir, fs.ModeDir|0o755, "")
 	}
 	if err != nil {
-		return &fs.PathError{Op: op, Path: name, Err: err}
+		return nil, &fs.PathError{Op: op, Path: name, Err: err}
 	}
 
 	if _, ok := parent.entries[name]; ok {
-		return &fs.PathError{Op: op, Path: name, Err: fs.ErrExist}
+		return nil, &fs.PathError{Op: op, Path: name, Err: fs.ErrExist}
 	}
+
+	f := newFile(name, mode, dest, errs...)
 
 	parent.entries[f.info.Name()] = f
 
-	return nil
+	return f, nil
 }
 
 type Error struct {
@@ -210,9 +210,7 @@ func (fsys *FS) ReadLink(name string) (string, error) {
 
 func (fsys *FS) Symlink(oldname, newname string) error {
 	const op = fsOp + "symlink"
-	dir := path.Dir(newname)
-	base := path.Base(newname)
-	return fsys.add(dir, newFile(base, fs.ModeSymlink, oldname))
+	return fsys.Add(newname, fs.ModeSymlink, oldname)
 }
 
 // Stat returns a [fs.FileInfo] that describes the named file.
@@ -242,7 +240,7 @@ type file struct {
 
 func newFile(name string, mode fs.FileMode, data string, errs ...Error) *file {
 	f := &file{
-		info:    &info{name: name, mode: mode},
+		info:    &info{name: path.Base(name), mode: mode},
 		dest:    data,
 		entries: map[string]*file{},
 		errors:  map[Error]bool{},
