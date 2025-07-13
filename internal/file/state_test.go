@@ -156,7 +156,7 @@ func TestDirStater(t *testing.T) {
 			testFS := errfs.New()
 
 			for _, f := range test.files {
-				testFS.AddItem(f.name, f.mode, f.dest, f.err)
+				testFS.Add(f.name, f.mode, f.dest, f.err)
 			}
 
 			stater := DirStater{FS: testFS, Dir: test.staterDir}

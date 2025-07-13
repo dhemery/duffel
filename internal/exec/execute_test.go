@@ -99,7 +99,7 @@ func TestExecuteEmptyTargetNoConflictingPackageItems(t *testing.T) {
 	for _, spec := range specs {
 		sf := spec.sourceFile
 		sourcePkgItem := path.Join(source, sf.name)
-		testFS.AddItem(sourcePkgItem, sf.mode, sf.dest)
+		testFS.Add(sourcePkgItem, sf.mode, sf.dest)
 	}
 
 	req := &Request{

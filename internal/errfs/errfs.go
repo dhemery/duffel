@@ -46,23 +46,23 @@ type File struct {
 }
 
 func (fsys *FS) AddFile(name string, perm fs.FileMode, errs ...Error) error {
-	return fsys.AddItem(name, perm.Perm(), "", errs...)
+	return fsys.Add(name, perm.Perm(), "", errs...)
 }
 
 func (fsys *FS) AddDir(name string, perm fs.FileMode, errs ...Error) error {
-	return fsys.AddItem(name, fs.ModeDir|perm.Perm(), "", errs...)
+	return fsys.Add(name, fs.ModeDir|perm.Perm(), "", errs...)
 }
 
 func (fsys *FS) AddLink(name string, dest string, errs ...Error) error {
-	return fsys.AddItem(name, fs.ModeSymlink, dest, errs...)
+	return fsys.Add(name, fs.ModeSymlink, dest, errs...)
 }
 
-func (fsys *FS) AddItem(name string, mode fs.FileMode, dest string, errs ...Error) error {
+func (fsys *FS) Add(name string, mode fs.FileMode, dest string, errs ...Error) error {
 	f := newFile(path.Base(name), mode, dest, errs...)
-	return fsys.Add(path.Dir(name), f)
+	return fsys.add(path.Dir(name), f)
 }
 
-func (fsys *FS) Add(dir string, f *File) error {
+func (fsys *FS) add(dir string, f *File) error {
 	const op = fsOp + "add"
 	name := f.Info.Name()
 	fullName := path.Join(dir, name)
@@ -74,7 +74,7 @@ func (fsys *FS) Add(dir string, f *File) error {
 	parent, err := fsys.Find(dir)
 	if errors.Is(err, fs.ErrNotExist) {
 		parent = newFile(path.Base(dir), fs.ModeDir|0o755, "")
-		err = fsys.Add(path.Dir(dir), parent)
+		err = fsys.add(path.Dir(dir), parent)
 	}
 	if err != nil {
 		return &fs.PathError{Op: op, Path: name, Err: err}
@@ -208,7 +208,7 @@ func (fsys *FS) Symlink(oldname, newname string) error {
 	const op = fsOp + "symlink"
 	dir := path.Dir(newname)
 	base := path.Base(newname)
-	return fsys.Add(dir, newFile(base, fs.ModeSymlink, oldname))
+	return fsys.add(dir, newFile(base, fs.ModeSymlink, oldname))
 }
 
 // Stat returns a [fs.FileInfo] that describes the named file.
