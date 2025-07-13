@@ -22,7 +22,7 @@ type Planner struct {
 	States   states
 }
 
-func (p Planner) Plan(ops []PkgOp) (Plan, error) {
+func (p Planner) Plan(ops ...PkgOp) (Plan, error) {
 	err := p.Analyzer.Analyze(ops)
 	if err != nil {
 		return Plan{}, err

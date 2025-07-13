@@ -34,7 +34,7 @@ func Execute(r *Request, dryRun bool, w io.Writer) error {
 		States:   index,
 	}
 
-	plan, err := planner.Plan(pkgOps)
+	plan, err := planner.Plan(pkgOps...)
 	if err != nil {
 		return err
 	}
