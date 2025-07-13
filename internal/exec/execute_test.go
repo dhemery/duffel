@@ -2,68 +2,44 @@ package exec
 
 import (
 	"io/fs"
-	"maps"
 	"path"
-	"slices"
+	"path/filepath"
 	"testing"
-	"testing/fstest"
 
-	"github.com/dhemery/duffel/internal/duftest"
+	"github.com/dhemery/duffel/internal/errfs"
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestExecuteEmptyTargetNoConflictingPackageItems(t *testing.T) {
 	const (
-		source         = "home/user/source"
-		target         = "home/user/target"
-		targetToSource = "../source" // Relative path from target to source
+		source = "home/user/source"
+		target = "home/user/target"
 	)
 
-	pkgItems := map[string][]struct {
-		name  string
-		entry *fstest.MapFile
-	}{
+	pkgItems := map[string][]*errfs.File{
 		"pkg1": {
-			{
-				name:  "dirItem1",
-				entry: &fstest.MapFile{Mode: fs.ModeDir | 0o755},
-			},
-			{
-				name:  "fileItem1",
-				entry: &fstest.MapFile{Mode: 0o644},
-			},
-			{
-				name:  "linkItem1",
-				entry: &fstest.MapFile{Mode: fs.ModeSymlink, Data: []byte("linkItem1/dest")},
-			},
+			errfs.NewDir("dirItem1", 0o755),
+			errfs.NewFile("fileItem1", 0o644),
+			errfs.NewSymlink("linkItem1", "linkItem1/dest"),
 		},
 		"pkg2": {
-			{
-				name:  "dirItem2",
-				entry: &fstest.MapFile{Mode: fs.ModeDir | 0o755},
-			},
-			{
-				name:  "fileItem2",
-				entry: &fstest.MapFile{Mode: 0o644},
-			},
-			{
-				name:  "linkItem2",
-				entry: &fstest.MapFile{Mode: fs.ModeSymlink, Data: []byte("linkItem2/dest")},
-			},
+			errfs.NewDir("dirItem2", 0o755),
+			errfs.NewFile("fileItem2", 0o644),
+			errfs.NewSymlink("linkItem2", "linkItem2/dest"),
 		},
 	}
 
-	fsys := duftest.NewFS()
-	fsys.M[target] = &fstest.MapFile{Mode: fs.ModeDir | 0o755}
-	for pkg, items := range pkgItems {
+	testFS := errfs.New()
+	testFS.Add(path.Dir(target), errfs.NewDir(path.Base(target), 0o755))
+	for pkg, itemFiles := range pkgItems {
 		sourcePkg := path.Join(source, pkg)
-		for _, item := range items {
-			sourcePkgItem := path.Join(sourcePkg, item.name)
-			fsys.M[sourcePkgItem] = item.entry
+		for _, file := range itemFiles {
+			testFS.Add(sourcePkg, file)
 		}
 	}
 
 	req := &Request{
-		FS:     fsys,
+		FS:     testFS,
 		Source: source,
 		Target: target,
 		Pkgs:   []string{"pkg1", "pkg2"},
@@ -71,37 +47,43 @@ func TestExecuteEmptyTargetNoConflictingPackageItems(t *testing.T) {
 
 	err := Execute(req, false, nil)
 	if err != nil {
-		t.Error(err)
+		t.Fatal(err)
 	}
 
-	for pkg, items := range pkgItems {
-		for _, item := range items {
-			wantTargetItem := path.Join(target, item.name)
-			gotFile, ok := fsys.M[wantTargetItem]
-			if !ok {
-				t.Error("not installed:", wantTargetItem)
+	for pkg, itemFiles := range pkgItems {
+		for _, itemFile := range itemFiles {
+			wantTargetItem := path.Join(target, itemFile.Name())
+
+			gotFile, err := testFS.Find(wantTargetItem)
+			if err != nil {
+				t.Error(err)
 				continue
 			}
 
-			wantMode := fs.ModeSymlink
-			gotMode := gotFile.Mode
-			if gotMode != wantMode {
-				t.Errorf("%q mode: got%s, want %s", wantTargetItem, gotMode, wantMode)
-			}
+			sourcePkgItem := path.Join(source, pkg, itemFile.Name())
+			wantLinkDest, _ := filepath.Rel(path.Dir(wantTargetItem), sourcePkgItem)
+			wantFile := errfs.NewSymlink(itemFile.Name(), wantLinkDest)
 
-			wantDest := path.Join(targetToSource, pkg, item.name)
-			gotDest := string(gotFile.Data)
-			if gotDest != wantDest {
-				t.Errorf("%q dest: got %q, want %q", wantTargetItem, gotDest, wantDest)
+			if !cmp.Equal(gotFile, wantFile) {
+				t.Errorf("target file %q:\n got: %s\nwant: %s",
+					wantTargetItem, gotFile, wantFile)
 			}
 		}
 	}
 
 	if t.Failed() {
-		t.Error("files:")
-		for _, name := range slices.Sorted(maps.Keys(fsys.M)) {
-			file := fsys.M[name]
-			t.Errorf("   %q: %s %s", name, file.Mode, file.Data)
-		}
+		printFiles(t, testFS, "files after failure:")
+	}
+}
+
+func printFiles(t *testing.T, fsys fs.FS, context string) {
+	t.Helper()
+	t.Error(context)
+	err := fs.WalkDir(fsys, ".", func(name string, entry fs.DirEntry, err error) error {
+		t.Errorf("   %q: %v", name, entry)
+		return nil
+	})
+	if err != nil {
+		t.Errorf("walk error: %s", err)
 	}
 }
