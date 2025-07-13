@@ -22,7 +22,7 @@ func TestExecuteEmptyTargetNoConflictingPackageItems(t *testing.T) {
 
 	specs := []struct {
 		sourceFile fileDesc // Describes a file in the source tree
-		targetFile fileDesc // Describes a desired file in the target tree
+		targetFile fileDesc // Describes a desired symlink in the target tree
 	}{
 		{
 			sourceFile: fileDesc{
@@ -31,7 +31,6 @@ func TestExecuteEmptyTargetNoConflictingPackageItems(t *testing.T) {
 			},
 			targetFile: fileDesc{
 				name: "fileItem1",
-				mode: fs.ModeSymlink,
 				dest: "../source/pkg1/fileItem1",
 			},
 		},
@@ -42,7 +41,6 @@ func TestExecuteEmptyTargetNoConflictingPackageItems(t *testing.T) {
 			},
 			targetFile: fileDesc{
 				name: "dirItem1",
-				mode: fs.ModeSymlink,
 				dest: "../source/pkg1/dirItem1",
 			},
 		},
@@ -54,7 +52,6 @@ func TestExecuteEmptyTargetNoConflictingPackageItems(t *testing.T) {
 			},
 			targetFile: fileDesc{
 				name: "linkItem1",
-				mode: fs.ModeSymlink,
 				dest: "../source/pkg1/linkItem1",
 			},
 		},
@@ -65,7 +62,6 @@ func TestExecuteEmptyTargetNoConflictingPackageItems(t *testing.T) {
 			},
 			targetFile: fileDesc{
 				name: "fileItem2",
-				mode: fs.ModeSymlink,
 				dest: "../source/pkg2/fileItem2",
 			},
 		},
@@ -76,7 +72,6 @@ func TestExecuteEmptyTargetNoConflictingPackageItems(t *testing.T) {
 			},
 			targetFile: fileDesc{
 				name: "dirItem2",
-				mode: fs.ModeSymlink,
 				dest: "../source/pkg2/dirItem2",
 			},
 		},
@@ -88,7 +83,6 @@ func TestExecuteEmptyTargetNoConflictingPackageItems(t *testing.T) {
 			},
 			targetFile: fileDesc{
 				name: "linkItem2",
-				mode: fs.ModeSymlink,
 				dest: "../source/pkg2/linkItem2",
 			},
 		},
@@ -118,19 +112,24 @@ func TestExecuteEmptyTargetNoConflictingPackageItems(t *testing.T) {
 		want := spec.targetFile
 		wantFilePath := path.Join(target, want.name)
 
-		gotFile, err := testFS.Find(wantFilePath)
+		gotInfo, err := testFS.Lstat(wantFilePath)
 		if err != nil {
 			t.Error(err)
 			continue
 		}
 
-		gotMode := gotFile.Info.Mode()
-		if gotMode != want.mode {
+		gotMode := gotInfo.Mode()
+		if gotMode != fs.ModeSymlink {
 			t.Errorf("%q mode:\n got: %s\nwant: %s",
-				wantFilePath, gotMode, want.mode)
+				wantFilePath, gotMode, fs.ModeSymlink)
 		}
 
-		gotDest := gotFile.Dest
+		gotDest, err := testFS.ReadLink(wantFilePath)
+		if err != nil {
+			t.Error(err)
+			continue
+		}
+
 		if gotDest != want.dest {
 			t.Errorf("%q dest:\n got: %s\nwant: %s",
 				wantFilePath, gotDest, want.dest)
