@@ -2,27 +2,22 @@ package plan
 
 import (
 	"io/fs"
-	"iter"
 	"path"
 
 	"github.com/dhemery/duffel/internal/file"
 )
 
-type analyzer interface {
+type Analyst interface {
 	Analyze(ops []PkgOp) error
 }
 
-type states interface {
-	Sorted() iter.Seq2[string, *file.State]
-}
-
-type Planner struct {
+type AnalyzingPlanner struct {
 	Target   string
-	Analyzer analyzer
-	States   states
+	Analyzer Analyst
+	States   States
 }
 
-func (p Planner) Plan(ops ...PkgOp) (Plan, error) {
+func (p AnalyzingPlanner) Plan(ops ...PkgOp) (Plan, error) {
 	err := p.Analyzer.Analyze(ops)
 	if err != nil {
 		return Plan{}, err
@@ -30,11 +25,11 @@ func (p Planner) Plan(ops ...PkgOp) (Plan, error) {
 	return New(p.Target, p.States), nil
 }
 
-type Analyst struct {
+type PkgWalkerAnalyst struct {
 	FS fs.FS
 }
 
-func (a Analyst) Analyze(ops []PkgOp) error {
+func (a PkgWalkerAnalyst) Analyze(ops []PkgOp) error {
 	for _, op := range ops {
 		err := fs.WalkDir(a.FS, op.WalkDir(), op.VisitFunc())
 		if err != nil {
@@ -44,11 +39,11 @@ func (a Analyst) Analyze(ops []PkgOp) error {
 	return nil
 }
 
-type itemOp interface {
+type ItemOp interface {
 	Apply(pkg, item string, entry fs.DirEntry, inState *file.State) (*file.State, error)
 }
 
-type index interface {
+type Index interface {
 	State(name string) (*file.State, error)
 	SetState(item string, state *file.State)
 }
@@ -56,8 +51,8 @@ type index interface {
 type PkgOp struct {
 	Source string
 	Pkg    string
-	ItemOp itemOp
-	Index  index
+	ItemOp ItemOp
+	Index  Index
 }
 
 func (po PkgOp) WalkDir() string {

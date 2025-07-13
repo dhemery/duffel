@@ -28,9 +28,9 @@ func Execute(r *Request, dryRun bool, w io.Writer) error {
 		pkgOps = append(pkgOps, pkgOp)
 	}
 
-	planner := plan.Planner{
+	planner := plan.AnalyzingPlanner{
 		Target:   r.Target,
-		Analyzer: plan.Analyst{FS: r.FS},
+		Analyzer: plan.PkgWalkerAnalyst{FS: r.FS},
 		States:   index,
 	}
 
