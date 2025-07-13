@@ -46,9 +46,9 @@ type File struct {
 }
 
 // NewDir returns a new directory *File
-// with the given name, mode, and prepared errors.
-func NewDir(name string, mode fs.FileMode, errs ...Error) *File {
-	return newFile(name, mode|fs.ModeDir, "", errs...)
+// with the given name, permissions, and prepared errors.
+func NewDir(name string, perm fs.FileMode, errs ...Error) *File {
+	return newFile(name, fs.ModeDir|perm.Perm(), "", errs...)
 }
 
 // NewSymlink returns a new symlink *File
@@ -58,9 +58,26 @@ func NewSymlink(name, dest string, errs ...Error) *File {
 }
 
 // NewFile returns a new *File
-// with the given name, mode, and prepared errors.
-func NewFile(name string, mode fs.FileMode, errs ...Error) *File {
-	return newFile(name, mode, "", errs...)
+// with the given name, permissions, and prepared errors.
+func NewFile(name string, perm fs.FileMode, errs ...Error) *File {
+	return newFile(name, perm.Perm(), "", errs...)
+}
+
+func (fsys *FS) AddFile(name string, perm fs.FileMode, errs ...Error) error {
+	return fsys.AddItem(name, perm.Perm(), "", errs...)
+}
+
+func (fsys *FS) AddDir(name string, perm fs.FileMode, errs ...Error) error {
+	return fsys.AddItem(name, fs.ModeDir|perm.Perm(), "", errs...)
+}
+
+func (fsys *FS) AddLink(name string, dest string, errs ...Error) error {
+	return fsys.AddItem(name, fs.ModeSymlink, dest, errs...)
+}
+
+func (fsys *FS) AddItem(name string, mode fs.FileMode, dest string, errs ...Error) error {
+	f := newFile(path.Base(name), mode, dest, errs...)
+	return fsys.Add(path.Dir(name), f)
 }
 
 // Add adds f to directory dir in fsys.

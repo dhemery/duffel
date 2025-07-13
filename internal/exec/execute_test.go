@@ -3,12 +3,16 @@ package exec
 import (
 	"io/fs"
 	"path"
-	"path/filepath"
 	"testing"
 
 	"github.com/dhemery/duffel/internal/errfs"
-	"github.com/google/go-cmp/cmp"
 )
+
+type fileDesc struct {
+	name string
+	mode fs.FileMode
+	dest string
+}
 
 func TestExecuteEmptyTargetNoConflictingPackageItems(t *testing.T) {
 	const (
@@ -16,26 +20,86 @@ func TestExecuteEmptyTargetNoConflictingPackageItems(t *testing.T) {
 		target = "home/user/target"
 	)
 
-	pkgItems := map[string][]*errfs.File{
-		"pkg1": {
-			errfs.NewDir("dirItem1", 0o755),
-			errfs.NewFile("fileItem1", 0o644),
-			errfs.NewSymlink("linkItem1", "linkItem1/dest"),
+	specs := []struct {
+		sourceFile fileDesc // Describes a file in the source tree
+		targetFile fileDesc // Describes a desired file in the target tree
+	}{
+		{
+			sourceFile: fileDesc{
+				name: "pkg1/fileItem1",
+				mode: 0o644,
+			},
+			targetFile: fileDesc{
+				name: "fileItem1",
+				mode: fs.ModeSymlink,
+				dest: "../source/pkg1/fileItem1",
+			},
 		},
-		"pkg2": {
-			errfs.NewDir("dirItem2", 0o755),
-			errfs.NewFile("fileItem2", 0o644),
-			errfs.NewSymlink("linkItem2", "linkItem2/dest"),
+		{
+			sourceFile: fileDesc{
+				name: "pkg1/dirItem1",
+				mode: fs.ModeDir | 0o755,
+			},
+			targetFile: fileDesc{
+				name: "dirItem1",
+				mode: fs.ModeSymlink,
+				dest: "../source/pkg1/dirItem1",
+			},
+		},
+		{
+			sourceFile: fileDesc{
+				name: "pkg1/linkItem1",
+				mode: fs.ModeSymlink,
+				dest: "linkItem1/dest",
+			},
+			targetFile: fileDesc{
+				name: "linkItem1",
+				mode: fs.ModeSymlink,
+				dest: "../source/pkg1/linkItem1",
+			},
+		},
+		{
+			sourceFile: fileDesc{
+				name: "pkg2/fileItem2",
+				mode: 0o644,
+			},
+			targetFile: fileDesc{
+				name: "fileItem2",
+				mode: fs.ModeSymlink,
+				dest: "../source/pkg2/fileItem2",
+			},
+		},
+		{
+			sourceFile: fileDesc{
+				name: "pkg2/dirItem2",
+				mode: fs.ModeDir | 0o755,
+			},
+			targetFile: fileDesc{
+				name: "dirItem2",
+				mode: fs.ModeSymlink,
+				dest: "../source/pkg2/dirItem2",
+			},
+		},
+		{
+			sourceFile: fileDesc{
+				name: "pkg2/linkItem2",
+				mode: fs.ModeSymlink,
+				dest: "linkItem2/dest",
+			},
+			targetFile: fileDesc{
+				name: "linkItem2",
+				mode: fs.ModeSymlink,
+				dest: "../source/pkg2/linkItem2",
+			},
 		},
 	}
 
 	testFS := errfs.New()
-	testFS.Add(path.Dir(target), errfs.NewDir(path.Base(target), 0o755))
-	for pkg, itemFiles := range pkgItems {
-		sourcePkg := path.Join(source, pkg)
-		for _, file := range itemFiles {
-			testFS.Add(sourcePkg, file)
-		}
+	testFS.AddDir(target, 0o755)
+	for _, spec := range specs {
+		sf := spec.sourceFile
+		sourcePkgItem := path.Join(source, sf.name)
+		testFS.AddItem(sourcePkgItem, sf.mode, sf.dest)
 	}
 
 	req := &Request{
@@ -50,25 +114,28 @@ func TestExecuteEmptyTargetNoConflictingPackageItems(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	for pkg, itemFiles := range pkgItems {
-		for _, itemFile := range itemFiles {
-			wantTargetItem := path.Join(target, itemFile.Name())
+	for _, spec := range specs {
+		want := spec.targetFile
+		wantFilePath := path.Join(target, want.name)
 
-			gotFile, err := testFS.Find(wantTargetItem)
-			if err != nil {
-				t.Error(err)
-				continue
-			}
-
-			sourcePkgItem := path.Join(source, pkg, itemFile.Name())
-			wantLinkDest, _ := filepath.Rel(path.Dir(wantTargetItem), sourcePkgItem)
-			wantFile := errfs.NewSymlink(itemFile.Name(), wantLinkDest)
-
-			if !cmp.Equal(gotFile, wantFile) {
-				t.Errorf("target file %q:\n got: %s\nwant: %s",
-					wantTargetItem, gotFile, wantFile)
-			}
+		gotFile, err := testFS.Find(wantFilePath)
+		if err != nil {
+			t.Error(err)
+			continue
 		}
+
+		gotMode := gotFile.Info.Mode()
+		if gotMode != want.mode {
+			t.Errorf("%q mode:\n got: %s\nwant: %s",
+				wantFilePath, gotMode, want.mode)
+		}
+
+		gotDest := gotFile.Dest
+		if gotDest != want.dest {
+			t.Errorf("%q dest:\n got: %s\nwant: %s",
+				wantFilePath, gotDest, want.dest)
+		}
+
 	}
 
 	if t.Failed() {
