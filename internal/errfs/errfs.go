@@ -88,7 +88,7 @@ func (fsys *FS) add(dir string, f *file) error {
 		return &fs.PathError{Op: op, Path: name, Err: fs.ErrExist}
 	}
 
-	parent.entries[f.Name()] = f
+	parent.entries[f.info.Name()] = f
 
 	return nil
 }
@@ -253,24 +253,20 @@ func newFile(name string, mode fs.FileMode, data string, errs ...Error) *file {
 	return f
 }
 
-func (f *file) Name() string {
-	return f.info.Name()
-}
-
 func (f *file) Close() error {
 	const op = fileOp + "close"
-	return &fs.PathError{Op: op, Path: f.Name(), Err: errors.ErrUnsupported}
+	return &fs.PathError{Op: op, Path: f.info.Name(), Err: errors.ErrUnsupported}
 }
 
 func (f *file) Read([]byte) (int, error) {
 	const op = fileOp + "read"
-	return 0, &fs.PathError{Op: op, Path: f.Name(), Err: errors.ErrUnsupported}
+	return 0, &fs.PathError{Op: op, Path: f.info.Name(), Err: errors.ErrUnsupported}
 }
 
 func (f *file) Stat() (fs.FileInfo, error) {
 	const op = fileOp + "stat"
 	if f.errors[ErrStat] {
-		return nil, &fs.PathError{Op: op, Path: f.Name(), Err: ErrStat}
+		return nil, &fs.PathError{Op: op, Path: f.info.Name(), Err: ErrStat}
 	}
 	return f.info, nil
 }
