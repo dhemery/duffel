@@ -52,36 +52,52 @@ func TestStateEncodeJSON(t *testing.T) {
 	}
 }
 
+type fileDesc struct {
+	name string
+	mode fs.FileMode
+	dest string
+	err  errfs.Error
+}
+
 func TestDirStater(t *testing.T) {
 	tests := map[string]struct {
 		staterDir string
 		fileName  string
-		files     map[string][]*errfs.File
+		files     []fileDesc
 		wantState *State
 		wantError error
 	}{
 		"file": {
 			staterDir: "stater-dir",
 			fileName:  "file",
-			files: map[string][]*errfs.File{
-				"stater-dir": {errfs.NewFile("file", 0o644)},
-			},
+			files: []fileDesc{{
+				name: "stater-dir/file",
+				mode: 0o644,
+			}},
 			wantState: &State{Mode: 0o644},
 		},
 		"dir": {
 			staterDir: "stater-dir",
 			fileName:  "dir",
-			files: map[string][]*errfs.File{
-				"stater-dir": {errfs.NewDir("dir", 0o755)},
-			},
+			files: []fileDesc{{
+				name: "stater-dir/dir",
+				mode: fs.ModeDir | 0o755,
+			}},
 			wantState: &State{Mode: fs.ModeDir | 0o755},
 		},
 		"link": {
 			staterDir: "stater-dir",
 			fileName:  "link",
-			files: map[string][]*errfs.File{
-				"stater-dir": {errfs.NewSymlink("link", "../dest-dir/dest-file")},
-				"dest-dir":   {errfs.NewFile("dest-file", 0o644)},
+			files: []fileDesc{
+				{
+					name: "stater-dir/link",
+					mode: fs.ModeSymlink,
+					dest: "../dest-dir/dest-file",
+				},
+				{
+					name: "dest-dir/dest-file",
+					mode: 0o644,
+				},
 			},
 			wantState: &State{
 				Mode:     fs.ModeSymlink,
@@ -92,25 +108,37 @@ func TestDirStater(t *testing.T) {
 		"file lstat error": {
 			staterDir: "stater-dir",
 			fileName:  "file",
-			files: map[string][]*errfs.File{
-				"stater-dir": {errfs.NewFile("file", 0o644, errfs.ErrLstat)},
-			},
+			files: []fileDesc{{
+				name: "stater-dir/file",
+				mode: 0o644,
+				err:  errfs.ErrLstat,
+			}},
 			wantError: errfs.ErrLstat,
 		},
 		"file readlink error": {
 			staterDir: "stater-dir",
 			fileName:  "link",
-			files: map[string][]*errfs.File{
-				"stater-dir": {errfs.NewSymlink("link", "", errfs.ErrReadLink)},
-			},
+			files: []fileDesc{{
+				name: "stater-dir/link",
+				mode: fs.ModeSymlink,
+				err:  errfs.ErrReadLink,
+			}},
 			wantError: errfs.ErrReadLink,
 		},
 		"dest lstat error": {
 			staterDir: "stater-dir",
 			fileName:  "link",
-			files: map[string][]*errfs.File{
-				"stater-dir": {errfs.NewSymlink("link", "../dest-dir/dest-file")},
-				"dest-dir":   {errfs.NewFile("dest-file", 0o644, errfs.ErrLstat)},
+			files: []fileDesc{
+				{
+					name: "stater-dir/link",
+					mode: fs.ModeSymlink,
+					dest: "../dest-dir/dest-file",
+				},
+				{
+					name: "dest-dir/dest-file",
+					mode: 0o644,
+					err:  errfs.ErrLstat,
+				},
 			},
 			wantError: errfs.ErrLstat,
 		},
@@ -127,11 +155,10 @@ func TestDirStater(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			testFS := errfs.New()
 
-			for dir, files := range test.files {
-				for _, file := range files {
-					testFS.Add(dir, file)
-				}
+			for _, f := range test.files {
+				testFS.AddItem(f.name, f.mode, f.dest, f.err)
 			}
+
 			stater := DirStater{FS: testFS, Dir: test.staterDir}
 
 			state, err := stater.State(test.fileName)

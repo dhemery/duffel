@@ -34,7 +34,7 @@ type FS struct {
 
 // New returns a new FS.
 func New() *FS {
-	return &FS{root: NewDir("", 0o775)}
+	return &FS{root: newFile("", fs.ModeDir|0o775, "")}
 }
 
 // File is a file in a [FS] file system.
@@ -43,24 +43,6 @@ type File struct {
 	Entries map[string]*File // The dir entries if mode is dir
 	Dest    string           // The symlink destination if mode is symlink
 	Errors  map[Error]bool
-}
-
-// NewDir returns a new directory *File
-// with the given name, permissions, and prepared errors.
-func NewDir(name string, perm fs.FileMode, errs ...Error) *File {
-	return newFile(name, fs.ModeDir|perm.Perm(), "", errs...)
-}
-
-// NewSymlink returns a new symlink *File
-// with the given name, destination, and prepared errors.
-func NewSymlink(name, dest string, errs ...Error) *File {
-	return newFile(name, fs.ModeSymlink, dest, errs...)
-}
-
-// NewFile returns a new *File
-// with the given name, permissions, and prepared errors.
-func NewFile(name string, perm fs.FileMode, errs ...Error) *File {
-	return newFile(name, perm.Perm(), "", errs...)
 }
 
 func (fsys *FS) AddFile(name string, perm fs.FileMode, errs ...Error) error {
@@ -80,9 +62,6 @@ func (fsys *FS) AddItem(name string, mode fs.FileMode, dest string, errs ...Erro
 	return fsys.Add(path.Dir(name), f)
 }
 
-// Add adds f to directory dir in fsys.
-// Dir and its ancestors are also added
-// if they do not yet exist in fsys.
 func (fsys *FS) Add(dir string, f *File) error {
 	const op = fsOp + "add"
 	name := f.Info.Name()
@@ -94,7 +73,7 @@ func (fsys *FS) Add(dir string, f *File) error {
 
 	parent, err := fsys.Find(dir)
 	if errors.Is(err, fs.ErrNotExist) {
-		parent = NewDir(path.Base(dir), 0o755)
+		parent = newFile(path.Base(dir), fs.ModeDir|0o755, "")
 		err = fsys.Add(path.Dir(dir), parent)
 	}
 	if err != nil {
@@ -229,7 +208,7 @@ func (fsys *FS) Symlink(oldname, newname string) error {
 	const op = fsOp + "symlink"
 	dir := path.Dir(newname)
 	base := path.Base(newname)
-	return fsys.Add(dir, NewSymlink(base, oldname))
+	return fsys.Add(dir, newFile(base, fs.ModeSymlink, oldname))
 }
 
 // Stat returns a [fs.FileInfo] that describes the named file.
