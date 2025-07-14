@@ -72,10 +72,10 @@ func TestMerge(t *testing.T) {
 			})
 
 			var gotPlan bool
-			analyzer := analyzerFunc(func(gotOp PkgOp) error {
+			analyzer := analyzerFunc(func(op PkgOp) error {
 				gotPlan = true
-				if gotOp != test.pkgOp {
-					t.Errorf("Plan(op) op arg:\n got: %v\nwant %v", gotOp, test.pkgOp)
+				if op != test.pkgOp {
+					t.Errorf("Plan(op) op arg:\n got: %v\nwant %v", op, test.pkgOp)
 				}
 
 				return test.analyzeErr

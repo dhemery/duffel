@@ -13,20 +13,24 @@ type Merger interface {
 	Merge(name string) error
 }
 
-func NewInstallOp(source, target string, merger Merger) Install {
-	return Install{
-		source: source,
-		target: target,
-		merger: merger,
+func NewInstallOp(source, target string, merger Merger) installOp {
+	targetToSource, err := filepath.Rel(target, source)
+	if err != nil {
+		panic(err)
+	}
+	return installOp{
+		target:         target,
+		targetToSource: targetToSource,
+		merger:         merger,
 	}
 }
 
-// Install is an [itemOp] that describes the installed states
+// installOp is an [ItemOp] that describes the installed states
 // of the target files that correspond to the given pkg items.
-type Install struct {
-	source string
-	target string
-	merger Merger
+type installOp struct {
+	target         string
+	targetToSource string
+	merger         Merger
 }
 
 // Apply describes the installed state
@@ -35,8 +39,10 @@ type Install struct {
 // Entry describes the state of the file in the source tree.
 // TargetState describes the state of the target file
 // after earlier tasks.
-func (i Install) Apply(pkg, item string, entry fs.DirEntry, targetState *file.State) (*file.State, error) {
-	itemAsDest := i.toLinkDest(pkg, item)
+func (op installOp) Apply(pkg, item string, entry fs.DirEntry, targetState *file.State) (*file.State, error) {
+	itemDepth := strings.Count(item, "/")
+	itemToTarget := strings.Repeat("../", itemDepth)
+	itemAsDest := path.Join(itemToTarget, op.targetToSource, pkg, item)
 
 	if targetState == nil {
 		// There is no target item, so we're free to create a link to the pkg item.
@@ -119,8 +125,8 @@ func (i Install) Apply(pkg, item string, entry fs.DirEntry, targetState *file.St
 	//
 	// First, install the contents of the target's destination,
 	// as if the target were already a dir.
-	mergePath := path.Join(i.target, targetState.Dest)
-	if err := i.merger.Merge(mergePath); err != nil {
+	mergePath := path.Join(op.target, targetState.Dest)
+	if err := op.merger.Merge(mergePath); err != nil {
 		return nil, err
 	}
 
@@ -131,12 +137,8 @@ func (i Install) Apply(pkg, item string, entry fs.DirEntry, targetState *file.St
 	return dirState, nil
 }
 
-func (i Install) toLinkDest(pkg, item string) string {
-	targetToSource, err := filepath.Rel(i.target, i.source)
-	if err != nil {
-		panic(err)
-	}
+func (op installOp) toLinkDest(pkg, item string) string {
 	itemDepth := strings.Count(item, "/")
 	itemToTarget := strings.Repeat("../", itemDepth)
-	return path.Join(itemToTarget, targetToSource, pkg, item)
+	return path.Join(itemToTarget, op.targetToSource, pkg, item)
 }
