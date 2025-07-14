@@ -8,33 +8,12 @@ import (
 	"github.com/dhemery/duffel/internal/file"
 )
 
-func NewAnalyst(fsys fs.FS, index Index) analyst {
-	return analyst{fsys: fsys, index: index}
-}
-
-type PkgOp interface {
-	VisitFunc() fs.WalkDirFunc
-	WalkDir() string
-}
-
-type Analyzer interface {
-	Analyze(op PkgOp) error
-}
-
 type Analyst interface {
 	Analyzer
 	States() iter.Seq2[string, *file.State]
 }
-
-func NewPlanner(target string, analyst Analyst) planner {
-	return planner{
-		target:  target,
-		analyst: analyst,
-	}
-}
-
-type ItemOp interface {
-	Apply(pkg, item string, entry fs.DirEntry, inState *file.State) (*file.State, error)
+type Analyzer interface {
+	Analyze(op PkgOp) error
 }
 
 type Index interface {
@@ -43,20 +22,20 @@ type Index interface {
 	All() iter.Seq2[string, *file.State]
 }
 
-func NewPkgOp(source, pkg string, itemOp ItemOp, index Index) pkgOp {
-	return pkgOp{
-		source: source,
-		pkg:    pkg,
-		itemOp: itemOp,
-		index:  index,
-	}
+type ItemOp interface {
+	Apply(pkg, item string, entry fs.DirEntry, inState *file.State) (*file.State, error)
 }
 
-type pkgOp struct {
-	source string
-	pkg    string
-	itemOp ItemOp
-	index  Index
+type PkgOp interface {
+	VisitFunc() fs.WalkDirFunc
+	WalkDir() string
+}
+
+func NewPlanner(target string, analyst Analyst) planner {
+	return planner{
+		target:  target,
+		analyst: analyst,
+	}
 }
 
 type planner struct {
@@ -74,6 +53,10 @@ func (p planner) Plan(ops []PkgOp) (Plan, error) {
 	return New(p.target, p.analyst.States()), nil
 }
 
+func NewAnalyst(fsys fs.FS, index Index) analyst {
+	return analyst{fsys: fsys, index: index}
+}
+
 type analyst struct {
 	fsys  fs.FS
 	index Index
@@ -85,6 +68,22 @@ func (a analyst) Analyze(op PkgOp) error {
 
 func (a analyst) States() iter.Seq2[string, *file.State] {
 	return a.index.All()
+}
+
+func NewPkgOp(source, pkg string, itemOp ItemOp, index Index) pkgOp {
+	return pkgOp{
+		source: source,
+		pkg:    pkg,
+		itemOp: itemOp,
+		index:  index,
+	}
+}
+
+type pkgOp struct {
+	source string
+	pkg    string
+	itemOp ItemOp
+	index  Index
 }
 
 func (po pkgOp) WalkDir() string {
