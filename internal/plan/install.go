@@ -136,9 +136,3 @@ func (op installOp) Apply(pkg, item string, entry fs.DirEntry, targetState *file
 	dirState := &file.State{Mode: fs.ModeDir | 0o755}
 	return dirState, nil
 }
-
-func (op installOp) toLinkDest(pkg, item string) string {
-	itemDepth := strings.Count(item, "/")
-	itemToTarget := strings.Repeat("../", itemDepth)
-	return path.Join(itemToTarget, op.targetToSource, pkg, item)
-}

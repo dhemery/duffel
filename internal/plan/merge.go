@@ -1,15 +1,22 @@
 package plan
 
-type Finder interface {
+import (
+	"errors"
+	"io/fs"
+	"path"
+	"strings"
+)
+
+type PkgFinder interface {
 	FindPkg(name string) (PkgOp, error)
 }
 
-func NewMerger(finder Finder, analyzer Analyzer) merger {
+func NewMerger(finder PkgFinder, analyzer Analyzer) merger {
 	return merger{finder: finder, analyzer: analyzer}
 }
 
 type merger struct {
-	finder   Finder
+	finder   PkgFinder
 	analyzer Analyzer
 }
 
@@ -20,4 +27,54 @@ func (m merger) Merge(name string) error {
 	}
 
 	return m.analyzer.Analyze(op)
+}
+
+func NewPkgFinder(fsys fs.FS) pkgFinder {
+	return pkgFinder{fsys}
+}
+
+type pkgFinder struct {
+	fsys fs.FS
+}
+
+// FindPkg returns the package directory that contains the named file.
+// A package directory is a directory in a duffel source.
+// A duffel source is a directory that contains an entry named .duffel.
+func (pf pkgFinder) FindPkg(name string) (string, error) {
+	source, err := pf.findSource(name)
+	if err != nil {
+		return "", err
+	}
+
+	if name == source {
+		return "", ErrIsSource
+	}
+
+	pkgItem := name[len(source)+1:]
+	pkg, _, found := strings.Cut(pkgItem, "/")
+	if !found {
+		return "", ErrIsPackage
+	}
+
+	sourcePkg := path.Join(source, pkg)
+	return sourcePkg, nil
+}
+
+func (pf pkgFinder) findSource(name string) (string, error) {
+	if name == "." {
+		return "", ErrNotInPackage
+	}
+
+	dfName := path.Join(name, ".duffel")
+	_, err := fs.Lstat(pf.fsys, dfName)
+
+	if errors.Is(err, fs.ErrNotExist) {
+		return pf.findSource(path.Dir(name))
+	}
+
+	if err != nil {
+		return "", err
+	}
+
+	return name, nil
 }
