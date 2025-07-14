@@ -17,12 +17,12 @@ type Plan struct {
 }
 
 type States interface {
-	Sorted() iter.Seq2[string, *file.State]
+	All() iter.Seq2[string, *file.State]
 }
 
 func New(target string, states States) Plan {
 	p := Plan{Target: target, Tasks: []Task{}}
-	for item, state := range states.Sorted() {
+	for item, state := range states.All() {
 		if state == nil {
 			continue
 		}

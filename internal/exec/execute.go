@@ -18,7 +18,7 @@ type Request struct {
 
 func Execute(r *Request, dryRun bool, w io.Writer) error {
 	stater := file.NewStater(r.FS, r.Target)
-	index := plan.NewStateCache(stater)
+	index := plan.NewIndex(stater)
 
 	analyzer := plan.NewAnalyzer(r.FS)
 	merger := plan.NewMerger(nil, analyzer)

@@ -28,9 +28,9 @@ func TestStateCache(t *testing.T) {
 	},
 	)
 
-	cache := NewStateCache(miss)
+	index := NewIndex(miss)
 
-	gotState, err := cache.State(name)
+	gotState, err := index.State(name)
 	if err != nil {
 		t.Error(err)
 	}
@@ -39,9 +39,9 @@ func TestStateCache(t *testing.T) {
 	}
 
 	updatedState := &file.State{Mode: fs.ModeSymlink, Dest: "updated/state/dest"}
-	cache.SetState(name, updatedState)
+	index.SetState(name, updatedState)
 
-	gotState, err = cache.State(name)
+	gotState, err = index.State(name)
 	if err != nil {
 		t.Error(err)
 	}
@@ -60,7 +60,7 @@ func (s itemState) String() string {
 	return fmt.Sprintf("%s: %s", s.Item, s.State)
 }
 
-func TestStateCacheSorted(t *testing.T) {
+func TestIndexAll(t *testing.T) {
 	// Some items and their states, sorted by item
 	want := []itemState{
 		{Item: "a/b/c/dir", State: &file.State{Mode: fs.ModeDir | 0o755}},
@@ -70,7 +70,7 @@ func TestStateCacheSorted(t *testing.T) {
 	}
 	wantLen := len(want)
 
-	cache := NewStateCache(nil)
+	cache := NewIndex(nil)
 
 	// Add the items in a random order
 	for _, i := range rand.Perm(wantLen) {
@@ -79,7 +79,7 @@ func TestStateCacheSorted(t *testing.T) {
 	}
 
 	got := []itemState{}
-	for item, state := range cache.Sorted() {
+	for item, state := range cache.All() {
 		got = append(got, itemState{Item: item, State: state})
 	}
 
