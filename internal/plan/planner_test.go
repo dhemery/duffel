@@ -120,7 +120,7 @@ func TestPkgOpApplyItemOp(t *testing.T) {
 
 			testIndex := testIndex{itemName: indexValue{state: test.indexState}}
 
-			pkgOp := PkgOp{Source: source, Pkg: pkg, ItemOp: itemOp, Index: testIndex}
+			pkgOp := NewPkgOp(source, pkg, itemOp, testIndex)
 
 			visit := pkgOp.VisitFunc()
 
@@ -192,7 +192,7 @@ func TestPkgOpWalkFuncError(t *testing.T) {
 
 			testIndex := testIndex{test.item: indexValue{err: test.indexErr}}
 
-			pkgOp := PkgOp{Source: source, Pkg: pkg, Index: testIndex, ItemOp: nil}
+			pkgOp := NewPkgOp(source, pkg, nil, testIndex)
 
 			visit := pkgOp.VisitFunc()
 

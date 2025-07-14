@@ -7,36 +7,25 @@ import (
 	"github.com/dhemery/duffel/internal/file"
 )
 
-type Analyst interface {
-	Analyze(ops []PkgOp) error
+func NewAnalyzer(fsys fs.FS) analyzer {
+	return analyzer{fsys}
 }
 
-type AnalyzingPlanner struct {
-	Target   string
-	Analyzer Analyst
-	States   States
+type PkgOp interface {
+	VisitFunc() fs.WalkDirFunc
+	WalkDir() string
 }
 
-func (p AnalyzingPlanner) Plan(ops ...PkgOp) (Plan, error) {
-	err := p.Analyzer.Analyze(ops)
-	if err != nil {
-		return Plan{}, err
+type Analyzer interface {
+	Analyze(ops ...PkgOp) error
+}
+
+func NewPlanner(target string, analyzer Analyzer, states States) planner {
+	return planner{
+		target:   target,
+		analyzer: analyzer,
+		states:   states,
 	}
-	return New(p.Target, p.States), nil
-}
-
-type PkgWalkerAnalyst struct {
-	FS fs.FS
-}
-
-func (a PkgWalkerAnalyst) Analyze(ops []PkgOp) error {
-	for _, op := range ops {
-		err := fs.WalkDir(a.FS, op.WalkDir(), op.VisitFunc())
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 type ItemOp interface {
@@ -48,18 +37,55 @@ type Index interface {
 	SetState(item string, state *file.State)
 }
 
-type PkgOp struct {
-	Source string
-	Pkg    string
-	ItemOp ItemOp
-	Index  Index
+func NewPkgOp(source, pkg string, itemOp ItemOp, index Index) pkgOp {
+	return pkgOp{
+		source: source,
+		pkg:    pkg,
+		itemOp: itemOp,
+		index:  index,
+	}
 }
 
-func (po PkgOp) WalkDir() string {
-	return path.Join(po.Source, po.Pkg)
+type pkgOp struct {
+	source string
+	pkg    string
+	itemOp ItemOp
+	index  Index
 }
 
-func (po PkgOp) VisitFunc() fs.WalkDirFunc {
+type planner struct {
+	target   string
+	analyzer Analyzer
+	states   States
+}
+
+func (p planner) Plan(ops ...PkgOp) (Plan, error) {
+	err := p.analyzer.Analyze(ops...)
+	if err != nil {
+		return Plan{}, err
+	}
+	return New(p.target, p.states), nil
+}
+
+type analyzer struct {
+	FS fs.FS
+}
+
+func (a analyzer) Analyze(ops ...PkgOp) error {
+	for _, op := range ops {
+		err := fs.WalkDir(a.FS, op.WalkDir(), op.VisitFunc())
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (po pkgOp) WalkDir() string {
+	return path.Join(po.source, po.pkg)
+}
+
+func (po pkgOp) VisitFunc() fs.WalkDirFunc {
 	walkDir := po.WalkDir()
 	return func(name string, entry fs.DirEntry, err error) error {
 		if err != nil {
@@ -71,15 +97,15 @@ func (po PkgOp) VisitFunc() fs.WalkDirFunc {
 		}
 
 		item := name[len(walkDir)+1:]
-		oldState, err := po.Index.State(item)
+		oldState, err := po.index.State(item)
 		if err != nil {
 			return err
 		}
 
-		newState, err := po.ItemOp.Apply(po.Pkg, item, entry, oldState)
+		newState, err := po.itemOp.Apply(po.pkg, item, entry, oldState)
 
 		if err == nil || err == fs.SkipDir {
-			po.Index.SetState(item, newState)
+			po.index.SetState(item, newState)
 		}
 
 		return err

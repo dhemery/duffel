@@ -28,14 +28,22 @@ var (
 	ErrStat     = Error{"ErrStat"}
 )
 
-// FS is a tree of [*file].
-type FS struct {
-	root *file
+type Error struct {
+	s string
+}
+
+func (e Error) Error() string {
+	return fsOp + e.s
 }
 
 // New returns a new FS.
 func New() *FS {
 	return &FS{root: newFile("", fs.ModeDir|0o775, "")}
+}
+
+// FS is a tree of [*file].
+type FS struct {
+	root *file
 }
 
 // AddFile adds a regular file to fsys
@@ -92,14 +100,6 @@ func (fsys *FS) addFile(name string, mode fs.FileMode, dest string, errs ...Erro
 	parent.entries[f.Name()] = f
 
 	return f, nil
-}
-
-type Error struct {
-	s string
-}
-
-func (e Error) Error() string {
-	return fsOp + e.s
 }
 
 func (fsys *FS) find(name string) (*file, error) {

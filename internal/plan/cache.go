@@ -12,23 +12,23 @@ type Stater interface {
 	State(name string) (*file.State, error)
 }
 
-type StateCache struct {
-	states map[string]*file.State
-	miss   Stater
-}
-
 // NewStateCache returns a new, empty state cache that retrieves missing items via miss.
-func NewStateCache(miss Stater) *StateCache {
-	return &StateCache{
+func NewStateCache(miss Stater) *stateCache {
+	return &stateCache{
 		states: map[string]*file.State{},
 		miss:   miss,
 	}
 }
 
+type stateCache struct {
+	states map[string]*file.State
+	miss   Stater
+}
+
 // State returns the cached state of item.
 // If c does not already contain the item
 // Get caches and returns the state returned by miss.
-func (c *StateCache) State(item string) (*file.State, error) {
+func (c *stateCache) State(item string) (*file.State, error) {
 	cached, ok := c.states[item]
 	if !ok {
 		state, err := c.miss.State(item)
@@ -42,11 +42,11 @@ func (c *StateCache) State(item string) (*file.State, error) {
 }
 
 // SetState sets the cached state of item to state.
-func (c *StateCache) SetState(item string, state *file.State) {
+func (c *stateCache) SetState(item string, state *file.State) {
 	c.states[item] = state
 }
 
-func (c *StateCache) Sorted() iter.Seq2[string, *file.State] {
+func (c *stateCache) Sorted() iter.Seq2[string, *file.State] {
 	return func(yield func(string, *file.State) bool) {
 		for _, k := range slices.Sorted(maps.Keys(c.states)) {
 			if !yield(k, c.states[k]) {

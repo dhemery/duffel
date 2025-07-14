@@ -111,7 +111,7 @@ func TestInstallOp(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			install := Install{Source: source, Target: target}
+			install := NewInstallOp(source, target, nil)
 
 			gotState, gotErr := install.Apply(pkg, test.item, test.entry, test.targetState)
 
@@ -160,7 +160,7 @@ func TestInstallOpConlictErrors(t *testing.T) {
 	for name, test := range tests {
 		const item = "item"
 		t.Run(name, func(t *testing.T) {
-			install := Install{Source: source, Target: target}
+			install := NewInstallOp(source, target, nil)
 
 			gotState, gotErr := install.Apply(pkg, item, test.sourceEntry, test.targetState)
 
@@ -232,7 +232,7 @@ func TestInstallOpMerge(t *testing.T) {
 				return test.mergeErr
 			})
 
-			install := Install{Source: source, Target: target, Merger: merger}
+			install := NewInstallOp(source, target, merger)
 
 			gotState, gotErr := install.Apply(pkg, item, entry, state)
 

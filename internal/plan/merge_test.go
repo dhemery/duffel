@@ -2,6 +2,7 @@ package plan
 
 import (
 	"errors"
+	"io/fs"
 	"slices"
 	"testing"
 )
@@ -16,6 +17,18 @@ type plannerFunc func(ops ...PkgOp) error
 
 func (f plannerFunc) Plan(ops ...PkgOp) error {
 	return f(ops...)
+}
+
+type testPkgOp struct {
+	origin string
+}
+
+func (o testPkgOp) WalkDir() string {
+	panic("unimplemented")
+}
+
+func (o testPkgOp) VisitFunc() fs.WalkDirFunc {
+	panic("unimplemented")
 }
 
 func TestMerge(t *testing.T) {
@@ -33,13 +46,13 @@ func TestMerge(t *testing.T) {
 			wantErr: aPkgFinderError,
 		},
 		"plan error": {
-			pkgOp:   PkgOp{Source: "no src", Pkg: "no pkg"},
+			pkgOp:   testPkgOp{"from plan error test"},
 			findErr: nil,
 			planErr: aPlannerError,
 			wantErr: aPlannerError,
 		},
 		"success": {
-			pkgOp:   PkgOp{Source: "a src", Pkg: "a pkg"},
+			pkgOp:   testPkgOp{"from success test"},
 			findErr: nil,
 			planErr: nil,
 			wantErr: nil,

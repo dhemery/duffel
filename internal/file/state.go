@@ -27,14 +27,18 @@ func (s State) MarshalJSON() ([]byte, error) {
 	})
 }
 
-type DirStater struct {
-	FS  fs.FS
-	Dir string
+func NewStater(fsys fs.FS, dir string) stater {
+	return stater{fsys, dir}
 }
 
-func (s DirStater) State(name string) (*State, error) {
-	fullname := path.Join(s.Dir, name)
-	info, err := fs.Lstat(s.FS, fullname)
+type stater struct {
+	fsys fs.FS
+	dir  string
+}
+
+func (s stater) State(name string) (*State, error) {
+	fullname := path.Join(s.dir, name)
+	info, err := fs.Lstat(s.fsys, fullname)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil
 	}
@@ -43,12 +47,12 @@ func (s DirStater) State(name string) (*State, error) {
 	}
 	state := &State{Mode: info.Mode()}
 	if info.Mode()&fs.ModeSymlink != 0 {
-		dest, err := fs.ReadLink(s.FS, fullname)
+		dest, err := fs.ReadLink(s.fsys, fullname)
 		if err != nil {
 			return nil, err
 		}
 		destFull := path.Join(path.Dir(fullname), dest)
-		destInfo, err := fs.Lstat(s.FS, destFull)
+		destInfo, err := fs.Lstat(s.fsys, destFull)
 		if err != nil {
 			return nil, err
 		}

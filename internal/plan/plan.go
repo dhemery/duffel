@@ -44,10 +44,8 @@ func (p Plan) Execute(fsys fs.FS) error {
 
 // A Task describes the work to bring a file in the target tree to a desired state.
 type Task struct {
-	// Item is the path of the file relative to target.
-	Item string
-	// State describes the desired state of the file.
-	file.State
+	Item       string // Item is the path of the file relative to target.
+	file.State        // State describes the desired state of the file.
 }
 
 func (t Task) Execute(fsys fs.FS, target string) error {

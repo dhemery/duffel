@@ -159,7 +159,7 @@ func TestDirStater(t *testing.T) {
 				testFS.Add(f.name, f.mode, f.dest, f.err)
 			}
 
-			stater := DirStater{FS: testFS, Dir: test.staterDir}
+			stater := NewStater(testFS, test.staterDir)
 
 			state, err := stater.State(test.fileName)
 

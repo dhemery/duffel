@@ -13,12 +13,20 @@ type Merger interface {
 	Merge(name string) error
 }
 
+func NewInstallOp(source, target string, merger Merger) Install {
+	return Install{
+		source: source,
+		target: target,
+		merger: merger,
+	}
+}
+
 // Install is an [itemOp] that describes the installed states
 // of the target files that correspond to the given pkg items.
 type Install struct {
-	Source string
-	Target string
-	Merger Merger
+	source string
+	target string
+	merger Merger
 }
 
 // Apply describes the installed state
@@ -111,8 +119,8 @@ func (i Install) Apply(pkg, item string, entry fs.DirEntry, targetState *file.St
 	//
 	// First, install the contents of the target's destination,
 	// as if the target were already a dir.
-	mergePath := path.Join(i.Target, targetState.Dest)
-	if err := i.Merger.Merge(mergePath); err != nil {
+	mergePath := path.Join(i.target, targetState.Dest)
+	if err := i.merger.Merge(mergePath); err != nil {
 		return nil, err
 	}
 
@@ -124,7 +132,7 @@ func (i Install) Apply(pkg, item string, entry fs.DirEntry, targetState *file.St
 }
 
 func (i Install) toLinkDest(pkg, item string) string {
-	targetToSource, err := filepath.Rel(i.Target, i.Source)
+	targetToSource, err := filepath.Rel(i.target, i.source)
 	if err != nil {
 		panic(err)
 	}

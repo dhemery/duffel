@@ -17,22 +17,20 @@ type Request struct {
 }
 
 func Execute(r *Request, dryRun bool, w io.Writer) error {
-	stater := file.DirStater{FS: r.FS, Dir: r.Target}
+	stater := file.NewStater(r.FS, r.Target)
 	index := plan.NewStateCache(stater)
 
-	install := plan.Install{Source: r.Source, Target: r.Target}
+	install := plan.NewInstallOp(r.Source, r.Target, nil)
 
 	var pkgOps []plan.PkgOp
 	for _, pkg := range r.Pkgs {
-		pkgOp := plan.PkgOp{Source: r.Source, Pkg: pkg, ItemOp: install, Index: index}
+		pkgOp := plan.NewPkgOp(r.Source, pkg, install, index)
 		pkgOps = append(pkgOps, pkgOp)
 	}
 
-	planner := plan.AnalyzingPlanner{
-		Target:   r.Target,
-		Analyzer: plan.PkgWalkerAnalyst{FS: r.FS},
-		States:   index,
-	}
+	analyzer := plan.NewAnalyzer(r.FS)
+
+	planner := plan.NewPlanner(r.Target, analyzer, index)
 
 	plan, err := planner.Plan(pkgOps...)
 	if err != nil {
