@@ -26,7 +26,7 @@ func (o testPkgOp) WalkDir() string {
 	panic("unimplemented")
 }
 
-func (o testPkgOp) VisitFunc() fs.WalkDirFunc {
+func (o testPkgOp) VisitFunc(Index) fs.WalkDirFunc {
 	panic("unimplemented")
 }
 

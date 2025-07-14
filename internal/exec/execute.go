@@ -26,7 +26,7 @@ func Execute(r *Request, dryRun bool, w io.Writer) error {
 
 	var pkgOps []plan.PkgOp
 	for _, pkg := range r.Pkgs {
-		pkgOp := plan.NewPkgOp(r.Source, pkg, install, index)
+		pkgOp := plan.NewPkgOp(r.Source, pkg, install)
 		pkgOps = append(pkgOps, pkgOp)
 	}
 

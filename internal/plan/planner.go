@@ -27,8 +27,8 @@ type ItemOp interface {
 }
 
 type PkgOp interface {
-	VisitFunc() fs.WalkDirFunc
 	WalkDir() string
+	VisitFunc(index Index) fs.WalkDirFunc
 }
 
 func NewPlanner(target string, analyst Analyst) planner {
@@ -63,46 +63,43 @@ type analyst struct {
 }
 
 func (a analyst) Analyze(op PkgOp) error {
-	return fs.WalkDir(a.fsys, op.WalkDir(), op.VisitFunc())
+	return fs.WalkDir(a.fsys, op.WalkDir(), op.VisitFunc(a.index))
 }
 
 func (a analyst) States() iter.Seq2[string, *file.State] {
 	return a.index.All()
 }
 
-func NewPkgOp(source, pkg string, itemOp ItemOp, index Index) pkgOp {
+func NewPkgOp(source, pkg string, itemOp ItemOp) pkgOp {
 	return pkgOp{
-		source: source,
-		pkg:    pkg,
-		itemOp: itemOp,
-		index:  index,
+		walkDir: path.Join(source, pkg),
+		pkg:     pkg,
+		itemOp:  itemOp,
 	}
 }
 
 type pkgOp struct {
-	source string
-	pkg    string
-	itemOp ItemOp
-	index  Index
+	pkg     string
+	walkDir string
+	itemOp  ItemOp
 }
 
 func (po pkgOp) WalkDir() string {
-	return path.Join(po.source, po.pkg)
+	return po.walkDir
 }
 
-func (po pkgOp) VisitFunc() fs.WalkDirFunc {
-	walkDir := po.WalkDir()
+func (po pkgOp) VisitFunc(index Index) fs.WalkDirFunc {
 	return func(name string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if name == walkDir {
+		if name == po.walkDir {
 			// Skip the dir being walked. It is not an item.
 			return nil
 		}
 
-		item := name[len(walkDir)+1:]
-		oldState, err := po.index.State(item)
+		item := name[len(po.walkDir)+1:]
+		oldState, err := index.State(item)
 		if err != nil {
 			return err
 		}
@@ -110,7 +107,7 @@ func (po pkgOp) VisitFunc() fs.WalkDirFunc {
 		newState, err := po.itemOp.Apply(po.pkg, item, entry, oldState)
 
 		if err == nil || err == fs.SkipDir {
-			po.index.SetState(item, newState)
+			index.SetState(item, newState)
 		}
 
 		return err
