@@ -64,7 +64,7 @@ type planner struct {
 	analyst Analyst
 }
 
-func (p planner) Plan(ops ...PkgOp) (Plan, error) {
+func (p planner) Plan(ops []PkgOp) (Plan, error) {
 	for _, op := range ops {
 		err := p.analyst.Analyze(op)
 		if err != nil {

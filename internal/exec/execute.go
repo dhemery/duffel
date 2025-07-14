@@ -32,7 +32,7 @@ func Execute(r *Request, dryRun bool, w io.Writer) error {
 
 	planner := plan.NewPlanner(r.Target, analyzer)
 
-	plan, err := planner.Plan(pkgOps...)
+	plan, err := planner.Plan(pkgOps)
 	if err != nil {
 		return err
 	}
