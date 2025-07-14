@@ -17,7 +17,7 @@ type PkgOp interface {
 }
 
 type Analyzer interface {
-	Analyze(ops ...PkgOp) error
+	Analyze(op PkgOp) error
 }
 
 func NewPlanner(target string, analyzer Analyzer, states States) planner {
@@ -60,9 +60,11 @@ type planner struct {
 }
 
 func (p planner) Plan(ops ...PkgOp) (Plan, error) {
-	err := p.analyzer.Analyze(ops...)
-	if err != nil {
-		return Plan{}, err
+	for _, op := range ops {
+		err := p.analyzer.Analyze(op)
+		if err != nil {
+			return Plan{}, err
+		}
 	}
 	return New(p.target, p.states), nil
 }
@@ -71,14 +73,8 @@ type analyzer struct {
 	FS fs.FS
 }
 
-func (a analyzer) Analyze(ops ...PkgOp) error {
-	for _, op := range ops {
-		err := fs.WalkDir(a.FS, op.WalkDir(), op.VisitFunc())
-		if err != nil {
-			return err
-		}
-	}
-	return nil
+func (a analyzer) Analyze(op PkgOp) error {
+	return fs.WalkDir(a.FS, op.WalkDir(), op.VisitFunc())
 }
 
 func (po pkgOp) WalkDir() string {

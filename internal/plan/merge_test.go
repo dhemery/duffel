@@ -3,7 +3,6 @@ package plan
 import (
 	"errors"
 	"io/fs"
-	"slices"
 	"testing"
 )
 
@@ -13,10 +12,10 @@ func (f pkgFinderFunc) FindPkg(name string) (PkgOp, error) {
 	return f(name)
 }
 
-type plannerFunc func(ops ...PkgOp) error
+type analyzerFunc func(op PkgOp) error
 
-func (f plannerFunc) Plan(ops ...PkgOp) error {
-	return f(ops...)
+func (f analyzerFunc) Analyze(op PkgOp) error {
+	return f(op)
 }
 
 type testPkgOp struct {
@@ -33,29 +32,29 @@ func (o testPkgOp) VisitFunc() fs.WalkDirFunc {
 
 func TestMerge(t *testing.T) {
 	aPkgFinderError := errors.New("error from packager")
-	aPlannerError := errors.New("error from packager")
+	anAnalyzerError := errors.New("error from packager")
 
 	tests := map[string]struct {
-		pkgOp   PkgOp // PkgOp from pkg finder
-		findErr error // Error from pkg finder
-		planErr error // Error from planner
-		wantErr error // Error desired from Merge
+		pkgOp      PkgOp // PkgOp from pkg finder
+		findErr    error // Error from pkg finder
+		analyzeErr error // Error from analyzer
+		wantErr    error // Error desired from Merge
 	}{
 		"package finder error": {
 			findErr: aPkgFinderError,
 			wantErr: aPkgFinderError,
 		},
 		"plan error": {
-			pkgOp:   testPkgOp{"from plan error test"},
-			findErr: nil,
-			planErr: aPlannerError,
-			wantErr: aPlannerError,
+			pkgOp:      testPkgOp{"from plan error test"},
+			findErr:    nil,
+			analyzeErr: anAnalyzerError,
+			wantErr:    anAnalyzerError,
 		},
 		"success": {
-			pkgOp:   testPkgOp{"from success test"},
-			findErr: nil,
-			planErr: nil,
-			wantErr: nil,
+			pkgOp:      testPkgOp{"from success test"},
+			findErr:    nil,
+			analyzeErr: nil,
+			wantErr:    nil,
 		},
 	}
 
@@ -73,17 +72,16 @@ func TestMerge(t *testing.T) {
 			})
 
 			var gotPlan bool
-			planner := plannerFunc(func(gotOps ...PkgOp) error {
+			analyzer := analyzerFunc(func(gotOp PkgOp) error {
 				gotPlan = true
-				wantOps := []PkgOp{test.pkgOp}
-				if !slices.Equal(gotOps, wantOps) {
-					t.Errorf("Plan(ops) ops arg:\n got: %v\nwant %v", gotOps, wantOps)
+				if gotOp != test.pkgOp {
+					t.Errorf("Plan(op) op arg:\n got: %v\nwant %v", gotOp, test.pkgOp)
 				}
 
-				return test.planErr
+				return test.analyzeErr
 			})
 
-			merger := NewMerger(pkgFinder, planner)
+			merger := NewMerger(pkgFinder, analyzer)
 
 			err := merger.Merge(name)
 

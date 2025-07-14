@@ -4,17 +4,13 @@ type Finder interface {
 	FindPkg(name string) (PkgOp, error)
 }
 
-type Planner interface {
-	Plan(ops ...PkgOp) error
-}
-
-func NewMerger(finder Finder, planner Planner) merger {
-	return merger{finder: finder, planner: planner}
+func NewMerger(finder Finder, analyzer Analyzer) merger {
+	return merger{finder: finder, analyzer: analyzer}
 }
 
 type merger struct {
-	finder  Finder
-	planner Planner
+	finder   Finder
+	analyzer Analyzer
 }
 
 func (m merger) Merge(name string) error {
@@ -23,5 +19,5 @@ func (m merger) Merge(name string) error {
 		return err
 	}
 
-	return m.planner.Plan(op)
+	return m.analyzer.Analyze(op)
 }

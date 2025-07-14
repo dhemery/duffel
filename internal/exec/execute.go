@@ -20,7 +20,9 @@ func Execute(r *Request, dryRun bool, w io.Writer) error {
 	stater := file.NewStater(r.FS, r.Target)
 	index := plan.NewStateCache(stater)
 
-	install := plan.NewInstallOp(r.Source, r.Target, nil)
+	analyzer := plan.NewAnalyzer(r.FS)
+	merger := plan.NewMerger(nil, analyzer)
+	install := plan.NewInstallOp(r.Source, r.Target, merger)
 
 	var pkgOps []plan.PkgOp
 	for _, pkg := range r.Pkgs {
@@ -28,11 +30,10 @@ func Execute(r *Request, dryRun bool, w io.Writer) error {
 		pkgOps = append(pkgOps, pkgOp)
 	}
 
-	analyzer := plan.NewAnalyzer(r.FS)
-
 	planner := plan.NewPlanner(r.Target, analyzer, index)
 
 	plan, err := planner.Plan(pkgOps...)
+
 	if err != nil {
 		return err
 	}
