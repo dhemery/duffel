@@ -20,7 +20,7 @@ func Execute(r *Request, dryRun bool, w io.Writer) error {
 	stater := file.NewStater(r.FS, r.Target)
 	index := plan.NewIndex(stater)
 
-	analyzer := plan.NewAnalyzer(r.FS)
+	analyzer := plan.NewAnalyst(r.FS, index)
 	merger := plan.NewMerger(nil, analyzer)
 	install := plan.NewInstallOp(r.Source, r.Target, merger)
 
@@ -30,10 +30,9 @@ func Execute(r *Request, dryRun bool, w io.Writer) error {
 		pkgOps = append(pkgOps, pkgOp)
 	}
 
-	planner := plan.NewPlanner(r.Target, analyzer, index)
+	planner := plan.NewPlanner(r.Target, analyzer)
 
 	plan, err := planner.Plan(pkgOps...)
-
 	if err != nil {
 		return err
 	}

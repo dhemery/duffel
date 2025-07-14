@@ -3,6 +3,7 @@ package plan
 import (
 	"errors"
 	"io/fs"
+	"iter"
 	"path"
 	"testing"
 
@@ -26,6 +27,10 @@ func (i testIndex) State(name string) (*file.State, error) {
 
 func (i testIndex) SetState(name string, state *file.State) {
 	i[name] = indexValue{state: state}
+}
+
+func (i testIndex) All() iter.Seq2[string, *file.State] {
+	return nil
 }
 
 type itemOpFunc func(pkg, item string, entry fs.DirEntry, inState *file.State) (*file.State, error)

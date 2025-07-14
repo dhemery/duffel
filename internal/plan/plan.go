@@ -16,13 +16,9 @@ type Plan struct {
 	Tasks  []Task `json:"tasks"`
 }
 
-type States interface {
-	All() iter.Seq2[string, *file.State]
-}
-
-func New(target string, states States) Plan {
+func New(target string, states iter.Seq2[string, *file.State]) Plan {
 	p := Plan{Target: target, Tasks: []Task{}}
-	for item, state := range states.All() {
+	for item, state := range states {
 		if state == nil {
 			continue
 		}

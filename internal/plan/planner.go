@@ -2,13 +2,14 @@ package plan
 
 import (
 	"io/fs"
+	"iter"
 	"path"
 
 	"github.com/dhemery/duffel/internal/file"
 )
 
-func NewAnalyzer(fsys fs.FS) analyzer {
-	return analyzer{fsys}
+func NewAnalyst(fsys fs.FS, index Index) analyst {
+	return analyst{fsys: fsys, index: index}
 }
 
 type PkgOp interface {
@@ -20,11 +21,15 @@ type Analyzer interface {
 	Analyze(op PkgOp) error
 }
 
-func NewPlanner(target string, analyzer Analyzer, states States) planner {
+type Analyst interface {
+	Analyzer
+	States() iter.Seq2[string, *file.State]
+}
+
+func NewPlanner(target string, analyst Analyst) planner {
 	return planner{
-		target:   target,
-		analyzer: analyzer,
-		states:   states,
+		target:  target,
+		analyst: analyst,
 	}
 }
 
@@ -35,6 +40,7 @@ type ItemOp interface {
 type Index interface {
 	State(name string) (*file.State, error)
 	SetState(item string, state *file.State)
+	All() iter.Seq2[string, *file.State]
 }
 
 func NewPkgOp(source, pkg string, itemOp ItemOp, index Index) pkgOp {
@@ -54,27 +60,31 @@ type pkgOp struct {
 }
 
 type planner struct {
-	target   string
-	analyzer Analyzer
-	states   States
+	target  string
+	analyst Analyst
 }
 
 func (p planner) Plan(ops ...PkgOp) (Plan, error) {
 	for _, op := range ops {
-		err := p.analyzer.Analyze(op)
+		err := p.analyst.Analyze(op)
 		if err != nil {
 			return Plan{}, err
 		}
 	}
-	return New(p.target, p.states), nil
+	return New(p.target, p.analyst.States()), nil
 }
 
-type analyzer struct {
-	FS fs.FS
+type analyst struct {
+	fsys  fs.FS
+	index Index
 }
 
-func (a analyzer) Analyze(op PkgOp) error {
-	return fs.WalkDir(a.FS, op.WalkDir(), op.VisitFunc())
+func (a analyst) Analyze(op PkgOp) error {
+	return fs.WalkDir(a.fsys, op.WalkDir(), op.VisitFunc())
+}
+
+func (a analyst) States() iter.Seq2[string, *file.State] {
+	return a.index.All()
 }
 
 func (po pkgOp) WalkDir() string {
