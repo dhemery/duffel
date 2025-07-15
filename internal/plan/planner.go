@@ -70,17 +70,29 @@ func (a analyst) States() iter.Seq2[string, *file.State] {
 	return a.index.All()
 }
 
-func NewPkgOp(source, pkg string, itemOp ItemOp) pkgOp {
+func NewForeignPkgOp(pkgDir, walkDir string, itemOp ItemOp) pkgOp {
 	return pkgOp{
-		walkDir: path.Join(source, pkg),
+		walkDir: walkDir,
+		pkgDir:  pkgDir,
+		pkg:     path.Base(pkgDir),
+		itemOp:  itemOp,
+	}
+}
+
+func NewPkgOp(source, pkg string, itemOp ItemOp) pkgOp {
+	pkgDir := path.Join(source, pkg)
+	return pkgOp{
+		walkDir: pkgDir,
+		pkgDir:  pkgDir,
 		pkg:     pkg,
 		itemOp:  itemOp,
 	}
 }
 
 type pkgOp struct {
-	pkg     string
 	walkDir string
+	pkgDir  string
+	pkg     string
 	itemOp  ItemOp
 }
 
@@ -112,4 +124,11 @@ func (po pkgOp) VisitFunc(index Index) fs.WalkDirFunc {
 
 		return err
 	}
+}
+
+func (po pkgOp) Equal(other pkgOp) bool {
+	return po.walkDir == other.walkDir &&
+		po.pkgDir == other.pkgDir &&
+		po.pkg == other.pkg &&
+		po.itemOp == other.itemOp
 }

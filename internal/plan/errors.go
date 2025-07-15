@@ -1,18 +1,11 @@
 package plan
 
 import (
-	"errors"
 	"fmt"
 	"io/fs"
 	"path"
 
 	"github.com/dhemery/duffel/internal/file"
-)
-
-var (
-	ErrIsPackage    = errors.New("is a duffel package")
-	ErrIsSource     = errors.New("is a duffel source")
-	ErrNotInPackage = errors.New("not in a duffel package")
 )
 
 type InstallError struct {

@@ -20,6 +20,27 @@ const (
 
 var targetToSource, _ = filepath.Rel(target, source)
 
+type testDirEntry struct {
+	name string
+	mode fs.FileMode
+}
+
+func (e testDirEntry) Info() (fs.FileInfo, error) {
+	return nil, nil
+}
+
+func (e testDirEntry) IsDir() bool {
+	return e.mode.IsDir()
+}
+
+func (e testDirEntry) Name() string {
+	return e.name
+}
+
+func (e testDirEntry) Type() fs.FileMode {
+	return e.mode.Type()
+}
+
 func TestInstallOp(t *testing.T) {
 	tests := map[string]struct {
 		item        string      // Item being analyzed, relative to pkg dir
@@ -111,7 +132,7 @@ func TestInstallOp(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			install := NewInstallOp(source, target, nil)
+			install := NewInstallOp(source, target, nil, nil)
 
 			gotState, gotErr := install.Apply(pkg, test.item, test.entry, test.targetState)
 
@@ -160,7 +181,7 @@ func TestInstallOpConlictErrors(t *testing.T) {
 	for name, test := range tests {
 		const item = "item"
 		t.Run(name, func(t *testing.T) {
-			install := NewInstallOp(source, target, nil)
+			install := NewInstallOp(source, target, nil, nil)
 
 			gotState, gotErr := install.Apply(pkg, item, test.sourceEntry, test.targetState)
 
@@ -177,97 +198,115 @@ func TestInstallOpConlictErrors(t *testing.T) {
 	}
 }
 
-type mergeFunc func(name string) error
-
-func (f mergeFunc) Merge(name string) error {
-	return f(name)
+type testAnalyzer struct {
+	gotOp PkgOp
+	err   error
 }
 
-// If the packge item is a dir and the target is a link to a dir,
-// Install should call Merge with the target's destination.
+func (a *testAnalyzer) Analyze(op PkgOp) error {
+	a.gotOp = op
+	return a.err
+}
+
+type testPkgFinder struct {
+	gotName string
+	result  string
+	err     error
+}
+
+func (pf *testPkgFinder) FindPkg(name string) (string, error) {
+	pf.gotName = name
+	return pf.result, pf.err
+}
+
+// If the package item is a dir
+// and the target is a link to a dir in a duffel package,
+// install should replace the target link with a dir
+// and analyze the linked dir.
 func TestInstallOpMerge(t *testing.T) {
-	aMergeError := errors.New("error returned from Merge")
+	TestAnalyzeError := errors.New("test error returned from Analyze")
+	TestFindPkgError := errors.New("test error returned from FindPkg")
+	TestUnepectedAnalyzeCall := errors.New("unexpected call to Analyze")
 
 	tests := map[string]struct {
-		mergeErr  error
-		wantState *file.State
-		wantErr   error
+		dest             string
+		findPkgResult    string
+		findErrResult    error
+		analyzeErrResult error
+		wantState        *file.State
+		wantErr          error
 	}{
-		"success": {
-			mergeErr: nil,
+		"find pkg returns error": {
+			dest:             "../../some/non/pkg/item",
+			findPkgResult:    "",
+			findErrResult:    TestFindPkgError,
+			analyzeErrResult: TestUnepectedAnalyzeCall,
+			wantState:        nil,
+			wantErr:          TestFindPkgError,
+		},
+		"analyze returns error": {
+			dest:             "../../some/foreign/pkg/an/item",
+			findPkgResult:    path.Join(target, "../../some/foreign/pkg"),
+			findErrResult:    nil,
+			analyzeErrResult: TestAnalyzeError,
+			wantState:        nil,
+			wantErr:          TestAnalyzeError,
+		},
+		"analyzes foreign package": {
+			dest:             "../../some/foreign/pkg/an/item",
+			findPkgResult:    path.Join(target, "../../some/foreign/pkg"),
+			findErrResult:    nil,
+			analyzeErrResult: nil,
 			// On merge success, replace the target link with a dir
 			wantState: &file.State{Mode: fs.ModeDir | 0o755},
-			// Walk the package item's contents
+			// Walk the current package item's contents
 			wantErr: nil,
-		},
-		"merge error": {
-			mergeErr:  aMergeError,
-			wantState: nil,
-			wantErr:   aMergeError,
 		},
 	}
 
 	for name, test := range tests {
-		const (
-			item = "item"
-			dest = "link/to/dest"
-		)
-
 		t.Run(name, func(t *testing.T) {
+			pkg := "pkg"
+			item := "item"
+
 			// Install merges only if the package item is a dir
 			entry := testDirEntry{name: item, mode: fs.ModeDir | 0o755}
+
 			// Install merges only if the target is a link to a dir
-			state := &file.State{Mode: fs.ModeSymlink, Dest: dest, DestMode: fs.ModeDir | 0o755}
+			state := &file.State{Mode: fs.ModeSymlink, Dest: test.dest, DestMode: fs.ModeDir | 0o755}
 
-			wantMergeName := path.Join(target, dest)
+			testPkgFinder := testPkgFinder{
+				result: test.findPkgResult,
+				err:    test.findErrResult,
+			}
 
-			var mergeCalled bool
-			merger := mergeFunc(func(gotName string) error {
-				t.Helper()
-				mergeCalled = true
-				if gotName != wantMergeName {
-					t.Errorf("Merge() called with %q, want %q", gotName, wantMergeName)
-				}
+			testAnalyzer := testAnalyzer{err: test.analyzeErrResult}
 
-				return test.mergeErr
-			})
-
-			install := NewInstallOp(source, target, merger)
+			install := NewInstallOp(source, target, &testPkgFinder, &testAnalyzer)
 
 			gotState, gotErr := install.Apply(pkg, item, entry, state)
 
-			if !mergeCalled {
-				t.Errorf("Merge() not called")
-			}
-
 			if !cmp.Equal(gotState, test.wantState) {
-				t.Errorf("Apply() state result:\n got %#v\nwant %#v", gotState, test.wantState)
+				t.Errorf("Apply() state result:\n got %v\nwant %v", gotState, test.wantState)
 			}
 
 			if !errors.Is(gotErr, test.wantErr) {
 				t.Errorf("Apply() error:\n got %v\nwant %v", gotErr, test.wantErr)
 			}
+
+			wantFindName := path.Join(target, test.dest)
+			if !cmp.Equal(testPkgFinder.gotName, wantFindName) {
+				t.Errorf("FindPkg() name: got %q, want %q", testPkgFinder.gotName, wantFindName)
+			}
+
+			var wantAnalyzeOp PkgOp
+			if test.findErrResult == nil {
+				wantWalkDir := path.Join(target, test.dest)
+				wantAnalyzeOp = NewForeignPkgOp(test.findPkgResult, wantWalkDir, install)
+			}
+			if !cmp.Equal(testAnalyzer.gotOp, wantAnalyzeOp) {
+				t.Errorf("Analyze() op:\n got %q\nwant %q", testAnalyzer.gotOp, wantAnalyzeOp)
+			}
 		})
 	}
-}
-
-type testDirEntry struct {
-	name string
-	mode fs.FileMode
-}
-
-func (e testDirEntry) Info() (fs.FileInfo, error) {
-	return nil, nil
-}
-
-func (e testDirEntry) IsDir() bool {
-	return e.mode.IsDir()
-}
-
-func (e testDirEntry) Name() string {
-	return e.name
-}
-
-func (e testDirEntry) Type() fs.FileMode {
-	return e.mode.Type()
 }

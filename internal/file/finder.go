@@ -1,4 +1,4 @@
-package plan
+package file
 
 import (
 	"errors"
@@ -7,27 +7,11 @@ import (
 	"strings"
 )
 
-type PkgFinder interface {
-	FindPkg(name string) (PkgOp, error)
-}
-
-func NewMerger(finder PkgFinder, analyzer Analyzer) merger {
-	return merger{finder: finder, analyzer: analyzer}
-}
-
-type merger struct {
-	finder   PkgFinder
-	analyzer Analyzer
-}
-
-func (m merger) Merge(name string) error {
-	op, err := m.finder.FindPkg(name)
-	if err != nil {
-		return err
-	}
-
-	return m.analyzer.Analyze(op)
-}
+var (
+	ErrIsPackage    = errors.New("is a duffel package")
+	ErrIsSource     = errors.New("is a duffel source")
+	ErrNotInPackage = errors.New("not in a duffel package")
+)
 
 func NewPkgFinder(fsys fs.FS) pkgFinder {
 	return pkgFinder{fsys}

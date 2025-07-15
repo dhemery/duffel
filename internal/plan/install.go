@@ -9,11 +9,11 @@ import (
 	"github.com/dhemery/duffel/internal/file"
 )
 
-type Merger interface {
-	Merge(name string) error
+type PkgFinder interface {
+	FindPkg(name string) (string, error)
 }
 
-func NewInstallOp(source, target string, merger Merger) installOp {
+func NewInstallOp(source, target string, pkgFinder PkgFinder, analyzer Analyzer) installOp {
 	targetToSource, err := filepath.Rel(target, source)
 	if err != nil {
 		panic(err)
@@ -21,7 +21,8 @@ func NewInstallOp(source, target string, merger Merger) installOp {
 	return installOp{
 		target:         target,
 		targetToSource: targetToSource,
-		merger:         merger,
+		pkgFinder:      pkgFinder,
+		analyzer:       analyzer,
 	}
 }
 
@@ -30,7 +31,8 @@ func NewInstallOp(source, target string, merger Merger) installOp {
 type installOp struct {
 	target         string
 	targetToSource string
-	merger         Merger
+	pkgFinder      PkgFinder
+	analyzer       Analyzer
 }
 
 // Apply describes the installed state
@@ -119,19 +121,31 @@ func (op installOp) Apply(pkg, item string, entry fs.DirEntry, targetState *file
 	}
 
 	// The package item is a dir and the target is a link to a dir.
-	// Merge the two by changeing the target to a dir,
-	// then installing the contents of both the target's destination
-	// and the package item into the new dir.
-	//
-	// First, install the contents of the target's destination,
+	// If the link target is a foreign package item
+	// (i.e. it is in some package in some duffel source),
+	// then merge the two by changing the target to a dir,
+	// analyzing the content of the foreign package item,
+	// and returning a nil error to walk the contents of the current item.
+
+	// First, find out if the target's link dest is a foreign package item.
+	targetItem := path.Join(op.target, item)
+	foreignItem := path.Join(path.Dir(targetItem), targetState.Dest)
+	foreignPkg, err := op.pkgFinder.FindPkg(foreignItem)
+	if err != nil {
+		return nil, err
+	}
+
+	foreignPkgOp := NewForeignPkgOp(foreignPkg, foreignItem, op)
+
+	// First, analyze the contents of the target's destination,
 	// as if the target were already a dir.
-	mergePath := path.Join(op.target, targetState.Dest)
-	if err := op.merger.Merge(mergePath); err != nil {
+	err = op.analyzer.Analyze(foreignPkgOp)
+	if err != nil {
 		return nil, err
 	}
 
 	// No conflicts installing the target destination's contents.
-	// Now change the target to a dir, and walk the package item
+	// Now change the target to a dir, and walk the current item
 	// to install its contents into the dir.
 	dirState := &file.State{Mode: fs.ModeDir | 0o755}
 	return dirState, nil
