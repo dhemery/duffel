@@ -7,41 +7,42 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/dhemery/duffel/internal/errfs"
 	"github.com/dhemery/duffel/internal/file"
 
 	"github.com/google/go-cmp/cmp"
 )
 
-const (
-	target = "path/to/target"
-	source = "path/to/source"
-	pkg    = "pkg"
-)
-
-var targetToSource, _ = filepath.Rel(target, source)
-
-type testDirEntry struct {
+type testFile struct {
 	name string
 	mode fs.FileMode
+	dest string
 }
 
-func (e testDirEntry) Info() (fs.FileInfo, error) {
+func (tf testFile) Info() (fs.FileInfo, error) {
 	return nil, nil
 }
 
-func (e testDirEntry) IsDir() bool {
-	return e.mode.IsDir()
+func (tf testFile) IsDir() bool {
+	return tf.mode.IsDir()
 }
 
-func (e testDirEntry) Name() string {
-	return e.name
+func (tf testFile) Name() string {
+	return tf.name
 }
 
-func (e testDirEntry) Type() fs.FileMode {
-	return e.mode.Type()
+func (tf testFile) Type() fs.FileMode {
+	return tf.mode.Type()
 }
 
 func TestInstallOp(t *testing.T) {
+	const (
+		target = "path/to/target"
+		source = "path/to/source"
+		pkg    = "pkg"
+	)
+	targetToSource, _ := filepath.Rel(target, source)
+
 	tests := map[string]struct {
 		item        string      // Item being analyzed, relative to pkg dir
 		entry       fs.DirEntry // Dir entry passed to Apply for the item
@@ -51,7 +52,7 @@ func TestInstallOp(t *testing.T) {
 	}{
 		"create new target link to dir item": {
 			item:        "item",
-			entry:       testDirEntry{mode: fs.ModeDir | 0o755},
+			entry:       testFile{mode: fs.ModeDir | 0o755},
 			targetState: nil,
 			wantState: &file.State{
 				Mode: fs.ModeSymlink,
@@ -62,7 +63,7 @@ func TestInstallOp(t *testing.T) {
 		"create new target link to non-dir item": {
 			item:        "item",
 			targetState: nil,
-			entry:       testDirEntry{mode: 0o644},
+			entry:       testFile{mode: 0o644},
 			wantState: &file.State{
 				Mode: fs.ModeSymlink,
 				Dest: path.Join(targetToSource, pkg, "item"),
@@ -72,7 +73,7 @@ func TestInstallOp(t *testing.T) {
 		"create new target link to sub-item": {
 			item:        "dir/sub1/sub2/item",
 			targetState: nil,
-			entry:       testDirEntry{mode: 0o644},
+			entry:       testFile{mode: 0o644},
 			wantState: &file.State{
 				Mode: fs.ModeSymlink,
 				Dest: path.Join("..", "..", "..", targetToSource, pkg, "dir/sub1/sub2/item"),
@@ -81,7 +82,7 @@ func TestInstallOp(t *testing.T) {
 		},
 		"install dir item contents to existing target dir": {
 			item:        "item",
-			entry:       testDirEntry{mode: fs.ModeDir | 0o755},
+			entry:       testFile{mode: fs.ModeDir | 0o755},
 			targetState: &file.State{Mode: fs.ModeDir | 0o755},
 			// No change in state
 			wantState: &file.State{Mode: fs.ModeDir | 0o755},
@@ -90,7 +91,7 @@ func TestInstallOp(t *testing.T) {
 		},
 		"target already links to current dir item": {
 			item:  "item",
-			entry: testDirEntry{mode: fs.ModeDir | 0o755},
+			entry: testFile{mode: fs.ModeDir | 0o755},
 			targetState: &file.State{
 				Mode: fs.ModeSymlink,
 				Dest: path.Join(targetToSource, pkg, "item"),
@@ -104,7 +105,7 @@ func TestInstallOp(t *testing.T) {
 		},
 		"target already links to current non-dir item": {
 			item:  "item",
-			entry: testDirEntry{mode: 0o644},
+			entry: testFile{mode: 0o644},
 			targetState: &file.State{
 				Mode: fs.ModeSymlink,
 				Dest: path.Join(targetToSource, pkg, "item"),
@@ -117,7 +118,7 @@ func TestInstallOp(t *testing.T) {
 		},
 		"target already links to current sub-item": {
 			item:  "dir/sub1/sub2/item",
-			entry: testDirEntry{mode: 0o644},
+			entry: testFile{mode: 0o644},
 			targetState: &file.State{
 				Mode: fs.ModeSymlink,
 				Dest: path.Join("..", "..", "..", targetToSource, pkg, "dir/sub1/sub2/item"),
@@ -148,28 +149,34 @@ func TestInstallOp(t *testing.T) {
 }
 
 func TestInstallOpConlictErrors(t *testing.T) {
+	const (
+		target = "path/to/target"
+		source = "path/to/source"
+		pkg    = "pkg"
+		item   = "item"
+	)
 	tests := map[string]struct {
 		sourceEntry fs.DirEntry // The dir entry for the item
 		targetState *file.State // The existing target state for the item
 	}{
 		"target is a file, source is a dir": {
-			sourceEntry: testDirEntry{mode: fs.ModeDir | 0o755},
+			sourceEntry: testFile{mode: fs.ModeDir | 0o755},
 			targetState: &file.State{Mode: 0o644},
 		},
 		"target is unknown type, source is a dir": {
-			sourceEntry: testDirEntry{mode: fs.ModeDir | 0o755},
+			sourceEntry: testFile{mode: fs.ModeDir | 0o755},
 			targetState: &file.State{Mode: fs.ModeDevice},
 		},
 		"target links to a non-dir, source is a dir": {
-			sourceEntry: testDirEntry{mode: fs.ModeDir | 0o755},
+			sourceEntry: testFile{mode: fs.ModeDir | 0o755},
 			targetState: &file.State{Mode: fs.ModeSymlink, Dest: "link/to/file", DestMode: 0o644},
 		},
 		"target is a dir, source is not a dir": {
-			sourceEntry: testDirEntry{mode: 0o644},
+			sourceEntry: testFile{mode: 0o644},
 			targetState: &file.State{Mode: fs.ModeDir | 0o755},
 		},
 		"target links to a dir, source is not a dir": {
-			sourceEntry: testDirEntry{mode: 0o644},
+			sourceEntry: testFile{mode: 0o644},
 			targetState: &file.State{
 				Mode:     fs.ModeSymlink,
 				Dest:     "target/some/dest",
@@ -179,7 +186,6 @@ func TestInstallOpConlictErrors(t *testing.T) {
 	}
 
 	for name, test := range tests {
-		const item = "item"
 		t.Run(name, func(t *testing.T) {
 			install := NewInstallOp(source, target, nil, nil)
 
@@ -198,93 +204,107 @@ func TestInstallOpConlictErrors(t *testing.T) {
 	}
 }
 
-type testAnalyzer struct {
-	gotOp PkgOp
-	err   error
-}
-
-func (a *testAnalyzer) Analyze(op PkgOp) error {
-	a.gotOp = op
-	return a.err
-}
-
-type testPkgFinder struct {
-	gotName string
-	result  string
-	err     error
-}
-
-func (pf *testPkgFinder) FindPkg(name string) (string, error) {
-	pf.gotName = name
-	return pf.result, pf.err
-}
-
 // If the package item is a dir
 // and the target is a link to a dir in a duffel package,
 // install should replace the target link with a dir
 // and analyze the linked dir.
-func TestInstallOpMerge(t *testing.T) {
-	TestAnalyzeError := errors.New("test error returned from Analyze")
-	TestFindPkgError := errors.New("test error returned from FindPkg")
-	TestUnepectedAnalyzeCall := errors.New("unexpected call to Analyze")
-
+func TestRealInstallOpMerge(t *testing.T) {
+	const (
+		target = "home/user/target"
+		source = "home/user/source"
+		pkg    = "pkg"
+	)
 	tests := map[string]struct {
-		dest             string
-		findPkgResult    string
-		findErrResult    error
-		analyzeErrResult error
-		wantState        *file.State
-		wantErr          error
+		item      string      // Tne name of the item being installed.
+		dest      string      // The destination of the target symlink.
+		files     []testFile  // Files to be analyzed for merging.
+		wantState *file.State // The desired state result from Apply.
+		wantErr   error       // The desired error result from Apply.
 	}{
-		"find pkg returns error": {
-			dest:             "../../some/non/pkg/item",
-			findPkgResult:    "",
-			findErrResult:    TestFindPkgError,
-			analyzeErrResult: TestUnepectedAnalyzeCall,
-			wantState:        nil,
-			wantErr:          TestFindPkgError,
+		"dest is not in a package": {
+			item: "item",
+			files: []testFile{{
+				name: "home/user/target/dir1/dir2/dir3/dir4/dir5/dir6",
+				mode: fs.ModeDir | 0o755,
+			}},
+			// No ancestor of dest has a .duffel file, so dest is not a pkg item.
+			dest:      "dir1/dir2/dir3/dir4/dir5/dir6",
+			wantState: nil,
+			wantErr:   file.ErrNotInPackage,
 		},
-		"analyze returns error": {
-			dest:             "../../some/foreign/pkg/an/item",
-			findPkgResult:    path.Join(target, "../../some/foreign/pkg"),
-			findErrResult:    nil,
-			analyzeErrResult: TestAnalyzeError,
-			wantState:        nil,
-			wantErr:          TestAnalyzeError,
+		"dest is a duffel source dir": {
+			item: "item",
+			files: []testFile{{
+				name: "home/user/target/foreign/source-dir/.duffel",
+				mode: 0o644,
+			}},
+			dest:      "foreign/source-dir",
+			wantState: nil,
+			wantErr:   file.ErrIsSource,
 		},
-		"analyzes foreign package": {
-			dest:             "../../some/foreign/pkg/an/item",
-			findPkgResult:    path.Join(target, "../../some/foreign/pkg"),
-			findErrResult:    nil,
-			analyzeErrResult: nil,
-			// On merge success, replace the target link with a dir
+		"dest is duffel package": {
+			item: "item",
+			files: []testFile{{
+				name: "home/user/target/foreign/source-dir/.duffel",
+				mode: 0o644,
+			}, {
+				name: "home/user/target/foreign/source-dir/pkg-dir/item/content",
+				mode: 0o644,
+			}},
+			dest:      "foreign/source-dir/pkg-dir",
+			wantState: nil,
+			wantErr:   file.ErrIsPackage,
+		},
+		"dest is a top level item in foreign package": {
+			item: "item",
+			files: []testFile{{
+				name: "home/user/target/foreign/source-dir/.duffel",
+				mode: 0o644,
+			}, {
+				name: "home/user/target/foreign/source-dir/pkg-dir/item/content",
+				mode: 0o644,
+			}},
+			dest: "foreign/source-dir/pkg-dir/item",
+			// Convert the existing target link into a dir.
 			wantState: &file.State{Mode: fs.ModeDir | 0o755},
-			// Walk the current package item's contents
+			// Return nil to walk the current dir and install its contents into the new dir.
+			wantErr: nil,
+		},
+		"dest is a nested item in a foreign package": {
+			item: "item",
+			files: []testFile{{
+				name: "home/user/target/foreign/source-dir/.duffel",
+				mode: 0o644,
+			}, {
+				name: "home/user/target/foreign/source-dir/pkg-dir/item1/item2/item3/content",
+				mode: 0o644,
+			}},
+			dest: "foreign/source-dir/pkg-dir/item1/item2/item3",
+			// Convert the existing target link into a dir.
+			wantState: &file.State{Mode: fs.ModeDir | 0o755},
+			// Return nil to walk the current dir and install its contents into the new dir.
 			wantErr: nil,
 		},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			pkg := "pkg"
-			item := "item"
-
-			// Install merges only if the package item is a dir
-			entry := testDirEntry{name: item, mode: fs.ModeDir | 0o755}
-
-			// Install merges only if the target is a link to a dir
-			state := &file.State{Mode: fs.ModeSymlink, Dest: test.dest, DestMode: fs.ModeDir | 0o755}
-
-			testPkgFinder := testPkgFinder{
-				result: test.findPkgResult,
-				err:    test.findErrResult,
+			testFS := errfs.New()
+			for _, tf := range test.files {
+				testFS.Add(tf.name, tf.mode, "")
 			}
+			pkgFinder := file.NewPkgFinder(testFS)
+			stater := file.NewStater(testFS, target)
+			index := NewIndex(stater)
+			analyzer := NewAnalyst(testFS, index)
+			install := NewInstallOp(source, target, pkgFinder, analyzer)
 
-			testAnalyzer := testAnalyzer{err: test.analyzeErrResult}
+			// Install tries to merge only if the item entry is a dir.
+			entry := testFile{name: path.Base(test.item), mode: fs.ModeDir | 0o755}
+			// Install tries to merge only if the target item is a link to a dir.
+			state := &file.State{Mode: fs.ModeSymlink, Dest: test.dest, DestMode: fs.ModeDir}
 
-			install := NewInstallOp(source, target, &testPkgFinder, &testAnalyzer)
-
-			gotState, gotErr := install.Apply(pkg, item, entry, state)
+			gotState, gotErr := install.Apply(pkg, test.item, entry, state)
 
 			if !cmp.Equal(gotState, test.wantState) {
 				t.Errorf("Apply() state result:\n got %v\nwant %v", gotState, test.wantState)
@@ -292,20 +312,6 @@ func TestInstallOpMerge(t *testing.T) {
 
 			if !errors.Is(gotErr, test.wantErr) {
 				t.Errorf("Apply() error:\n got %v\nwant %v", gotErr, test.wantErr)
-			}
-
-			wantFindName := path.Join(target, test.dest)
-			if !cmp.Equal(testPkgFinder.gotName, wantFindName) {
-				t.Errorf("FindPkg() name: got %q, want %q", testPkgFinder.gotName, wantFindName)
-			}
-
-			var wantAnalyzeOp PkgOp
-			if test.findErrResult == nil {
-				wantWalkDir := path.Join(target, test.dest)
-				wantAnalyzeOp = NewForeignPkgOp(test.findPkgResult, wantWalkDir, install)
-			}
-			if !cmp.Equal(testAnalyzer.gotOp, wantAnalyzeOp) {
-				t.Errorf("Analyze() op:\n got %q\nwant %q", testAnalyzer.gotOp, wantAnalyzeOp)
 			}
 		})
 	}
