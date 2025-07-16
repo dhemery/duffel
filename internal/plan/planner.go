@@ -90,6 +90,7 @@ func NewPkgOp(source, pkg string, itemOp ItemOp) pkgOp {
 }
 
 type pkgOp struct {
+	target  string
 	walkDir string
 	pkgDir  string
 	pkg     string
@@ -124,11 +125,4 @@ func (po pkgOp) VisitFunc(index Index) fs.WalkDirFunc {
 
 		return err
 	}
-}
-
-func (po pkgOp) Equal(other pkgOp) bool {
-	return po.walkDir == other.walkDir &&
-		po.pkgDir == other.pkgDir &&
-		po.pkg == other.pkg &&
-		po.itemOp == other.itemOp
 }

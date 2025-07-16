@@ -304,7 +304,7 @@ func TestRealInstallOpMerge(t *testing.T) {
 				testFS.Add(tf.name, tf.mode, "")
 			}
 			pkgFinder := file.NewPkgFinder(testFS)
-			stater := file.NewStater(testFS, test.target)
+			stater := file.Stater{FS: testFS}
 			index := NewIndex(stater)
 			analyzer := NewAnalyst(testFS, index)
 			install := NewInstallOp(source, test.target, pkgFinder, analyzer)

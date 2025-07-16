@@ -17,7 +17,7 @@ type Request struct {
 }
 
 func Execute(r *Request, dryRun bool, w io.Writer) error {
-	stater := file.NewStater(r.FS, r.Target)
+	stater := file.Stater{FS: r.FS}
 	index := plan.NewIndex(stater)
 
 	analyzer := plan.NewAnalyst(r.FS, index)

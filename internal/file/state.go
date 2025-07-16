@@ -27,18 +27,14 @@ func (s State) MarshalJSON() ([]byte, error) {
 	})
 }
 
-func NewStater(fsys fs.FS, dir string) stater {
-	return stater{fsys, dir}
+// A Stater describes the states of files in a file system.
+type Stater struct {
+	FS fs.FS
 }
 
-type stater struct {
-	fsys fs.FS
-	dir  string
-}
-
-func (s stater) State(name string) (*State, error) {
-	fullname := path.Join(s.dir, name)
-	info, err := fs.Lstat(s.fsys, fullname)
+// State returns the state of the named file.
+func (s Stater) State(name string) (*State, error) {
+	info, err := fs.Lstat(s.FS, name)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil
 	}
@@ -47,12 +43,12 @@ func (s stater) State(name string) (*State, error) {
 	}
 	state := &State{Mode: info.Mode()}
 	if info.Mode()&fs.ModeSymlink != 0 {
-		dest, err := fs.ReadLink(s.fsys, fullname)
+		dest, err := fs.ReadLink(s.FS, name)
 		if err != nil {
 			return nil, err
 		}
-		destFull := path.Join(path.Dir(fullname), dest)
-		destInfo, err := fs.Lstat(s.fsys, destFull)
+		fullDest := path.Join(path.Dir(name), dest)
+		destInfo, err := fs.Lstat(s.FS, fullDest)
 		if err != nil {
 			return nil, err
 		}
