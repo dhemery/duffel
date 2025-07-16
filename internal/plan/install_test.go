@@ -209,77 +209,78 @@ func TestInstallOpConlictErrors(t *testing.T) {
 // install should replace the target link with a dir
 // and analyze the linked dir.
 func TestRealInstallOpMerge(t *testing.T) {
-	const (
-		target = "home/user/target"
-		source = "home/user/source"
-		pkg    = "pkg"
-	)
 	tests := map[string]struct {
-		item      string      // Tne name of the item being installed.
-		dest      string      // The destination of the target symlink.
-		files     []testFile  // Files to be analyzed for merging.
-		wantState *file.State // The desired state result from Apply.
-		wantErr   error       // The desired error result from Apply.
+		item           string                 // Tne name of the item being installed.
+		target         string                 // The path to the target dir.
+		targetItemDest string                 // The destination of the target symlink.
+		files          []testFile             // Files to be analyzed for merging.
+		wantState      *file.State            // State returned by Apply.
+		wantErr        error                  // Error returned by Apply.
+		wantIndex      map[string]*file.State // States added to index during Apply.
 	}{
 		"dest is not in a package": {
-			item: "item",
+			item:           "item",
+			target:         "target",
+			targetItemDest: "../dir1/dir2/dir3/dir4/dir5/dir6",
 			files: []testFile{{
-				name: "home/user/target/dir1/dir2/dir3/dir4/dir5/dir6",
+				name: "dir1/dir2/dir3/dir4/dir5/dir6",
 				mode: fs.ModeDir | 0o755,
 			}},
-			// No ancestor of dest has a .duffel file, so dest is not a pkg item.
-			dest:      "dir1/dir2/dir3/dir4/dir5/dir6",
 			wantState: nil,
 			wantErr:   file.ErrNotInPackage,
 		},
 		"dest is a duffel source dir": {
-			item: "item",
+			item:           "item",
+			target:         "target",
+			targetItemDest: "../foreign/source-dir",
 			files: []testFile{{
-				name: "home/user/target/foreign/source-dir/.duffel",
+				name: "foreign/source-dir/.duffel",
 				mode: 0o644,
 			}},
-			dest:      "foreign/source-dir",
 			wantState: nil,
 			wantErr:   file.ErrIsSource,
 		},
 		"dest is duffel package": {
-			item: "item",
+			item:           "item",
+			target:         "target",
+			targetItemDest: "../foreign/source-dir/pkg-dir",
 			files: []testFile{{
-				name: "home/user/target/foreign/source-dir/.duffel",
+				name: "foreign/source-dir/.duffel",
 				mode: 0o644,
 			}, {
-				name: "home/user/target/foreign/source-dir/pkg-dir/item/content",
+				name: "foreign/source-dir/pkg-dir/item/content",
 				mode: 0o644,
 			}},
-			dest:      "foreign/source-dir/pkg-dir",
 			wantState: nil,
 			wantErr:   file.ErrIsPackage,
 		},
 		"dest is a top level item in foreign package": {
-			item: "item",
+			item:           "item",
+			target:         "target",
+			targetItemDest: "../foreign/source-dir/pkg-dir/item",
 			files: []testFile{{
-				name: "home/user/target/foreign/source-dir/.duffel",
+				name: "foreign/source-dir/.duffel",
 				mode: 0o644,
 			}, {
-				name: "home/user/target/foreign/source-dir/pkg-dir/item/content",
+				name: "foreign/source-dir/pkg-dir/item/content",
 				mode: 0o644,
 			}},
-			dest: "foreign/source-dir/pkg-dir/item",
 			// Convert the existing target link into a dir.
 			wantState: &file.State{Mode: fs.ModeDir | 0o755},
 			// Return nil to walk the current dir and install its contents into the new dir.
 			wantErr: nil,
 		},
 		"dest is a nested item in a foreign package": {
-			item: "item",
+			item:           "item",
+			target:         "target",
+			targetItemDest: "../foreign/source-dir/pkg-dir/item1/item2/item3",
 			files: []testFile{{
-				name: "home/user/target/foreign/source-dir/.duffel",
+				name: "foreign/source-dir/.duffel",
 				mode: 0o644,
 			}, {
-				name: "home/user/target/foreign/source-dir/pkg-dir/item1/item2/item3/content",
+				name: "foreign/source-dir/pkg-dir/item1/item2/item3/content",
 				mode: 0o644,
 			}},
-			dest: "foreign/source-dir/pkg-dir/item1/item2/item3",
 			// Convert the existing target link into a dir.
 			wantState: &file.State{Mode: fs.ModeDir | 0o755},
 			// Return nil to walk the current dir and install its contents into the new dir.
@@ -289,20 +290,29 @@ func TestRealInstallOpMerge(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
+			// Source and pkg must not result in an item path
+			// that matches a test's target item destination.
+			// If the item matched the destination, install op
+			// would conclude that the item is already installed,
+			// and would never attempt to merge.
+			const (
+				source = "local/source"
+				pkg    = "pkg"
+			)
 			testFS := errfs.New()
 			for _, tf := range test.files {
 				testFS.Add(tf.name, tf.mode, "")
 			}
 			pkgFinder := file.NewPkgFinder(testFS)
-			stater := file.NewStater(testFS, target)
+			stater := file.NewStater(testFS, test.target)
 			index := NewIndex(stater)
 			analyzer := NewAnalyst(testFS, index)
-			install := NewInstallOp(source, target, pkgFinder, analyzer)
+			install := NewInstallOp(source, test.target, pkgFinder, analyzer)
 
 			// Install tries to merge only if the item entry is a dir.
 			entry := testFile{name: path.Base(test.item), mode: fs.ModeDir | 0o755}
 			// Install tries to merge only if the target item is a link to a dir.
-			state := &file.State{Mode: fs.ModeSymlink, Dest: test.dest, DestMode: fs.ModeDir}
+			state := &file.State{Mode: fs.ModeSymlink, Dest: test.targetItemDest, DestMode: fs.ModeDir}
 
 			gotState, gotErr := install.Apply(pkg, test.item, entry, state)
 
