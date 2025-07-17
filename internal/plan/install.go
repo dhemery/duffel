@@ -14,25 +14,21 @@ type PkgFinder interface {
 }
 
 func NewInstallOp(source, target string, pkgFinder PkgFinder, analyzer Analyzer) installOp {
-	targetToSource, err := filepath.Rel(target, source)
-	if err != nil {
-		panic(err)
-	}
 	return installOp{
-		target:         target,
-		targetToSource: targetToSource,
-		pkgFinder:      pkgFinder,
-		analyzer:       analyzer,
+		target:    target,
+		source:    source,
+		pkgFinder: pkgFinder,
+		analyzer:  analyzer,
 	}
 }
 
 // installOp is an [ItemOp] that describes the installed states
 // of the target files that correspond to the given pkg items.
 type installOp struct {
-	target         string
-	targetToSource string
-	pkgFinder      PkgFinder
-	analyzer       Analyzer
+	source    string
+	target    string
+	pkgFinder PkgFinder
+	analyzer  Analyzer
 }
 
 // Apply describes the installed state
@@ -41,10 +37,11 @@ type installOp struct {
 // Entry describes the state of the file in the source tree.
 // TargetState describes the state of the target file
 // after earlier tasks.
-func (op installOp) Apply(pkg, item string, entry fs.DirEntry, targetState *file.State) (*file.State, error) {
-	itemDepth := strings.Count(item, "/")
-	itemToTarget := strings.Repeat("../", itemDepth)
-	itemAsDest := path.Join(itemToTarget, op.targetToSource, pkg, item)
+func (op installOp) Apply(name string, entry fs.DirEntry, targetState *file.State) (*file.State, error) {
+	pkgItem := name[len(op.source)+1:]
+	pkg, item, _ := strings.Cut(pkgItem, "/")
+	targetItem := path.Join(op.target, item)
+	itemAsDest, _ := filepath.Rel(path.Dir(targetItem), name)
 
 	if targetState == nil {
 		// There is no target item, so we're free to create a link to the pkg item.
@@ -128,18 +125,19 @@ func (op installOp) Apply(pkg, item string, entry fs.DirEntry, targetState *file
 	// and returning a nil error to walk the contents of the current item.
 
 	// First, find out if the target's link dest is a foreign package item.
-	targetItem := path.Join(op.target, item)
 	foreignItem := path.Join(path.Dir(targetItem), targetState.Dest)
 	foreignPkg, err := op.pkgFinder.FindPkg(foreignItem)
 	if err != nil {
 		return nil, err
 	}
 
+	foreignTarget := "FIXME/installOp/foreign/target"
+
 	foreignPkgOp := NewForeignPkgOp(foreignPkg, foreignItem, op)
 
 	// First, analyze the contents of the target's destination,
 	// as if the target were already a dir.
-	err = op.analyzer.Analyze(foreignPkgOp)
+	err = op.analyzer.Analyze(foreignPkgOp, foreignTarget)
 	if err != nil {
 		return nil, err
 	}

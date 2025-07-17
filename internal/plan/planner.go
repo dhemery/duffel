@@ -12,8 +12,9 @@ type Analyst interface {
 	Analyzer
 	States() iter.Seq2[string, *file.State]
 }
+
 type Analyzer interface {
-	Analyze(op PkgOp) error
+	Analyze(op PkgOp, target string) error
 }
 
 type Index interface {
@@ -23,12 +24,12 @@ type Index interface {
 }
 
 type ItemOp interface {
-	Apply(pkg, item string, entry fs.DirEntry, inState *file.State) (*file.State, error)
+	Apply(name string, entry fs.DirEntry, indexState *file.State) (*file.State, error)
 }
 
 type PkgOp interface {
 	WalkDir() string
-	VisitFunc(index Index) fs.WalkDirFunc
+	VisitFunc(target string, index Index) fs.WalkDirFunc
 }
 
 func NewPlanner(target string, analyst Analyst) planner {
@@ -45,7 +46,7 @@ type planner struct {
 
 func (p planner) Plan(ops []PkgOp) (Plan, error) {
 	for _, op := range ops {
-		err := p.analyst.Analyze(op)
+		err := p.analyst.Analyze(op, p.target)
 		if err != nil {
 			return Plan{}, err
 		}
@@ -62,8 +63,8 @@ type analyst struct {
 	index Index
 }
 
-func (a analyst) Analyze(op PkgOp) error {
-	return fs.WalkDir(a.fsys, op.WalkDir(), op.VisitFunc(a.index))
+func (a analyst) Analyze(op PkgOp, target string) error {
+	return fs.WalkDir(a.fsys, op.WalkDir(), op.VisitFunc(target, a.index))
 }
 
 func (a analyst) States() iter.Seq2[string, *file.State] {
@@ -72,28 +73,23 @@ func (a analyst) States() iter.Seq2[string, *file.State] {
 
 func NewForeignPkgOp(pkgDir, walkDir string, itemOp ItemOp) pkgOp {
 	return pkgOp{
-		walkDir: walkDir,
 		pkgDir:  pkgDir,
-		pkg:     path.Base(pkgDir),
+		walkDir: walkDir,
 		itemOp:  itemOp,
 	}
 }
 
-func NewPkgOp(source, pkg string, itemOp ItemOp) pkgOp {
-	pkgDir := path.Join(source, pkg)
+func NewPkgOp(pkgDir string, itemOp ItemOp) pkgOp {
 	return pkgOp{
 		walkDir: pkgDir,
 		pkgDir:  pkgDir,
-		pkg:     pkg,
 		itemOp:  itemOp,
 	}
 }
 
 type pkgOp struct {
-	target  string
-	walkDir string
 	pkgDir  string
-	pkg     string
+	walkDir string
 	itemOp  ItemOp
 }
 
@@ -101,26 +97,27 @@ func (po pkgOp) WalkDir() string {
 	return po.walkDir
 }
 
-func (po pkgOp) VisitFunc(index Index) fs.WalkDirFunc {
+func (po pkgOp) VisitFunc(target string, index Index) fs.WalkDirFunc {
 	return func(name string, entry fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 		if name == po.walkDir {
-			// Skip the dir being walked. It is not an item.
+			// Skip the dir being walked.
 			return nil
 		}
 
-		item := name[len(po.walkDir)+1:]
-		oldState, err := index.State(item)
+		item := name[len(po.pkgDir)+1:]
+		targetItem := path.Join(target, item)
+		oldState, err := index.State(targetItem)
 		if err != nil {
 			return err
 		}
 
-		newState, err := po.itemOp.Apply(po.pkg, item, entry, oldState)
+		newState, err := po.itemOp.Apply(name, entry, oldState)
 
 		if err == nil || err == fs.SkipDir {
-			index.SetState(item, newState)
+			index.SetState(targetItem, newState)
 		}
 
 		return err

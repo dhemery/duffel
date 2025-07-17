@@ -33,10 +33,10 @@ func (i testIndex) All() iter.Seq2[string, *file.State] {
 	return nil
 }
 
-type itemOpFunc func(pkg, item string, entry fs.DirEntry, inState *file.State) (*file.State, error)
+type itemOpFunc func(name string, entry fs.DirEntry, inState *file.State) (*file.State, error)
 
-func (f itemOpFunc) Apply(pkg, item string, entry fs.DirEntry, inState *file.State) (*file.State, error) {
-	return f(pkg, item, entry, inState)
+func (f itemOpFunc) Apply(name string, entry fs.DirEntry, inState *file.State) (*file.State, error) {
+	return f(name, entry, inState)
 }
 
 func TestPkgOpApplyItemOp(t *testing.T) {
@@ -45,7 +45,7 @@ func TestPkgOpApplyItemOp(t *testing.T) {
 		source         = "path/to/source"
 		targetToSource = "../source"
 		pkg            = "pkg"
-		itemName       = "item"
+		item           = "item"
 	)
 	anItemOpError := errors.New("error returned from item op")
 
@@ -107,15 +107,14 @@ func TestPkgOpApplyItemOp(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			gotItemOpCall := false
+			sourcePkg := path.Join(source, pkg)
+			sourcePkgItem := path.Join(sourcePkg, item)
 
-			itemOp := itemOpFunc(func(gotPkg, gotItem string, gotEntry fs.DirEntry, gotState *file.State) (*file.State, error) {
+			var gotItemOpCall bool
+			itemOp := itemOpFunc(func(gotName string, gotEntry fs.DirEntry, gotState *file.State) (*file.State, error) {
 				gotItemOpCall = true
-				if gotPkg != pkg {
-					t.Errorf("item op: got pkg %q, want %q", gotPkg, pkg)
-				}
-				if gotItem != itemName {
-					t.Errorf("item op: got item %q, want %q", gotItem, itemName)
+				if gotName != sourcePkgItem {
+					t.Errorf("item op: got name %q, want %q", gotName, sourcePkgItem)
 				}
 				if !cmp.Equal(gotState, test.indexState) {
 					t.Errorf("item op: got state %v, want %v", gotState, test.indexState)
@@ -123,14 +122,15 @@ func TestPkgOpApplyItemOp(t *testing.T) {
 				return test.itemOpState, test.itemOpError
 			})
 
-			testIndex := testIndex{itemName: indexValue{state: test.indexState}}
+			targetItem := path.Join(target, item)
 
-			pkgOp := NewPkgOp(source, pkg, itemOp)
+			testIndex := testIndex{targetItem: indexValue{state: test.indexState}}
 
-			visit := pkgOp.VisitFunc(testIndex)
+			pkgOp := NewPkgOp(sourcePkg, itemOp)
 
-			visitPath := path.Join(source, pkg, itemName)
-			gotErr := visit(visitPath, nil, nil)
+			visit := pkgOp.VisitFunc(target, testIndex)
+
+			gotErr := visit(sourcePkgItem, nil, nil)
 
 			if !gotItemOpCall {
 				t.Errorf("no call to item op")
@@ -141,11 +141,12 @@ func TestPkgOpApplyItemOp(t *testing.T) {
 			}
 
 			var gotState *file.State
-			if v, ok := testIndex[itemName]; ok {
+			if v, ok := testIndex[targetItem]; ok {
 				gotState = v.state
 			}
 			if !cmp.Equal(gotState, test.wantState) {
-				t.Errorf("recorded state:\n got%v\nwant %v", gotState, test.wantState)
+				t.Errorf("index[%q] after visit:\n got%v\nwant %v",
+					targetItem, gotState, test.wantState)
 			}
 		})
 	}
@@ -195,17 +196,20 @@ func TestPkgOpWalkFuncError(t *testing.T) {
 				pkg    = "pkg"
 			)
 
-			testIndex := testIndex{test.item: indexValue{err: test.indexErr}}
+			targetItem := path.Join(target, test.item)
+			sourcePkg := path.Join(source, pkg)
+			sourcePkgItem := path.Join(sourcePkg, test.item)
 
-			pkgOp := NewPkgOp(source, pkg, nil)
+			testIndex := testIndex{targetItem: indexValue{err: test.indexErr}}
 
-			visit := pkgOp.VisitFunc(testIndex)
+			pkgOp := NewPkgOp(sourcePkg, nil)
 
-			visitPath := path.Join(source, pkg, test.item)
-			gotErr := visit(visitPath, nil, test.walkErr)
+			visit := pkgOp.VisitFunc(target, testIndex)
+
+			gotErr := visit(sourcePkgItem, nil, test.walkErr)
 
 			if !errors.Is(gotErr, test.wantError) {
-				t.Errorf("error: got %q, want %q", gotErr, test.wantError)
+				t.Errorf("error:\n got: %v\nwant: %v", gotErr, test.wantError)
 			}
 
 			var gotState *file.State
@@ -213,7 +217,7 @@ func TestPkgOpWalkFuncError(t *testing.T) {
 				gotState = v.state
 			}
 			if gotState != nil {
-				t.Errorf("recorded state:\n got %v\nwant nil", gotState)
+				t.Errorf("recorded state:\n got: %v\nwant: %v", gotState, nil)
 			}
 		})
 	}

@@ -146,7 +146,7 @@ func printFiles(t *testing.T, fsys fs.FS, context string) {
 	t.Helper()
 	t.Error(context)
 	err := fs.WalkDir(fsys, ".", func(name string, entry fs.DirEntry, err error) error {
-		t.Errorf("   %q: %v", name, entry)
+		t.Errorf("   %q", name)
 		return nil
 	})
 	if err != nil {

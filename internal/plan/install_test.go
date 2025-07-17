@@ -135,7 +135,8 @@ func TestInstallOp(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			install := NewInstallOp(source, target, nil, nil)
 
-			gotState, gotErr := install.Apply(pkg, test.item, test.entry, test.targetState)
+			sourcePkgItem := path.Join(source, pkg, test.item)
+			gotState, gotErr := install.Apply(sourcePkgItem, test.entry, test.targetState)
 
 			if !errors.Is(gotErr, test.wantErr) {
 				t.Errorf("Apply() error:\n got %v\nwant %v", gotErr, test.wantErr)
@@ -189,7 +190,8 @@ func TestInstallOpConlictErrors(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			install := NewInstallOp(source, target, nil, nil)
 
-			gotState, gotErr := install.Apply(pkg, item, test.sourceEntry, test.targetState)
+			sourcePkgItem := path.Join(source, pkg, item)
+			gotState, gotErr := install.Apply(sourcePkgItem, test.sourceEntry, test.targetState)
 
 			if gotState != nil {
 				t.Errorf("Apply() state: want nil, got %v", gotState)
@@ -290,11 +292,6 @@ func TestRealInstallOpMerge(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			// Source and pkg must not result in an item path
-			// that matches a test's target item destination.
-			// If the item matched the destination, install op
-			// would conclude that the item is already installed,
-			// and would never attempt to merge.
 			const (
 				source = "local/source"
 				pkg    = "pkg"
@@ -314,7 +311,8 @@ func TestRealInstallOpMerge(t *testing.T) {
 			// Install tries to merge only if the target item is a link to a dir.
 			state := &file.State{Mode: fs.ModeSymlink, Dest: test.targetItemDest, DestMode: fs.ModeDir}
 
-			gotState, gotErr := install.Apply(pkg, test.item, entry, state)
+			sourcePkgItem := path.Join(source, pkg, test.item)
+			gotState, gotErr := install.Apply(sourcePkgItem, entry, state)
 
 			if !cmp.Equal(gotState, test.wantState) {
 				t.Errorf("Apply() state result:\n got %v\nwant %v", gotState, test.wantState)
