@@ -133,7 +133,7 @@ func TestInstallOp(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			install := NewInstallOp(source, target, nil, nil)
+			install := NewInstallOp(source, target, nil)
 
 			sourcePkgItem := path.Join(source, pkg, test.item)
 			gotState, gotErr := install.Apply(sourcePkgItem, test.entry, test.targetState)
@@ -188,7 +188,7 @@ func TestInstallOpConlictErrors(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			install := NewInstallOp(source, target, nil, nil)
+			install := NewInstallOp(source, target, nil)
 
 			sourcePkgItem := path.Join(source, pkg, item)
 			gotState, gotErr := install.Apply(sourcePkgItem, test.sourceEntry, test.targetState)
@@ -304,7 +304,8 @@ func TestRealInstallOpMerge(t *testing.T) {
 			stater := file.Stater{FS: testFS}
 			index := NewIndex(stater)
 			analyzer := NewAnalyst(testFS, index)
-			install := NewInstallOp(source, test.target, pkgFinder, analyzer)
+			merger := NewMerger(pkgFinder, analyzer)
+			install := NewInstallOp(source, test.target, merger)
 
 			// Install tries to merge only if the item entry is a dir.
 			entry := testFile{name: path.Base(test.item), mode: fs.ModeDir | 0o755}

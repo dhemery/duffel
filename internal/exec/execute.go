@@ -21,9 +21,10 @@ func Execute(r *Request, dryRun bool, w io.Writer) error {
 	stater := file.Stater{FS: r.FS}
 	index := plan.NewIndex(stater)
 
-	analyzer := plan.NewAnalyst(r.FS, index)
 	pkgFinder := file.NewPkgFinder(r.FS)
-	install := plan.NewInstallOp(r.Source, r.Target, pkgFinder, analyzer)
+	analyzer := plan.NewAnalyst(r.FS, index)
+	merger := plan.NewMerger(pkgFinder, analyzer)
+	install := plan.NewInstallOp(r.Source, r.Target, merger)
 
 	var pkgOps []plan.PkgOp
 	for _, pkg := range r.Pkgs {

@@ -9,26 +9,24 @@ import (
 	"github.com/dhemery/duffel/internal/file"
 )
 
-type PkgFinder interface {
-	FindPkg(name string) (string, error)
+type Merger interface {
+	Merge(name, target string) error
 }
 
-func NewInstallOp(source, target string, pkgFinder PkgFinder, analyzer Analyzer) installOp {
+func NewInstallOp(source, target string, merger Merger) installOp {
 	return installOp{
-		target:    target,
-		source:    source,
-		pkgFinder: pkgFinder,
-		analyzer:  analyzer,
+		target: target,
+		source: source,
+		merger: merger,
 	}
 }
 
 // installOp is an [ItemOp] that describes the installed states
 // of the target files that correspond to the given pkg items.
 type installOp struct {
-	source    string
-	target    string
-	pkgFinder PkgFinder
-	analyzer  Analyzer
+	source string
+	target string
+	merger Merger
 }
 
 // Apply describes the installed state
@@ -118,26 +116,9 @@ func (op installOp) Apply(name string, entry fs.DirEntry, targetState *file.Stat
 	}
 
 	// The package item is a dir and the target is a link to a dir.
-	// If the link target is a foreign package item
-	// (i.e. it is in some package in some duffel source),
-	// then merge the two by changing the target to a dir,
-	// analyzing the content of the foreign package item,
-	// and returning a nil error to walk the contents of the current item.
-
-	// First, find out if the target's link dest is a foreign package item.
-	foreignItem := path.Join(path.Dir(targetItem), targetState.Dest)
-	foreignPkg, err := op.pkgFinder.FindPkg(foreignItem)
-	if err != nil {
-		return nil, err
-	}
-
-	foreignTarget := "FIXME/installOp/foreign/target"
-
-	foreignPkgOp := NewForeignPkgOp(foreignPkg, foreignItem, op)
-
-	// First, analyze the contents of the target's destination,
-	// as if the target were already a dir.
-	err = op.analyzer.Analyze(foreignPkgOp, foreignTarget)
+	// Try to merge the target dest.
+	fullDest := path.Join(path.Dir(targetItem), targetState.Dest)
+	err := op.merger.Merge(fullDest, op.target)
 	if err != nil {
 		return nil, err
 	}
