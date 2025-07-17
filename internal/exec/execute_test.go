@@ -138,18 +138,7 @@ func TestExecuteEmptyTargetNoConflictingPackageItems(t *testing.T) {
 	}
 
 	if t.Failed() {
-		printFiles(t, testFS, "files after failure:")
-	}
-}
-
-func printFiles(t *testing.T, fsys fs.FS, context string) {
-	t.Helper()
-	t.Error(context)
-	err := fs.WalkDir(fsys, ".", func(name string, entry fs.DirEntry, err error) error {
-		t.Errorf("   %q", name)
-		return nil
-	})
-	if err != nil {
-		t.Errorf("walk error: %s", err)
+		t.Log("files after failure:")
+		t.Error(testFS.String())
 	}
 }

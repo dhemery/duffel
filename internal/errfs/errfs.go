@@ -4,11 +4,11 @@ package errfs
 
 import (
 	"errors"
-	"fmt"
 	"io/fs"
 	"maps"
 	"path"
 	"slices"
+	"strings"
 	"time"
 )
 
@@ -306,11 +306,6 @@ func (f *file) Stat() (fs.FileInfo, error) {
 	return f, nil
 }
 
-func (f *file) String() string {
-	return fmt.Sprintf("%q %s %q %v %v",
-		f.name, f.mode, f.dest, f.entries, f.errors)
-}
-
 // Sys implements fs.FileInfo.
 // It returns the full name of the file.
 func (f *file) Sys() any {
@@ -320,4 +315,55 @@ func (f *file) Sys() any {
 // Type implements fs.DirEntry.
 func (f *file) Type() fs.FileMode {
 	return f.mode.Type()
+}
+
+func (fsys *FS) String() string {
+	var out strings.Builder
+	err := fs.WalkDir(fsys, ".", func(name string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		f, _ := fsys.find(name)
+		out.WriteRune('"')
+		out.WriteString(name)
+		out.WriteString(`" `)
+		out.WriteString(f.String())
+		out.WriteRune('\n')
+		return nil
+	})
+	if err != nil {
+		return err.Error()
+	}
+	return out.String()
+}
+
+func (f *file) String() string {
+	var out strings.Builder
+	out.WriteString(f.mode.String())
+	if f.IsDir() {
+		var children []string
+		for _, e := range f.entries {
+			children = append(children, path.Base(e.name))
+		}
+		out.WriteString(" [")
+		out.WriteString(strings.Join(children, ", "))
+		out.WriteRune(']')
+	}
+	if f.mode&fs.ModeSymlink != 0 {
+		out.WriteString(` "`)
+		out.WriteString(f.dest)
+		out.WriteRune('"')
+	}
+	var errors []string
+	for e, enabled := range f.errors {
+		if enabled {
+			errors = append(errors, e.Error())
+		}
+	}
+	if len(errors) > 1 {
+		out.WriteString(" [")
+		out.WriteString(strings.Join(errors, ", "))
+		out.WriteRune(']')
+	}
+	return out.String()
 }
