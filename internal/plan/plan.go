@@ -22,8 +22,8 @@ func New(target string, states iter.Seq2[string, *file.State]) Plan {
 		if state == nil {
 			continue
 		}
-
-		task := Task{Item: item, State: *state}
+		relItem := item[len(target)+1:]
+		task := Task{Item: relItem, State: *state}
 		p.Tasks = append(p.Tasks, task)
 	}
 	return p
