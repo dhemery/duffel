@@ -3,6 +3,7 @@ package plan
 import (
 	"errors"
 	"io/fs"
+	"maps"
 	"path"
 	"path/filepath"
 	"testing"
@@ -11,6 +12,7 @@ import (
 	"github.com/dhemery/duffel/internal/file"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 type testFile struct {
@@ -210,19 +212,18 @@ func TestInstallOpConlictErrors(t *testing.T) {
 // and the target is a link to a dir in a duffel package,
 // install should replace the target link with a dir
 // and analyze the linked dir.
-func TestRealInstallOpMerge(t *testing.T) {
+func TestInstallOpMerge(t *testing.T) {
 	tests := map[string]struct {
-		item           string                 // Tne name of the item being installed.
-		target         string                 // The path to the target dir.
-		targetItemDest string                 // The destination of the target symlink.
-		files          []testFile             // Files to be analyzed for merging.
-		wantState      *file.State            // State returned by Apply.
-		wantErr        error                  // Error returned by Apply.
-		wantIndex      map[string]*file.State // States added to index during Apply.
+		item              string                 // Tne name of the item being installed.
+		target            string                 // The path to the target dir.
+		targetItemDest    string                 // The destination of the target symlink.
+		files             []testFile             // Files to be analyzed for merging.
+		wantState         *file.State            // State returned by Apply.
+		wantErr           error                  // Error returned by Apply.
+		wantIndexedStates map[string]*file.State // States added to index during Apply.
 	}{
 		"dest is not in a package": {
 			item:           "item",
-			target:         "target",
 			targetItemDest: "../dir1/dir2/dir3/dir4/dir5/dir6",
 			files: []testFile{{
 				name: "dir1/dir2/dir3/dir4/dir5/dir6",
@@ -234,9 +235,9 @@ func TestRealInstallOpMerge(t *testing.T) {
 		"dest is a duffel source dir": {
 			item:           "item",
 			target:         "target",
-			targetItemDest: "../foreign/source-dir",
+			targetItemDest: "../duffel/source-dir",
 			files: []testFile{{
-				name: "foreign/source-dir/.duffel",
+				name: "duffel/source-dir/.duffel",
 				mode: 0o644,
 			}},
 			wantState: nil,
@@ -245,48 +246,58 @@ func TestRealInstallOpMerge(t *testing.T) {
 		"dest is duffel package": {
 			item:           "item",
 			target:         "target",
-			targetItemDest: "../foreign/source-dir/pkg-dir",
+			targetItemDest: "../duffel/source-dir/pkg-dir",
 			files: []testFile{{
-				name: "foreign/source-dir/.duffel",
+				name: "duffel/source-dir/.duffel",
 				mode: 0o644,
 			}, {
-				name: "foreign/source-dir/pkg-dir/item/content",
+				name: "duffel/source-dir/pkg-dir/item/content",
 				mode: 0o644,
 			}},
 			wantState: nil,
 			wantErr:   file.ErrIsPackage,
 		},
-		"dest is a top level item in foreign package": {
+		"dest is a top level item in a package": {
 			item:           "item",
-			target:         "target",
-			targetItemDest: "../foreign/source-dir/pkg-dir/item",
+			target:         "target-dir",
+			targetItemDest: "../duffel/source-dir/pkg-dir/item",
 			files: []testFile{{
-				name: "foreign/source-dir/.duffel",
+				name: "duffel/source-dir/.duffel",
 				mode: 0o644,
 			}, {
-				name: "foreign/source-dir/pkg-dir/item/content",
+				name: "duffel/source-dir/pkg-dir/item/content",
 				mode: 0o644,
 			}},
 			// Convert the existing target link into a dir.
 			wantState: &file.State{Mode: fs.ModeDir | 0o755},
 			// Return nil to walk the current dir and install its contents into the new dir.
 			wantErr: nil,
+			wantIndexedStates: map[string]*file.State{
+				"target-dir/item/content": {
+					Mode: fs.ModeSymlink,
+					Dest: "../../duffel/source-dir/pkg-dir/item/content",
+				},
+			},
 		},
-		"dest is a nested item in a foreign package": {
+		"dest is a nested item in a package": {
 			item:           "item",
-			target:         "target",
-			targetItemDest: "../foreign/source-dir/pkg-dir/item1/item2/item3",
+			target:         "target-dir",
+			targetItemDest: "../duffel/source-dir/pkg-dir/item1/item2/item3",
 			files: []testFile{{
-				name: "foreign/source-dir/.duffel",
+				name: "duffel/source-dir/.duffel",
 				mode: 0o644,
 			}, {
-				name: "foreign/source-dir/pkg-dir/item1/item2/item3/content",
+				name: "duffel/source-dir/pkg-dir/item1/item2/item3/content",
 				mode: 0o644,
 			}},
-			// Convert the existing target link into a dir.
 			wantState: &file.State{Mode: fs.ModeDir | 0o755},
-			// Return nil to walk the current dir and install its contents into the new dir.
-			wantErr: nil,
+			wantErr:   nil,
+			wantIndexedStates: map[string]*file.State{
+				"target-dir/item1/item2/item3/content": {
+					Mode: fs.ModeSymlink,
+					Dest: "../../../../duffel/source-dir/pkg-dir/item1/item2/item3/content",
+				},
+			},
 		},
 	}
 
@@ -316,11 +327,20 @@ func TestRealInstallOpMerge(t *testing.T) {
 			gotState, gotErr := install.Apply(sourcePkgItem, entry, state)
 
 			if !cmp.Equal(gotState, test.wantState) {
-				t.Errorf("Apply() state result:\n got %v\nwant %v", gotState, test.wantState)
+				t.Errorf("Apply(%q) state result:\n got %v\nwant %v",
+					sourcePkgItem, gotState, test.wantState)
 			}
 
 			if !errors.Is(gotErr, test.wantErr) {
-				t.Errorf("Apply() error:\n got %v\nwant %v", gotErr, test.wantErr)
+				t.Errorf("Apply(%q) error:\n got %v\nwant %v",
+					sourcePkgItem, gotErr, test.wantErr)
+			}
+
+			gotStates := maps.Collect(index.All())
+			indexDiff := cmp.Diff(test.wantIndexedStates, gotStates, cmpopts.EquateEmpty())
+			if indexDiff != "" {
+				t.Errorf("indexed states after Apply(%q):\n%s",
+					sourcePkgItem, indexDiff)
 			}
 		})
 	}
