@@ -71,18 +71,18 @@ func (a analyst) States() iter.Seq2[string, *file.State] {
 	return a.index.All()
 }
 
-func NewForeignPkgOp(pkgDir, walkDir string, itemOp ItemOp) pkgOp {
-	return pkgOp{
-		pkgDir:  pkgDir,
-		walkDir: walkDir,
-		itemOp:  itemOp,
-	}
-}
-
 func NewPkgOp(pkgDir string, itemOp ItemOp) pkgOp {
 	return pkgOp{
 		walkDir: pkgDir,
 		pkgDir:  pkgDir,
+		itemOp:  itemOp,
+	}
+}
+
+func NewMergePkgOp(pkgDir, mergeItem string, itemOp ItemOp) pkgOp {
+	return pkgOp{
+		pkgDir:  pkgDir,
+		walkDir: path.Join(pkgDir, mergeItem),
 		itemOp:  itemOp,
 	}
 }

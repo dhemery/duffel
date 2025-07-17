@@ -13,8 +13,8 @@ func TestMerge(t *testing.T) {
 		mergeDir  string                 // The name of the directory to merge.
 		target    string                 // The target to merge into.
 		files     []testFile             // Other files on the file system.
-		wantErr   error                  // Error returned by Apply.
-		wantIndex map[string]*file.State // States added to index during Apply.
+		wantErr   error                  // Error returned by Merge.
+		wantIndex map[string]*file.State // States added to index during Merge.
 	}{
 		"not in a package": {
 			mergeDir: "dir1/dir2/dir3/dir4/dir5/dir6",

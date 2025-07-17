@@ -2,10 +2,12 @@ package plan
 
 import (
 	"path"
+
+	"github.com/dhemery/duffel/internal/file"
 )
 
 type PkgFinder interface {
-	FindPkg(name string) (string, error)
+	FindPkg(name string) (file.PkgItem, error)
 }
 
 func NewMerger(pkgFinder PkgFinder, analyzer Analyzer) merger {
@@ -18,14 +20,14 @@ type merger struct {
 }
 
 func (m merger) Merge(name, target string) error {
-	sourcePkg, err := m.pkgFinder.FindPkg(name)
+	pkgItem, err := m.pkgFinder.FindPkg(name)
 	if err != nil {
 		return err
 	}
 
-	source := path.Dir(sourcePkg)
-	install := NewInstallOp(source, target, m)
-	pkgOp := NewForeignPkgOp(sourcePkg, name, install)
+	install := NewInstallOp(pkgItem.Source, target, m)
+	sourcePkg := path.Join(pkgItem.Source, pkgItem.Pkg)
+	pkgOp := NewMergePkgOp(sourcePkg, pkgItem.Item, install)
 
 	return m.analyzer.Analyze(pkgOp, target)
 }

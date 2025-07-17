@@ -13,6 +13,13 @@ var (
 	ErrNotInPackage = errors.New("not in a duffel package")
 )
 
+// PkgItem describes an item in a duffel package.
+type PkgItem struct {
+	Source string // The item's duffel source directory.
+	Pkg    string // The name of the item's package.
+	Item   string // The name of the item relative to the package directory.
+}
+
 func NewPkgFinder(fsys fs.FS) pkgFinder {
 	return pkgFinder{fsys}
 }
@@ -21,27 +28,27 @@ type pkgFinder struct {
 	fsys fs.FS
 }
 
-// FindPkg returns the package directory that contains the named file.
-// A package directory is a directory in a duffel source.
-// A duffel source is a directory that contains an entry named .duffel.
-func (pf pkgFinder) FindPkg(name string) (string, error) {
+// FindPkg returns a [PkgItem] describing the named file.
+// The file must be an item in a package in a duffel source.
+// A duffel source is a directory that has an entry named .duffel.
+// A package is a directory child of a duffel source.
+func (pf pkgFinder) FindPkg(name string) (PkgItem, error) {
 	source, err := pf.findSource(name)
 	if err != nil {
-		return "", err
+		return PkgItem{}, err
 	}
 
 	if name == source {
-		return "", ErrIsSource
+		return PkgItem{}, ErrIsSource
 	}
 
 	pkgItem := name[len(source)+1:]
-	pkg, _, found := strings.Cut(pkgItem, "/")
+	pkg, item, found := strings.Cut(pkgItem, "/")
 	if !found {
-		return "", ErrIsPackage
+		return PkgItem{}, ErrIsPackage
 	}
 
-	sourcePkg := path.Join(source, pkg)
-	return sourcePkg, nil
+	return PkgItem{source, pkg, item}, nil
 }
 
 func (pf pkgFinder) findSource(name string) (string, error) {
