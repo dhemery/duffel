@@ -163,28 +163,24 @@ func TestInstallOpConlictErrors(t *testing.T) {
 		targetState *file.State // The existing target state for the item
 	}{
 		"target is a file, source is a dir": {
-			sourceEntry: testFile{mode: fs.ModeDir | 0o755},
-			targetState: &file.State{Mode: 0o644},
+			sourceEntry: dirFile(""),
+			targetState: fileState(),
 		},
 		"target is unknown type, source is a dir": {
-			sourceEntry: testFile{mode: fs.ModeDir | 0o755},
-			targetState: &file.State{Mode: fs.ModeDevice},
+			sourceEntry: dirFile(""),
+			targetState: modeState(fs.ModeDevice),
 		},
 		"target links to a non-dir, source is a dir": {
-			sourceEntry: testFile{mode: fs.ModeDir | 0o755},
-			targetState: &file.State{Mode: fs.ModeSymlink, Dest: "link/to/file", DestMode: 0o644},
+			sourceEntry: dirFile(""),
+			targetState: linkState("link/to/file", 0o644),
 		},
 		"target is a dir, source is not a dir": {
-			sourceEntry: testFile{mode: 0o644},
-			targetState: &file.State{Mode: fs.ModeDir | 0o755},
+			sourceEntry: regularFile(""),
+			targetState: dirState(),
 		},
 		"target links to a dir, source is not a dir": {
-			sourceEntry: testFile{mode: 0o644},
-			targetState: &file.State{
-				Mode:     fs.ModeSymlink,
-				Dest:     "target/some/dest",
-				DestMode: fs.ModeDir | 0o755,
-			},
+			sourceEntry: regularFile(""),
+			targetState: linkState("target/some/dest", fs.ModeDir|0o755),
 		},
 	}
 
@@ -216,8 +212,20 @@ func regularFile(name string) testFile {
 	return testFile{name: name, mode: 0o644}
 }
 
+func dirState() *file.State {
+	return modeState(fs.ModeDir | 0o755)
+}
+
+func fileState() *file.State {
+	return modeState(0o644)
+}
+
 func linkState(dest string, destMode fs.FileMode) *file.State {
 	return &file.State{Mode: fs.ModeSymlink, Dest: dest, DestMode: destMode}
+}
+
+func modeState(mode fs.FileMode) *file.State {
+	return &file.State{Mode: mode}
 }
 
 // If the package item is a dir
