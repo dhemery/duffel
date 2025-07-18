@@ -3,39 +3,39 @@ package plan
 import (
 	"fmt"
 	"io/fs"
-	"path"
 
 	"github.com/dhemery/duffel/internal/file"
 )
 
 type InstallError struct {
-	Op          string
-	Pkg         string
 	Item        string
 	ItemType    fs.FileMode
+	Target      string
 	TargetState *file.State
 }
 
 func (e *InstallError) Error() string {
-	pkgItem := path.Join(e.Pkg, e.Item)
-	return fmt.Sprintf("%s %q conflict: target %q is %s, package item %q is %s",
-		e.Op, pkgItem, e.Item, stateString(e.TargetState), pkgItem, modeTypeString(e.ItemType))
+	return fmt.Sprintf("install conflict: package item %q is %s, target %q is %s",
+		e.Item, modeTypeString(e.ItemType), e.Target, stateString(e.TargetState))
 }
 
-func modeTypeString(t fs.FileMode) string {
+func modeTypeString(m fs.FileMode) string {
 	switch {
-	case t.IsRegular():
+	case m.IsRegular():
 		return "a regular file"
-	case t.IsDir():
+	case m.IsDir():
 		return "a directory"
-	case t&fs.ModeSymlink != 0:
+	case m&fs.ModeSymlink != 0:
 		return "a symlink"
 	default:
-		return fmt.Sprintf("unknown file type %s", t.String())
+		return fmt.Sprintf("unknown file type %s", m.String())
 	}
 }
 
 func stateString(s *file.State) string {
+	if s == nil {
+		return "<nil>"
+	}
 	if s.Mode&fs.ModeSymlink != 0 {
 		return fmt.Sprintf("%s to %s (%s)", modeTypeString(s.Mode), modeTypeString(s.DestMode), s.Dest)
 	}

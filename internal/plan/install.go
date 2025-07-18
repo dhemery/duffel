@@ -37,7 +37,7 @@ type installOp struct {
 // after earlier tasks.
 func (op installOp) Apply(name string, entry fs.DirEntry, targetState *file.State) (*file.State, error) {
 	pkgItem := name[len(op.source)+1:]
-	pkg, item, _ := strings.Cut(pkgItem, "/")
+	_, item, _ := strings.Cut(pkgItem, "/")
 	targetItem := path.Join(op.target, item)
 	itemAsDest, _ := filepath.Rel(path.Dir(targetItem), name)
 
@@ -57,10 +57,7 @@ func (op installOp) Apply(name string, entry fs.DirEntry, targetState *file.Stat
 
 	if targetState.Mode.IsRegular() {
 		// Cannot modify an existing regular file.
-		return nil, &InstallError{
-			Op: "install", Pkg: pkg, Item: item,
-			ItemType: entry.Type(), TargetState: targetState,
-		}
+		return nil, conflictError(name, entry, targetItem, targetState)
 	}
 
 	if targetState.Mode.IsDir() {
@@ -73,18 +70,12 @@ func (op installOp) Apply(name string, entry fs.DirEntry, targetState *file.Stat
 
 		// The target is a dir, but the pkg item is not.
 		// Cannot merge the target dir with a non-dir pkg item.
-		return nil, &InstallError{
-			Op: "install", Pkg: pkg, Item: item,
-			ItemType: entry.Type(), TargetState: targetState,
-		}
+		return nil, conflictError(name, entry, targetItem, targetState)
 	}
 
 	if targetState.Mode.Type() != fs.ModeSymlink {
 		// Target item is not file, dir, or link.
-		return nil, &InstallError{
-			Op: "install", Pkg: pkg, Item: item,
-			ItemType: entry.Type(), TargetState: targetState,
-		}
+		return nil, conflictError(name, entry, targetItem, targetState)
 	}
 
 	// At this point, we know that the existing target is a symlink.
@@ -101,18 +92,13 @@ func (op installOp) Apply(name string, entry fs.DirEntry, targetState *file.Stat
 	}
 
 	if !targetState.DestMode.IsDir() {
-		// Target links to a non-dir. Cannot merge with that.
-		return nil, &InstallError{
-			Op: "install", Pkg: pkg, Item: item,
-			ItemType: entry.Type(), TargetState: targetState,
-		}
+		// The target's link destination is not a dir. Cannot merge.
+		return nil, conflictError(name, entry, targetItem, targetState)
 	}
 
 	if !entry.IsDir() {
-		return nil, &InstallError{
-			Op: "install", Pkg: pkg, Item: item,
-			ItemType: entry.Type(), TargetState: targetState,
-		}
+		// Tne entry is not a dir. Cannot merge.
+		return nil, conflictError(name, entry, targetItem, targetState)
 	}
 
 	// The package item is a dir and the target is a link to a dir.
@@ -128,4 +114,13 @@ func (op installOp) Apply(name string, entry fs.DirEntry, targetState *file.Stat
 	// to install its contents into the dir.
 	dirState := &file.State{Mode: fs.ModeDir | 0o755}
 	return dirState, nil
+}
+
+func conflictError(item string, entry fs.DirEntry, target string, state *file.State) error {
+	return &InstallError{
+		Item:        item,
+		ItemType:    entry.Type(),
+		Target:      target,
+		TargetState: state,
+	}
 }
