@@ -46,89 +46,57 @@ func TestInstallOp(t *testing.T) {
 	targetToSource, _ := filepath.Rel(target, source)
 
 	tests := map[string]struct {
-		item        string      // Item being analyzed, relative to pkg dir
-		entry       fs.DirEntry // Dir entry passed to Apply for the item
+		itemFile    testFile
 		targetState *file.State // Target state passed to Apply
 		wantState   *file.State // State returned by Apply
 		wantErr     error       // Error returned by Apply
 	}{
 		"create new target link to dir item": {
-			item:        "item",
-			entry:       testFile{mode: fs.ModeDir | 0o755},
+			itemFile:    dirFile(path.Join(source, pkg, "item")),
 			targetState: nil,
-			wantState: &file.State{
-				Mode: fs.ModeSymlink,
-				Dest: path.Join(targetToSource, pkg, "item"),
-			},
-			wantErr: fs.SkipDir, // Do not walk the dir. Linking to it suffices.
+			wantState:   linkState(path.Join(targetToSource, pkg, "item"), 0),
+			wantErr:     fs.SkipDir, // Do not walk the dir. Linking to it suffices.
 		},
 		"create new target link to non-dir item": {
-			item:        "item",
+			itemFile:    regularFile(path.Join(source, pkg, "item")),
 			targetState: nil,
-			entry:       testFile{mode: 0o644},
-			wantState: &file.State{
-				Mode: fs.ModeSymlink,
-				Dest: path.Join(targetToSource, pkg, "item"),
-			},
-			wantErr: nil,
+			wantState:   linkState(path.Join(targetToSource, pkg, "item"), 0),
+			wantErr:     nil,
 		},
 		"create new target link to sub-item": {
-			item:        "dir/sub1/sub2/item",
+			itemFile:    regularFile(path.Join(source, pkg, "dir/sub1/sub2/item")),
 			targetState: nil,
-			entry:       testFile{mode: 0o644},
-			wantState: &file.State{
-				Mode: fs.ModeSymlink,
-				Dest: path.Join("..", "..", "..", targetToSource, pkg, "dir/sub1/sub2/item"),
-			},
+			wantState: linkState(
+				path.Join("../../..", targetToSource, pkg, "dir/sub1/sub2/item"),
+				0),
 			wantErr: nil,
 		},
 		"install dir item contents to existing target dir": {
-			item:        "item",
-			entry:       testFile{mode: fs.ModeDir | 0o755},
-			targetState: &file.State{Mode: fs.ModeDir | 0o755},
-			// No change in state
-			wantState: &file.State{Mode: fs.ModeDir | 0o755},
-			// No error, so walk will continue with the item's contents
-			wantErr: nil,
+			itemFile:    dirFile(path.Join(source, pkg, "item")),
+			targetState: dirState(),
+			wantState:   dirState(), // No change in state
+			wantErr:     nil,        // No error, so walk will continue with the item's contents
 		},
 		"target already links to current dir item": {
-			item:  "item",
-			entry: testFile{mode: fs.ModeDir | 0o755},
-			targetState: &file.State{
-				Mode: fs.ModeSymlink,
-				Dest: path.Join(targetToSource, pkg, "item"),
-			},
-			wantState: &file.State{
-				Mode: fs.ModeSymlink,
-				Dest: path.Join(targetToSource, pkg, "item"),
-			},
-			// Do not walk the dir item. It's already linked.
-			wantErr: fs.SkipDir,
+			itemFile:    dirFile(path.Join(source, pkg, "item")),
+			targetState: linkState(path.Join(targetToSource, pkg, "item"), 0),
+			wantState:   linkState(path.Join(targetToSource, pkg, "item"), 0),
+			wantErr:     fs.SkipDir, // Do not walk the dir item. It's already linked.
 		},
 		"target already links to current non-dir item": {
-			item:  "item",
-			entry: testFile{mode: 0o644},
-			targetState: &file.State{
-				Mode: fs.ModeSymlink,
-				Dest: path.Join(targetToSource, pkg, "item"),
-			},
-			wantState: &file.State{
-				Mode: fs.ModeSymlink,
-				Dest: path.Join(targetToSource, pkg, "item"),
-			},
-			wantErr: nil,
+			itemFile:    regularFile(path.Join(source, pkg, "item")),
+			targetState: linkState(path.Join(targetToSource, pkg, "item"), 0),
+			wantState:   linkState(path.Join(targetToSource, pkg, "item"), 0),
+			wantErr:     nil,
 		},
 		"target already links to current sub-item": {
-			item:  "dir/sub1/sub2/item",
-			entry: testFile{mode: 0o644},
-			targetState: &file.State{
-				Mode: fs.ModeSymlink,
-				Dest: path.Join("..", "..", "..", targetToSource, pkg, "dir/sub1/sub2/item"),
-			},
-			wantState: &file.State{
-				Mode: fs.ModeSymlink,
-				Dest: path.Join("..", "..", "..", targetToSource, pkg, "dir/sub1/sub2/item"),
-			},
+			itemFile: regularFile(path.Join(source, pkg, "dir/sub1/sub2/item")),
+			targetState: linkState(
+				path.Join("../../..", targetToSource, pkg, "dir/sub1/sub2/item"),
+				0),
+			wantState: linkState(
+				path.Join("../../..", targetToSource, pkg, "dir/sub1/sub2/item"),
+				0),
 			wantErr: nil,
 		},
 	}
@@ -137,8 +105,7 @@ func TestInstallOp(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			install := NewInstallOp(source, target, nil)
 
-			sourcePkgItem := path.Join(source, pkg, test.item)
-			gotState, gotErr := install.Apply(sourcePkgItem, test.entry, test.targetState)
+			gotState, gotErr := install.Apply(test.itemFile.name, test.itemFile, test.targetState)
 
 			if !errors.Is(gotErr, test.wantErr) {
 				t.Errorf("Apply() error:\n got %v\nwant %v", gotErr, test.wantErr)
