@@ -49,7 +49,11 @@ func (op installOp) Apply(name string, entry fs.DirEntry, targetState *file.Stat
 			// There's no need to walk its contents.
 			err = fs.SkipDir
 		}
-		return &file.State{Mode: fs.ModeSymlink, Dest: itemAsDest}, err
+		return &file.State{
+			Mode:     fs.ModeSymlink,
+			Dest:     itemAsDest,
+			DestMode: entry.Type(),
+		}, err
 	}
 
 	// At this point, we know that the target exists,

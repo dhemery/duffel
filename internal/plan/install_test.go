@@ -42,21 +42,30 @@ var entryAndStateSuite = suite{
 	name: "Entry and State",
 	tests: []test{
 		{
-			desc:        "create new target link to dir item",
-			source:      "source",
-			target:      "target",
-			itemFile:    dirFile("source/pkg/item"),
-			targetState: nil,
-			wantState:   linkState("../source/pkg/item", 0),
-			wantErr:     fs.SkipDir, // Do not walk the dir. Linking to it suffices.
-		},
-		{
-			desc:        "create new target link to non-dir item",
+			desc:        "create new target link to file item",
 			source:      "source",
 			target:      "target",
 			itemFile:    regularFile("source/pkg/item"),
 			targetState: nil,
 			wantState:   linkState("../source/pkg/item", 0),
+			wantErr:     nil,
+		},
+		{
+			desc:        "create new target link to dir item",
+			source:      "source",
+			target:      "target",
+			itemFile:    dirFile("source/pkg/item"),
+			targetState: nil,
+			wantState:   linkState("../source/pkg/item", fs.ModeDir),
+			wantErr:     fs.SkipDir, // Do not walk the dir. Linking to it suffices.
+		},
+		{
+			desc:        "create new target link to symlink item",
+			source:      "source",
+			target:      "target",
+			itemFile:    linkFile("source/pkg/item", "some/dest"),
+			targetState: nil,
+			wantState:   linkState("../source/pkg/item", fs.ModeSymlink),
 			wantErr:     nil,
 		},
 		{
@@ -82,8 +91,8 @@ var entryAndStateSuite = suite{
 			source:      "source",
 			target:      "target",
 			itemFile:    dirFile("source/pkg/item"),
-			targetState: linkState("../source/pkg/item", 0),
-			wantState:   linkState("../source/pkg/item", 0),
+			targetState: linkState("../source/pkg/item", fs.ModeDir),
+			wantState:   linkState("../source/pkg/item", fs.ModeDir),
 			wantErr:     fs.SkipDir, // Do not walk the dir item. It's already linked.
 		},
 		{
@@ -340,6 +349,10 @@ func (tf testFile) Type() fs.FileMode {
 
 func dirFile(name string) testFile {
 	return testFile{name: name, mode: fs.ModeDir | 0o755}
+}
+
+func linkFile(name string, dest string) testFile {
+	return testFile{name: name, mode: fs.ModeSymlink, dest: dest}
 }
 
 func regularFile(name string) testFile {

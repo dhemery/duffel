@@ -95,16 +95,19 @@ func TestMerge(t *testing.T) {
 			}},
 			wantStates: map[string]*file.State{
 				"target-dir/item/dir": {
-					Mode: fs.ModeSymlink,
-					Dest: "../../duffel/source-dir/pkg-dir/item/dir",
+					Mode:     fs.ModeSymlink,
+					Dest:     "../../duffel/source-dir/pkg-dir/item/dir",
+					DestMode: fs.ModeDir,
 				},
 				"target-dir/item/file": {
-					Mode: fs.ModeSymlink,
-					Dest: "../../duffel/source-dir/pkg-dir/item/file",
+					Mode:     fs.ModeSymlink,
+					Dest:     "../../duffel/source-dir/pkg-dir/item/file",
+					DestMode: 0,
 				},
 				"target-dir/item/link": {
-					Mode: fs.ModeSymlink,
-					Dest: "../../duffel/source-dir/pkg-dir/item/link",
+					Mode:     fs.ModeSymlink,
+					Dest:     "../../duffel/source-dir/pkg-dir/item/link",
+					DestMode: fs.ModeSymlink,
 				},
 			},
 			wantErr: nil,
