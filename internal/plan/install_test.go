@@ -208,139 +208,141 @@ func TestInstallOpConlictErrors(t *testing.T) {
 	}
 }
 
+func dirFile(name string) testFile {
+	return testFile{name: name, mode: fs.ModeDir | 0o755}
+}
+
+func regularFile(name string) testFile {
+	return testFile{name: name, mode: 0o644}
+}
+
+func linkState(dest string, destMode fs.FileMode) *file.State {
+	return &file.State{Mode: fs.ModeSymlink, Dest: dest, DestMode: destMode}
+}
+
 // If the package item is a dir
 // and the target is a link to a dir in a duffel package,
 // install should replace the target link with a dir
 // and analyze the linked dir.
 func TestInstallOpMerge(t *testing.T) {
 	tests := map[string]struct {
-		item              string                 // Tne name of the item being installed.
-		target            string                 // The path to the target dir.
-		targetItemDest    string                 // The destination of the target symlink.
+		source            string
+		target            string
+		itemFile          testFile               // The item file being installed.
+		targetItemState   *file.State            // The target state passed to Apply.
 		files             []testFile             // Files to be analyzed for merging.
 		wantState         *file.State            // State returned by Apply.
 		wantErr           error                  // Error returned by Apply.
 		wantIndexedStates map[string]*file.State // States added to index during Apply.
 	}{
 		"dest is not in a package": {
-			item:           "item",
-			targetItemDest: "../dir1/dir2/dir3/dir4/dir5/dir6",
-			files: []testFile{{
-				name: "dir1/dir2/dir3/dir4/dir5/dir6",
-				mode: fs.ModeDir | 0o755,
-			}},
-			wantState: nil,
-			wantErr:   file.ErrNotInPackage,
+			source:          "source",
+			itemFile:        dirFile("source/pkg/item"),
+			targetItemState: linkState("../dir1/dir2/item", fs.ModeDir|0o755),
+			files:           []testFile{dirFile("dir1/dir2/item")},
+			wantState:       nil,
+			wantErr:         file.ErrNotInPackage,
 		},
 		"dest is a duffel source dir": {
-			item:           "item",
-			target:         "target",
-			targetItemDest: "../duffel/source-dir",
-			files: []testFile{{
-				name: "duffel/source-dir/.duffel",
-				mode: 0o644,
-			}},
+			source:          "source",
+			target:          "target-dir",
+			itemFile:        dirFile("source/pkg/item"),
+			targetItemState: linkState("../duffel/source-dir", fs.ModeDir|0o755),
+			files: []testFile{
+				regularFile("duffel/source-dir/.duffel"),
+			},
 			wantState: nil,
 			wantErr:   file.ErrIsSource,
 		},
 		"dest is duffel package": {
-			item:           "item",
-			target:         "target",
-			targetItemDest: "../duffel/source-dir/pkg-dir",
-			files: []testFile{{
-				name: "duffel/source-dir/.duffel",
-				mode: 0o644,
-			}, {
-				name: "duffel/source-dir/pkg-dir/item/content",
-				mode: 0o644,
-			}},
+			source:          "source",
+			itemFile:        dirFile("source/pkg/item"),
+			targetItemState: linkState("../duffel/source/pkg", fs.ModeDir|0o755),
+			target:          "target",
+			files: []testFile{
+				regularFile("duffel/source/.duffel"),
+				regularFile("duffel/source/pkg/item/content"),
+			},
 			wantState: nil,
 			wantErr:   file.ErrIsPackage,
 		},
 		"dest is a top level item in a package": {
-			item:           "item",
-			target:         "target-dir",
-			targetItemDest: "../duffel/source-dir/pkg-dir/item",
-			files: []testFile{{
-				name: "duffel/source-dir/.duffel",
-				mode: 0o644,
-			}, {
-				name: "duffel/source-dir/pkg-dir/item/content",
-				mode: 0o644,
-			}},
-			// Convert the existing target link into a dir.
-			wantState: &file.State{Mode: fs.ModeDir | 0o755},
-			// Return nil to walk the current dir and install its contents into the new dir.
-			wantErr: nil,
-			wantIndexedStates: map[string]*file.State{
-				"target-dir/item/content": {
-					Mode: fs.ModeSymlink,
-					Dest: "../../duffel/source-dir/pkg-dir/item/content",
-				},
+			source:          "source",
+			target:          "target",
+			itemFile:        dirFile("source/pkg/item"),
+			targetItemState: linkState("../duffel/source/pkg/item", fs.ModeDir|0o755),
+			files: []testFile{
+				regularFile("duffel/source/.duffel"),
+				regularFile("duffel/source/pkg/item/content"),
 			},
-		},
-		"dest is a nested item in a package": {
-			item:           "item",
-			target:         "target-dir",
-			targetItemDest: "../duffel/source-dir/pkg-dir/item1/item2/item3",
-			files: []testFile{{
-				name: "duffel/source-dir/.duffel",
-				mode: 0o644,
-			}, {
-				name: "duffel/source-dir/pkg-dir/item1/item2/item3/content",
-				mode: 0o644,
-			}},
 			wantState: &file.State{Mode: fs.ModeDir | 0o755},
 			wantErr:   nil,
 			wantIndexedStates: map[string]*file.State{
-				"target-dir/item1/item2/item3/content": {
-					Mode: fs.ModeSymlink,
-					Dest: "../../../../duffel/source-dir/pkg-dir/item1/item2/item3/content",
-				},
+				"target/item/content": linkState(
+					"../../duffel/source/pkg/item/content", 0),
+			},
+		},
+		"dest is a nested item in a package": {
+			source:   "source",
+			target:   "target",
+			itemFile: dirFile("source/pkg/item3"),
+			targetItemState: linkState("../duffel/source/pkg/item1/item2/item3",
+				fs.ModeDir|0o755),
+			files: []testFile{
+				regularFile("duffel/source/.duffel"),
+				regularFile("duffel/source/pkg/item1/item2/item3/content"),
+			},
+			wantState: &file.State{Mode: fs.ModeDir | 0o755},
+			wantErr:   nil,
+			wantIndexedStates: map[string]*file.State{
+				"target/item1/item2/item3/content": linkState(
+					"../../../../duffel/source/pkg/item1/item2/item3/content",
+					0),
 			},
 		},
 	}
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
-			const (
-				source = "local/source"
-				pkg    = "pkg"
-			)
 			testFS := errfs.New()
 			for _, tf := range test.files {
-				testFS.Add(tf.name, tf.mode, "")
+				testFS.Add(tf.name, tf.mode, tf.dest)
 			}
 			pkgFinder := file.NewPkgFinder(testFS)
 			stater := file.Stater{FS: testFS}
 			index := NewIndex(stater)
 			analyzer := NewAnalyst(testFS, index)
 			merger := NewMerger(pkgFinder, analyzer)
-			install := NewInstallOp(source, test.target, merger)
+			install := NewInstallOp(test.source, test.target, merger)
 
-			// Install tries to merge only if the item entry is a dir.
-			entry := testFile{name: path.Base(test.item), mode: fs.ModeDir | 0o755}
-			// Install tries to merge only if the target item is a link to a dir.
-			state := &file.State{Mode: fs.ModeSymlink, Dest: test.targetItemDest, DestMode: fs.ModeDir}
+			entry := test.itemFile
+			if !entry.IsDir() {
+				t.Fatalf("Bad test.itemFile %q: must be a dir, but is %s",
+					entry.name, entry.mode)
+			}
+			state := test.targetItemState
+			if state.Mode&fs.ModeSymlink == 0 || !state.DestMode.IsDir() {
+				t.Fatalf("Bad test.targetItemState: must be a link to a dir, but is %s",
+					state)
+			}
 
-			sourcePkgItem := path.Join(source, pkg, test.item)
-			gotState, gotErr := install.Apply(sourcePkgItem, entry, state)
+			gotState, gotErr := install.Apply(test.itemFile.name, entry, state)
 
 			if !cmp.Equal(gotState, test.wantState) {
 				t.Errorf("Apply(%q) state result:\n got %v\nwant %v",
-					sourcePkgItem, gotState, test.wantState)
+					test.itemFile.name, gotState, test.wantState)
 			}
 
 			if !errors.Is(gotErr, test.wantErr) {
 				t.Errorf("Apply(%q) error:\n got %v\nwant %v",
-					sourcePkgItem, gotErr, test.wantErr)
+					test.itemFile.name, gotErr, test.wantErr)
 			}
 
 			gotStates := maps.Collect(index.All())
 			indexDiff := cmp.Diff(test.wantIndexedStates, gotStates, cmpopts.EquateEmpty())
 			if indexDiff != "" {
 				t.Errorf("indexed states after Apply(%q):\n%s",
-					sourcePkgItem, indexDiff)
+					test.itemFile.name, indexDiff)
 			}
 		})
 	}
