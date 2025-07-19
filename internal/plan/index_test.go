@@ -1,6 +1,7 @@
 package plan
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"math/rand/v2"
@@ -16,6 +17,49 @@ func (f staterFunc) State(name string) (*file.State, error) {
 	return f(name)
 }
 
+func TestIndexStaterState(t *testing.T) {
+	tests := map[string]struct {
+		name  string
+		state *file.State // The state returned by State.
+		err   error       // The error returned by State.
+	}{
+		"existing file": {
+			name:  "name/of/existing/linkfile",
+			state: linkState("link/to/some/dir", fs.ModeDir|0o755),
+			err:   nil,
+		},
+		"error getting file state": {
+			name:  "name/of/bad/file",
+			state: nil,
+			err:   &fs.PathError{Op: "test", Path: "name/of/bad/file", Err: fs.ErrNotExist},
+		},
+	}
+	for name, test := range tests {
+		t.Run(name, func(t *testing.T) {
+			testStater := staterFunc(func(gotName string) (*file.State, error) {
+				if gotName != test.name {
+					t.Errorf("stater.State(): got name %q, want %q",
+						test.name, gotName)
+				}
+				return test.state, test.err
+			})
+
+			index := NewIndex(testStater)
+
+			state, err := index.State(test.name)
+
+			if !cmp.Equal(state, test.state) {
+				t.Errorf("State(%q) state:\n got: %v\nwant: %v",
+					test.name, state, test.state)
+			}
+			if !errors.Is(err, test.err) {
+				t.Errorf("State(%q) error:\n got: %v\nwant: %v",
+					test.name, err, test.err)
+			}
+		})
+	}
+}
+
 func TestStateCache(t *testing.T) {
 	missState := &file.State{Mode: fs.ModeSymlink, Dest: "miss/state/dest"}
 	name := "myItem"
@@ -25,8 +69,7 @@ func TestStateCache(t *testing.T) {
 			t.Errorf("miss: got name %s, want %s", name, gotName)
 		}
 		return missState, nil
-	},
-	)
+	})
 
 	index := NewIndex(miss)
 
