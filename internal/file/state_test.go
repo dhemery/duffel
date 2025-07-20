@@ -12,20 +12,20 @@ import (
 )
 
 type testFile struct {
-	name string
-	mode fs.FileMode
-	dest string
-	err  errfs.Error
+	Name string
+	Type fs.FileMode
+	Dest string
+	Err  errfs.Error
 }
 
 func add(tfs *errfs.FS, f *testFile) {
 	if f == nil {
 		return
 	}
-	tfs.Add(f.name, f.mode, f.dest, f.err)
+	tfs.Add(f.Name, f.Type, f.Dest, f.Err)
 }
 
-func TestDirStater(t *testing.T) {
+func TestStater(t *testing.T) {
 	tests := map[string]struct {
 		name      string
 		file      *testFile
@@ -35,61 +35,45 @@ func TestDirStater(t *testing.T) {
 	}{
 		"file": {
 			name:      "dir/file",
-			file:      &testFile{name: "dir/file", mode: 0o644},
-			wantState: &State{Mode: 0o644},
+			file:      &testFile{Name: "dir/file", Type: 0o644},
+			wantState: &State{Type: 0},
 		},
 		"dir": {
 			name:      "dir/dir",
-			file:      &testFile{name: "dir/dir", mode: fs.ModeDir | 0o755},
-			wantState: &State{Mode: fs.ModeDir | 0o755},
+			file:      &testFile{Name: "dir/dir", Type: fs.ModeDir | 0o755},
+			wantState: &State{Type: fs.ModeDir},
 		},
 		"link": {
 			name: "dir/link",
 			file: &testFile{
-				name: "dir/link",
-				mode: fs.ModeSymlink,
-				dest: "../dest-dir/dest-file",
+				Name: "dir/link",
+				Type: fs.ModeSymlink,
+				Dest: "../dest-dir/dest-file",
 			},
 			destFile: &testFile{
-				name: "dest-dir/dest-file",
-				mode: 0o644,
+				Name: "dest-dir/dest-file",
+				Type: 0,
 			},
 			wantState: &State{
-				Mode:     fs.ModeSymlink,
+				Type:     fs.ModeSymlink,
 				Dest:     "../dest-dir/dest-file",
-				DestMode: 0o644,
+				DestType: 0,
 			},
 		},
 		"file lstat error": {
-			name: "dir/file",
-			file: &testFile{
-				name: "dir/file",
-				mode: 0o644,
-				err:  errfs.ErrLstat,
-			},
+			name:      "dir/file",
+			file:      &testFile{Name: "dir/file", Type: 0o644, Err: errfs.ErrLstat},
 			wantError: errfs.ErrLstat,
 		},
 		"file readlink error": {
-			name: "dir/link",
-			file: &testFile{
-				name: "dir/link",
-				mode: fs.ModeSymlink,
-				err:  errfs.ErrReadLink,
-			},
+			name:      "dir/link",
+			file:      &testFile{Name: "dir/link", Type: fs.ModeSymlink, Err: errfs.ErrReadLink},
 			wantError: errfs.ErrReadLink,
 		},
 		"dest lstat error": {
-			name: "dir/link",
-			file: &testFile{
-				name: "dir/link",
-				mode: fs.ModeSymlink,
-				dest: "../dest-dir/dest-file",
-			},
-			destFile: &testFile{
-				name: "dest-dir/dest-file",
-				mode: 0o644,
-				err:  errfs.ErrLstat,
-			},
+			name:      "dir/link",
+			file:      &testFile{Name: "dir/link", Type: fs.ModeSymlink, Dest: "../dest-dir/dest-file"},
+			destFile:  &testFile{Name: "dest-dir/dest-file", Type: 0o644, Err: errfs.ErrLstat},
 			wantError: errfs.ErrLstat,
 		},
 		"no file": {
@@ -133,15 +117,15 @@ func TestStateEncodeJSON(t *testing.T) {
 			want:  `{"mode":"----------"}`,
 		},
 		{
-			state: State{Mode: fs.ModeDir | 0o755},
+			state: State{Type: fs.ModeDir | 0o755},
 			want:  `{"mode":"drwxr-xr-x"}`,
 		},
 		{
-			state: State{Mode: fs.ModeSymlink, Dest: "my/dest"},
+			state: State{Type: fs.ModeSymlink, Dest: "my/dest"},
 			want:  `{"mode":"L---------","dest":"my/dest"}`,
 		},
 		{
-			state: State{Mode: 0o644}, // Regular file
+			state: State{Type: 0o644}, // Regular file
 			want:  `{"mode":"-rw-r--r--"}`,
 		},
 	}

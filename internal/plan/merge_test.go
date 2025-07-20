@@ -52,7 +52,7 @@ func TestMerge(t *testing.T) {
 			}},
 			wantStates: map[string]*file.State{
 				"target-dir/item/content": {
-					Mode: fs.ModeSymlink,
+					Type: fs.ModeSymlink,
 					Dest: "../../duffel/source-dir/pkg-dir/item/content",
 				},
 			},
@@ -70,7 +70,7 @@ func TestMerge(t *testing.T) {
 			}},
 			wantStates: map[string]*file.State{
 				"target-dir/item1/item2/item3/content": {
-					Mode: fs.ModeSymlink,
+					Type: fs.ModeSymlink,
 					Dest: "../../../../duffel/source-dir/pkg-dir/item1/item2/item3/content",
 				},
 			},
@@ -94,19 +94,19 @@ func TestMerge(t *testing.T) {
 			}},
 			wantStates: map[string]*file.State{
 				"target-dir/item/dir": {
-					Mode:     fs.ModeSymlink,
+					Type:     fs.ModeSymlink,
 					Dest:     "../../duffel/source-dir/pkg-dir/item/dir",
-					DestMode: fs.ModeDir,
+					DestType: fs.ModeDir,
 				},
 				"target-dir/item/file": {
-					Mode:     fs.ModeSymlink,
+					Type:     fs.ModeSymlink,
 					Dest:     "../../duffel/source-dir/pkg-dir/item/file",
-					DestMode: 0,
+					DestType: 0,
 				},
 				"target-dir/item/link": {
-					Mode:     fs.ModeSymlink,
+					Type:     fs.ModeSymlink,
 					Dest:     "../../duffel/source-dir/pkg-dir/item/link",
-					DestMode: fs.ModeSymlink,
+					DestType: fs.ModeSymlink,
 				},
 			},
 			wantErr: nil,

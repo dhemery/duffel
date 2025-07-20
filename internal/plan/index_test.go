@@ -103,16 +103,16 @@ func TestIndex(t *testing.T) {
 		"get state of existing link": {
 			files: []testFile{
 				linkFile("target/link", "../some/dest/file"),
-				{name: "some/dest/file", mode: 0o765},
+				regularFile("some/dest/file"),
 			},
 			calls: []indexCall{
-				get("target/link", linkState("../some/dest/file", 0o765), nil),
-				get("target/link", linkState("../some/dest/file", 0o765), nil),
+				get("target/link", linkState("../some/dest/file", 0), nil),
+				get("target/link", linkState("../some/dest/file", 0), nil),
 			},
 			wantSpecs: map[string]Spec{
 				"target/link": {
-					Current: linkState("../some/dest/file", 0o765),
-					Planned: linkState("../some/dest/file", 0o765),
+					Current: linkState("../some/dest/file", 0),
+					Planned: linkState("../some/dest/file", 0),
 				},
 			},
 		},

@@ -50,21 +50,21 @@ func (op installOp) Apply(name string, entry fs.DirEntry, targetState *file.Stat
 			err = fs.SkipDir
 		}
 		return &file.State{
-			Mode:     fs.ModeSymlink,
+			Type:     fs.ModeSymlink,
 			Dest:     itemAsDest,
-			DestMode: entry.Type(),
+			DestType: entry.Type(),
 		}, err
 	}
 
 	// At this point, we know that the target exists,
 	// either on the file system or as planned by a previous operation.
 
-	if targetState.Mode.IsRegular() {
+	if targetState.Type.IsRegular() {
 		// Cannot modify an existing regular file.
 		return nil, conflictError(name, entry, targetItem, targetState)
 	}
 
-	if targetState.Mode.IsDir() {
+	if targetState.Type.IsDir() {
 		if entry.IsDir() {
 			// The target and pkg item are both dirs.
 			// Return the target state unchanged,
@@ -77,7 +77,7 @@ func (op installOp) Apply(name string, entry fs.DirEntry, targetState *file.Stat
 		return nil, conflictError(name, entry, targetItem, targetState)
 	}
 
-	if targetState.Mode.Type() != fs.ModeSymlink {
+	if targetState.Type.Type() != fs.ModeSymlink {
 		// Target item is not file, dir, or link.
 		return nil, conflictError(name, entry, targetItem, targetState)
 	}
@@ -95,7 +95,7 @@ func (op installOp) Apply(name string, entry fs.DirEntry, targetState *file.Stat
 		return targetState, err
 	}
 
-	if !targetState.DestMode.IsDir() {
+	if !targetState.DestType.IsDir() {
 		// The target's link destination is not a dir. Cannot merge.
 		return nil, conflictError(name, entry, targetItem, targetState)
 	}
@@ -116,7 +116,7 @@ func (op installOp) Apply(name string, entry fs.DirEntry, targetState *file.Stat
 	// No conflicts installing the target destination's contents.
 	// Now change the target to a dir, and walk the current item
 	// to install its contents into the dir.
-	dirState := &file.State{Mode: fs.ModeDir | 0o755}
+	dirState := &file.State{Type: fs.ModeDir | 0o755}
 	return dirState, nil
 }
 

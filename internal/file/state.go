@@ -9,9 +9,9 @@ import (
 
 // A State describes the state of an existing or planned file.
 type State struct {
-	Mode     fs.FileMode
+	Type     fs.FileMode
 	Dest     string
-	DestMode fs.FileMode
+	DestType fs.FileMode
 }
 
 // MarshalJSON returns the JSON representation of s.
@@ -22,7 +22,7 @@ func (s State) MarshalJSON() ([]byte, error) {
 		Mode string `json:"mode"`
 		Dest string `json:"dest,omitzero"`
 	}{
-		Mode: s.Mode.String(),
+		Mode: s.Type.String(),
 		Dest: s.Dest,
 	})
 }
@@ -41,7 +41,7 @@ func (s Stater) State(name string) (*State, error) {
 	if err != nil {
 		return nil, err
 	}
-	state := &State{Mode: info.Mode()}
+	state := &State{Type: info.Mode().Type()}
 	if info.Mode()&fs.ModeSymlink != 0 {
 		dest, err := fs.ReadLink(s.FS, name)
 		if err != nil {
@@ -53,7 +53,7 @@ func (s Stater) State(name string) (*State, error) {
 			return nil, err
 		}
 		state.Dest = dest
-		state.DestMode = destInfo.Mode()
+		state.DestType = destInfo.Mode().Type()
 	}
 	return state, nil
 }

@@ -168,7 +168,7 @@ var mergeSuite = suite{
 				regularFile("duffel/source/.duffel"),
 				regularFile("duffel/source/pkg/item/content"),
 			},
-			wantState: &file.State{Mode: fs.ModeDir | 0o755},
+			wantState: &file.State{Type: fs.ModeDir | 0o755},
 			wantErr:   nil,
 			wantNewStates: map[string]*file.State{
 				"target/item/content": linkState(
@@ -186,7 +186,7 @@ var mergeSuite = suite{
 				regularFile("duffel/source/.duffel"),
 				regularFile("duffel/source/pkg/item1/item2/item3/content"),
 			},
-			wantState: &file.State{Mode: fs.ModeDir | 0o755},
+			wantState: &file.State{Type: fs.ModeDir | 0o755},
 			wantErr:   nil,
 			wantNewStates: map[string]*file.State{
 				"target/item1/item2/item3/content": linkState(
@@ -220,12 +220,12 @@ var conflictSuite = suite{
 			source:      "source",
 			target:      "target",
 			itemFile:    dirFile("source/pkg/item"),
-			targetState: modeState(fs.ModeDevice),
+			targetState: &file.State{Type: fs.ModeDevice},
 			wantErr: &InstallError{
 				Item:        "source/pkg/item",
 				ItemType:    fs.ModeDir,
 				Target:      "target/item",
-				TargetState: modeState(fs.ModeDevice),
+				TargetState: &file.State{Type: fs.ModeDevice},
 			},
 		},
 		{
@@ -363,17 +363,13 @@ func regularFile(name string) testFile {
 }
 
 func dirState() *file.State {
-	return modeState(fs.ModeDir | 0o755)
+	return &file.State{Type: fs.ModeDir}
 }
 
 func fileState() *file.State {
-	return modeState(0o644)
+	return &file.State{Type: 0}
 }
 
-func linkState(dest string, destMode fs.FileMode) *file.State {
-	return &file.State{Mode: fs.ModeSymlink, Dest: dest, DestMode: destMode}
-}
-
-func modeState(mode fs.FileMode) *file.State {
-	return &file.State{Mode: mode}
+func linkState(dest string, destType fs.FileMode) *file.State {
+	return &file.State{Type: fs.ModeSymlink, Dest: dest, DestType: destType}
 }

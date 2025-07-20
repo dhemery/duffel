@@ -16,10 +16,10 @@ type InstallError struct {
 
 func (e *InstallError) Error() string {
 	return fmt.Sprintf("install conflict: package item %q is %s, target %q is %s",
-		e.Item, modeTypeString(e.ItemType), e.Target, stateString(e.TargetState))
+		e.Item, typeString(e.ItemType), e.Target, stateString(e.TargetState))
 }
 
-func modeTypeString(m fs.FileMode) string {
+func typeString(m fs.FileMode) string {
 	switch {
 	case m.IsRegular():
 		return "a regular file"
@@ -36,8 +36,8 @@ func stateString(s *file.State) string {
 	if s == nil {
 		return "<nil>"
 	}
-	if s.Mode&fs.ModeSymlink != 0 {
-		return fmt.Sprintf("%s to %s (%s)", modeTypeString(s.Mode), modeTypeString(s.DestMode), s.Dest)
+	if s.Type&fs.ModeSymlink != 0 {
+		return fmt.Sprintf("%s to %s (%s)", typeString(s.Type), typeString(s.DestType), s.Dest)
 	}
-	return modeTypeString(s.Mode)
+	return typeString(s.Type)
 }
