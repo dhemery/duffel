@@ -3,7 +3,6 @@ package plan
 import (
 	"errors"
 	"io/fs"
-	"maps"
 	"testing"
 
 	"github.com/dhemery/duffel/internal/errfs"
@@ -316,10 +315,13 @@ func (test test) run(t *testing.T) {
 			}
 		}
 
-		gotStates := maps.Collect(index.All())
+		gotStates := map[string]*file.State{}
+		for n, spec := range index.Specs() {
+			gotStates[n] = spec.Planned
+		}
 		indexDiff := cmp.Diff(test.wantNewStates, gotStates, cmpopts.EquateEmpty())
 		if indexDiff != "" {
-			t.Errorf("indexed states after Apply(%q):\n%s",
+			t.Errorf("planned states after Apply(%q):\n%s",
 				test.itemFile.name, indexDiff)
 		}
 	})

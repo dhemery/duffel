@@ -10,7 +10,7 @@ import (
 
 type Analyst interface {
 	Analyzer
-	States() iter.Seq2[string, *file.State]
+	Specs() iter.Seq2[string, Spec]
 }
 
 type Analyzer interface {
@@ -20,7 +20,11 @@ type Analyzer interface {
 type Index interface {
 	State(name string) (*file.State, error)
 	SetState(item string, state *file.State)
-	All() iter.Seq2[string, *file.State]
+}
+
+type SpecIndex interface {
+	Index
+	Specs() iter.Seq2[string, Spec]
 }
 
 type ItemOp interface {
@@ -51,24 +55,24 @@ func (p planner) Plan(ops []PkgOp) (Plan, error) {
 			return Plan{}, err
 		}
 	}
-	return New(p.target, p.analyst.States()), nil
+	return New(p.target, p.analyst.Specs()), nil
 }
 
-func NewAnalyst(fsys fs.FS, index Index) analyst {
+func NewAnalyst(fsys fs.FS, index SpecIndex) analyst {
 	return analyst{fsys: fsys, index: index}
 }
 
 type analyst struct {
 	fsys  fs.FS
-	index Index
+	index SpecIndex
 }
 
 func (a analyst) Analyze(op PkgOp, target string) error {
 	return fs.WalkDir(a.fsys, op.WalkDir(), op.VisitFunc(target, a.index))
 }
 
-func (a analyst) States() iter.Seq2[string, *file.State] {
-	return a.index.All()
+func (a analyst) Specs() iter.Seq2[string, Spec] {
+	return a.index.Specs()
 }
 
 func NewPkgOp(pkgDir string, itemOp ItemOp) pkgOp {

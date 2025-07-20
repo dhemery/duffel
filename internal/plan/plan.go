@@ -16,9 +16,10 @@ type Plan struct {
 	Tasks  []Task `json:"tasks"`
 }
 
-func New(target string, states iter.Seq2[string, *file.State]) Plan {
+func New(target string, specs iter.Seq2[string, Spec]) Plan {
 	p := Plan{Target: target, Tasks: []Task{}}
-	for item, state := range states {
+	for item, spec := range specs {
+		state := spec.Planned
 		if state == nil {
 			continue
 		}

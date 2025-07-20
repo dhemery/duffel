@@ -3,7 +3,6 @@ package plan
 import (
 	"errors"
 	"io/fs"
-	"maps"
 	"testing"
 
 	"github.com/dhemery/duffel/internal/errfs"
@@ -136,10 +135,13 @@ func TestMerge(t *testing.T) {
 					test.mergeDir, test.target, err, test.wantErr)
 			}
 
-			gotStates := maps.Collect(index.All())
+			gotStates := map[string]*file.State{}
+			for n, spec := range index.Specs() {
+				gotStates[n] = spec.Planned
+			}
 			indexDiff := cmp.Diff(test.wantStates, gotStates, cmpopts.EquateEmpty())
 			if indexDiff != "" {
-				t.Errorf("indexed states after Merge(%q, %q):\n%s",
+				t.Errorf("planned states after Merge(%q, %q):\n%s",
 					test.mergeDir, test.target, indexDiff)
 			}
 			if t.Failed() {

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"iter"
 	"maps"
-	"slices"
 
 	"github.com/dhemery/duffel/internal/file"
 )
@@ -65,17 +64,7 @@ func (i *index) SetState(name string, state *file.State) {
 	i.specs[name] = spec
 }
 
-// All returns an iterator over the states in name order.
-func (i *index) All() iter.Seq2[string, *file.State] {
-	return func(yield func(string, *file.State) bool) {
-		for _, name := range slices.Sorted(maps.Keys(i.specs)) {
-			if !yield(name, i.specs[name].Planned) {
-				return
-			}
-		}
-	}
-}
-
+// Specs returns an iterator over the indexed specs.
 func (i *index) Specs() iter.Seq2[string, Spec] {
 	return maps.All(i.specs)
 }
