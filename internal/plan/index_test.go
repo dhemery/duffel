@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/fs"
 	"maps"
-	"math/rand/v2"
 	"testing"
 
 	"github.com/dhemery/duffel/internal/errfs"
@@ -13,10 +12,11 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-type indexFunc func(i *index, t *testing.T)
+type indexCall func(i *index, t *testing.T)
 
-func get(name string, wantState *file.State, wantErr error) indexFunc {
+func get(name string, wantState *file.State, wantErr error) indexCall {
 	return func(i *index, t *testing.T) {
+		t.Helper()
 		state, err := i.State(name)
 		if !cmp.Equal(state, wantState) {
 			t.Errorf("State(%q) state:\n got: %v\nwant: %v",
@@ -29,57 +29,123 @@ func get(name string, wantState *file.State, wantErr error) indexFunc {
 	}
 }
 
-func set(name string, state *file.State) indexFunc {
+func set(name string, state *file.State) indexCall {
 	return func(i *index, t *testing.T) {
 		i.SetState(name, state)
 	}
 }
 
-type staterFunc func(string) (*file.State, error)
-
-func (f staterFunc) State(name string) (*file.State, error) {
-	return f(name)
+func newOneTimeStater(s Stater) Stater {
+	return oneTimeStater{s: s, calls: map[string]int{}}
 }
 
-// oneTimeStater returns a Stater that returns an error
-// on every call after the first.
-func oneTimeStater(s Stater) Stater {
-	calls := map[string]int{}
-	return staterFunc(func(name string) (*file.State, error) {
-		called := calls[name]
-		called++
-		calls[name] = called
+// oneTimeStater is a Stater that returns an error
+// if State is called more than once with the same name.
+type oneTimeStater struct {
+	s     Stater
+	calls map[string]int
+}
 
-		if called > 1 {
-			return nil, fmt.Errorf("oneTimeStater.State(%q) called %d times", name, called)
-		}
-		return s.State(name)
-	})
+func (ots oneTimeStater) State(name string) (*file.State, error) {
+	called := ots.calls[name]
+	called++
+	ots.calls[name] = called
+
+	if called > 1 {
+		return nil, fmt.Errorf("oneTimeStater.State(%q) called %d times", name, called)
+	}
+	return ots.s.State(name)
 }
 
 func TestIndex(t *testing.T) {
 	tests := map[string]struct {
 		files     []testFile
-		calls     []indexFunc
+		calls     []indexCall
 		wantSpecs map[string]Spec
 	}{
-		"get current state of non-existent file": {
-			files: []testFile{},
-			calls: []indexFunc{
-				get("target/no/such/file", nil, nil),
+		"get state of non-existent file": {
+			files: []testFile{}, // No files.
+			calls: []indexCall{
+				// Two get calls...
+				get("target/file", nil, nil),
+				// The second call checks (via oneTimeStater) that the index
+				// has cached the spec and does not call the file stater again.
+				get("target/file", nil, nil),
 			},
 			wantSpecs: map[string]Spec{
-				"target/no/such/file": {Current: nil, Planned: nil},
+				"target/file": {Current: nil, Planned: nil},
+			},
+		},
+		"get state of existing file": {
+			files: []testFile{
+				regularFile("target/file"),
+			},
+			calls: []indexCall{
+				get("target/file", fileState(), nil),
+				get("target/file", fileState(), nil),
+			},
+			wantSpecs: map[string]Spec{
+				"target/file": {Current: fileState(), Planned: fileState()},
+			},
+		},
+		"get state of existing dir": {
+			files: []testFile{
+				dirFile("target/dir"),
+			},
+			calls: []indexCall{
+				get("target/dir", dirState(), nil),
+				get("target/dir", dirState(), nil),
+			},
+			wantSpecs: map[string]Spec{
+				"target/dir": {Current: dirState(), Planned: dirState()},
+			},
+		},
+		"get state of existing link": {
+			files: []testFile{
+				linkFile("target/link", "../some/dest/file"),
+				{name: "some/dest/file", mode: 0o765},
+			},
+			calls: []indexCall{
+				get("target/link", linkState("../some/dest/file", 0o765), nil),
+				get("target/link", linkState("../some/dest/file", 0o765), nil),
+			},
+			wantSpecs: map[string]Spec{
+				"target/link": {
+					Current: linkState("../some/dest/file", 0o765),
+					Planned: linkState("../some/dest/file", 0o765),
+				},
+			},
+		},
+		"error getting state of existing file": {
+			files: []testFile{
+				{name: "target/file", err: errfs.ErrLstat},
+			},
+			calls: []indexCall{
+				get("target/file", nil, errfs.ErrLstat),
+			},
+			wantSpecs: map[string]Spec{},
+		},
+		"set planned state of non-existent file": {
+			files: []testFile{},
+			calls: []indexCall{
+				get("target/file", nil, nil),
+				set("target/file", linkState("link/to/source/file", 0)),
+			},
+			wantSpecs: map[string]Spec{
+				"target/file": {
+					Current: nil,
+					Planned: linkState("link/to/source/file", 0),
+				},
 			},
 		},
 		"set planned state of non-existent dir": {
 			files: []testFile{},
-			calls: []indexFunc{
-				get("target/no/such/dir", nil, nil),
-				set("target/no/such/dir", linkState("link/to/source/dir", fs.ModeDir)),
+			calls: []indexCall{
+				get("target/dir", nil, nil),
+				set("target/dir", linkState("link/to/source/dir", fs.ModeDir)),
 			},
 			wantSpecs: map[string]Spec{
-				"target/no/such/dir": {
+				"target/dir": {
 					Current: nil,
 					Planned: linkState("link/to/source/dir", fs.ModeDir),
 				},
@@ -90,9 +156,9 @@ func TestIndex(t *testing.T) {
 		t.Run(desc, func(t *testing.T) {
 			testFS := errfs.New()
 			for _, f := range test.files {
-				testFS.Add(f.name, f.mode, f.dest)
+				testFS.Add(f.name, f.mode, f.dest, f.err)
 			}
-			testStater := oneTimeStater(file.Stater{FS: testFS})
+			testStater := newOneTimeStater(file.Stater{FS: testFS})
 
 			index := NewIndex(testStater)
 
@@ -106,91 +172,5 @@ func TestIndex(t *testing.T) {
 				t.Errorf("Specs() after calls: %s", specsDiff)
 			}
 		})
-	}
-}
-
-func TestStateCache(t *testing.T) {
-	missState := &file.State{Mode: fs.ModeSymlink, Dest: "miss/state/dest"}
-	name := "myItem"
-
-	miss := staterFunc(func(gotName string) (*file.State, error) {
-		if gotName != name {
-			t.Errorf("miss: got name %s, want %s", name, gotName)
-		}
-		return missState, nil
-	})
-
-	index := NewIndex(miss)
-
-	gotState, err := index.State(name)
-	if err != nil {
-		t.Error(err)
-	}
-	if !cmp.Equal(gotState, missState) {
-		t.Errorf("state before set:\n got %v\nwant %v", gotState, missState)
-	}
-
-	updatedState := &file.State{Mode: fs.ModeSymlink, Dest: "updated/state/dest"}
-	index.SetState(name, updatedState)
-
-	gotState, err = index.State(name)
-	if err != nil {
-		t.Error(err)
-	}
-
-	if !cmp.Equal(gotState, updatedState) {
-		t.Errorf("state after set:\n got %v\nwant %v", gotState, updatedState)
-	}
-}
-
-type itemState struct {
-	Item  string
-	State *file.State
-}
-
-func (s itemState) String() string {
-	return fmt.Sprintf("%s: %s", s.Item, s.State)
-}
-
-func TestIndexAll(t *testing.T) {
-	// Some items and their states, sorted by item
-	want := []itemState{
-		{Item: "a/b/c/dir", State: &file.State{Mode: fs.ModeDir | 0o755}},
-		{Item: "a/b/c/file", State: &file.State{Mode: 0o644}},
-		{Item: "a/b/file", State: &file.State{Mode: 0o644}},
-		{Item: "a/symlink", State: &file.State{Mode: fs.ModeSymlink, Dest: "a/symlink/dest", DestMode: 0o644}},
-	}
-	wantLen := len(want)
-
-	cache := NewIndex(nil)
-
-	// Add the items in a random order
-	for _, i := range rand.Perm(wantLen) {
-		s := want[i]
-		cache.SetState(s.Item, s.State)
-	}
-
-	got := []itemState{}
-	for item, state := range cache.All() {
-		got = append(got, itemState{Item: item, State: state})
-	}
-
-	gotLen := len(got)
-
-	for i := range min(gotLen, wantLen) {
-		if !cmp.Equal(got[i], want[i]) {
-			t.Errorf("item %d\n got %s\nwant %s", i, got[i], want[i])
-		}
-	}
-
-	if gotLen < wantLen {
-		for i := gotLen; i < wantLen; i++ {
-			t.Errorf("missing item %d: %s", i, want[i])
-		}
-	}
-	if gotLen > wantLen {
-		for i := wantLen; i < gotLen; i++ {
-			t.Errorf("extra item %d: %s", i, got[i])
-		}
 	}
 }

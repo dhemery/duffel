@@ -1,6 +1,7 @@
 package plan
 
 import (
+	"fmt"
 	"iter"
 	"maps"
 	"slices"
@@ -25,44 +26,50 @@ type Spec struct {
 // states by calling files.State.
 func NewIndex(files Stater) *index {
 	return &index{
-		states: map[string]*file.State{},
-		files:  files,
+		specs: map[string]Spec{},
+		files: files,
 	}
 }
 
 type index struct {
-	states map[string]*file.State
-	files  Stater
+	specs map[string]Spec
+	files Stater
 }
 
-// State returns the planned state of named file.
+// State returns the planned state of the named file.
 // If i does not already know the planned state,
 // State retrieves the current state of the file,
 // stores it as both the current and planned states,
 // and returns the retrieved state.
 func (i *index) State(name string) (*file.State, error) {
-	var err error
-	state, ok := i.states[name]
+	spec, ok := i.specs[name]
 	if !ok {
-		state, err = i.files.State(name)
+		state, err := i.files.State(name)
 		if err != nil {
 			return nil, err
 		}
-		i.states[name] = state
+		spec = Spec{state, state}
+		i.specs[name] = spec
 	}
-	return state, nil
+	return spec.Planned, nil
 }
 
-// SetState sets the planned state of named file.
+// SetState sets the planned state of the named file.
 func (i *index) SetState(name string, state *file.State) {
-	i.states[name] = state
+	spec, ok := i.specs[name]
+	if !ok {
+		panic(fmt.Errorf("index.SetState(%q,_): no such spec", name))
+	}
+
+	spec.Planned = state
+	i.specs[name] = spec
 }
 
 // All returns an iterator over the states in name order.
 func (i *index) All() iter.Seq2[string, *file.State] {
 	return func(yield func(string, *file.State) bool) {
-		for _, name := range slices.Sorted(maps.Keys(i.states)) {
-			if !yield(name, i.states[name]) {
+		for _, name := range slices.Sorted(maps.Keys(i.specs)) {
+			if !yield(name, i.specs[name].Planned) {
 				return
 			}
 		}
@@ -70,9 +77,5 @@ func (i *index) All() iter.Seq2[string, *file.State] {
 }
 
 func (i *index) Specs() iter.Seq2[string, Spec] {
-	specs := map[string]Spec{}
-	for name, state := range i.states {
-		specs[name] = Spec{Planned: state}
-	}
-	return maps.All(specs)
+	return maps.All(i.specs)
 }

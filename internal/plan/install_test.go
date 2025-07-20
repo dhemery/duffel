@@ -329,6 +329,7 @@ type testFile struct {
 	name string
 	mode fs.FileMode
 	dest string
+	err  errfs.Error
 }
 
 func (tf testFile) Info() (fs.FileInfo, error) {
