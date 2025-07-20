@@ -14,6 +14,13 @@ type Stater interface {
 	State(name string) (*file.State, error)
 }
 
+// Spec describes the current and planned states
+// of a file in the target tree.
+type Spec struct {
+	Current *file.State
+	Planned *file.State
+}
+
 // NewIndex returns a new, empty index that retrieves current file
 // states by calling files.State.
 func NewIndex(files Stater) *index {
@@ -60,4 +67,12 @@ func (i *index) All() iter.Seq2[string, *file.State] {
 			}
 		}
 	}
+}
+
+func (i *index) Specs() iter.Seq2[string, Spec] {
+	specs := map[string]Spec{}
+	for name, state := range i.states {
+		specs[name] = Spec{Planned: state}
+	}
+	return maps.All(specs)
 }

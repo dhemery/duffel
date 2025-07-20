@@ -4,57 +4,106 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"maps"
 	"math/rand/v2"
 	"testing"
 
+	"github.com/dhemery/duffel/internal/errfs"
 	"github.com/dhemery/duffel/internal/file"
 	"github.com/google/go-cmp/cmp"
 )
 
-type staterFunc func(name string) (*file.State, error)
+type indexFunc func(i *index, t *testing.T)
+
+func get(name string, wantState *file.State, wantErr error) indexFunc {
+	return func(i *index, t *testing.T) {
+		state, err := i.State(name)
+		if !cmp.Equal(state, wantState) {
+			t.Errorf("State(%q) state:\n got: %v\nwant: %v",
+				name, state, wantState)
+		}
+		if !errors.Is(err, wantErr) {
+			t.Errorf("State(%q) error:\n got: %v\nwant: %v",
+				name, err, wantErr)
+		}
+	}
+}
+
+func set(name string, state *file.State) indexFunc {
+	return func(i *index, t *testing.T) {
+		i.SetState(name, state)
+	}
+}
+
+type staterFunc func(string) (*file.State, error)
 
 func (f staterFunc) State(name string) (*file.State, error) {
 	return f(name)
 }
 
-func TestIndexStaterState(t *testing.T) {
+// oneTimeStater returns a Stater that returns an error
+// on every call after the first.
+func oneTimeStater(s Stater) Stater {
+	calls := map[string]int{}
+	return staterFunc(func(name string) (*file.State, error) {
+		called := calls[name]
+		called++
+		calls[name] = called
+
+		if called > 1 {
+			return nil, fmt.Errorf("oneTimeStater.State(%q) called %d times", name, called)
+		}
+		return s.State(name)
+	})
+}
+
+func TestIndex(t *testing.T) {
 	tests := map[string]struct {
-		name  string
-		state *file.State // The state returned by State.
-		err   error       // The error returned by State.
+		files     []testFile
+		calls     []indexFunc
+		wantSpecs map[string]Spec
 	}{
-		"existing file": {
-			name:  "name/of/existing/linkfile",
-			state: linkState("link/to/some/dir", fs.ModeDir|0o755),
-			err:   nil,
+		"get current state of non-existent file": {
+			files: []testFile{},
+			calls: []indexFunc{
+				get("target/no/such/file", nil, nil),
+			},
+			wantSpecs: map[string]Spec{
+				"target/no/such/file": {Current: nil, Planned: nil},
+			},
 		},
-		"error getting file state": {
-			name:  "name/of/bad/file",
-			state: nil,
-			err:   &fs.PathError{Op: "test", Path: "name/of/bad/file", Err: fs.ErrNotExist},
+		"set planned state of non-existent dir": {
+			files: []testFile{},
+			calls: []indexFunc{
+				get("target/no/such/dir", nil, nil),
+				set("target/no/such/dir", linkState("link/to/source/dir", fs.ModeDir)),
+			},
+			wantSpecs: map[string]Spec{
+				"target/no/such/dir": {
+					Current: nil,
+					Planned: linkState("link/to/source/dir", fs.ModeDir),
+				},
+			},
 		},
 	}
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
-			testStater := staterFunc(func(gotName string) (*file.State, error) {
-				if gotName != test.name {
-					t.Errorf("stater.State(): got name %q, want %q",
-						test.name, gotName)
-				}
-				return test.state, test.err
-			})
+	for desc, test := range tests {
+		t.Run(desc, func(t *testing.T) {
+			testFS := errfs.New()
+			for _, f := range test.files {
+				testFS.Add(f.name, f.mode, f.dest)
+			}
+			testStater := oneTimeStater(file.Stater{FS: testFS})
 
 			index := NewIndex(testStater)
 
-			state, err := index.State(test.name)
-
-			if !cmp.Equal(state, test.state) {
-				t.Errorf("State(%q) state:\n got: %v\nwant: %v",
-					test.name, state, test.state)
+			for _, call := range test.calls {
+				call(index, t)
 			}
-			if !errors.Is(err, test.err) {
-				t.Errorf("State(%q) error:\n got: %v\nwant: %v",
-					test.name, err, test.err)
+
+			specs := maps.Collect(index.Specs())
+			specsDiff := cmp.Diff(test.wantSpecs, specs)
+			if specsDiff != "" {
+				t.Errorf("Specs() after calls: %s", specsDiff)
 			}
 		})
 	}
