@@ -50,28 +50,28 @@ type FS struct {
 // with the given name, permissions, and prepared errors.
 // Any missing ancestor directories are also added.
 func (fsys *FS) AddFile(name string, perm fs.FileMode, errs ...Error) error {
-	return fsys.add(File(name, perm, errs...))
+	return fsys.AddEntry(File(name, perm, errs...))
 }
 
 // AddDir adds a directory to fsys
 // with the given name, permissions, and prepared errors.
 // Any missing ancestor directories are also added.
 func (fsys *FS) AddDir(name string, perm fs.FileMode, errs ...Error) error {
-	return fsys.add(Dir(name, perm, errs...))
+	return fsys.AddEntry(Dir(name, perm, errs...))
 }
 
 // AddLink adds a symlink to fsys
 // with the given name, destination, and prepared errors.
 // Any missing ancestor directories are also added.
 func (fsys *FS) AddLink(name string, dest string, errs ...Error) error {
-	return fsys.add(Link(name, dest, errs...))
+	return fsys.AddEntry(Link(name, dest, errs...))
 }
 
 // Add adds a new [*ErrFile] to fsys
 // with the given name, mode, destination, and prepared errors.
 // Any missing ancestor directories are also added.
 func (fsys *FS) Add(name string, mode fs.FileMode, dest string, errs ...Error) error {
-	return fsys.add(newFile(name, mode, dest, errs...))
+	return fsys.AddEntry(newFile(name, mode, dest, errs...))
 }
 
 func Dir(name string, perm fs.FileMode, errs ...Error) *ErrFile {
@@ -86,7 +86,7 @@ func Link(name string, dest string, errs ...Error) *ErrFile {
 	return newFile(name, fs.ModeSymlink, dest, errs...)
 }
 
-func (fsys *FS) add(f *ErrFile) error {
+func (fsys *FS) AddEntry(f *ErrFile) error {
 	const op = fsOp + "add"
 
 	if f.name == "." {
@@ -97,7 +97,7 @@ func (fsys *FS) add(f *ErrFile) error {
 	parent, err := fsys.find(dir)
 	if errors.Is(err, fs.ErrNotExist) {
 		parent = Dir(dir, 0o755)
-		err = fsys.add(parent)
+		err = fsys.AddEntry(parent)
 	}
 	if err != nil {
 		return &fs.PathError{Op: op, Path: f.name, Err: err}

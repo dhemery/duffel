@@ -11,49 +11,35 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-type testFile struct {
-	Name string
-	Type fs.FileMode
-	Dest string
-	Err  errfs.Error
-}
-
-func add(tfs *errfs.FS, f *testFile) {
+func add(tfs *errfs.FS, f *errfs.ErrFile) {
 	if f == nil {
 		return
 	}
-	tfs.Add(f.Name, f.Type, f.Dest, f.Err)
+	tfs.AddEntry(f)
 }
 
 func TestStater(t *testing.T) {
 	tests := map[string]struct {
 		name      string
-		file      *testFile
-		destFile  *testFile
+		file      *errfs.ErrFile
+		destFile  *errfs.ErrFile
 		wantState *State
 		wantError error
 	}{
 		"file": {
 			name:      "dir/file",
-			file:      &testFile{Name: "dir/file", Type: 0o644},
+			file:      errfs.File("dir/file", 0o644),
 			wantState: &State{Type: 0},
 		},
 		"dir": {
 			name:      "dir/dir",
-			file:      &testFile{Name: "dir/dir", Type: fs.ModeDir | 0o755},
+			file:      errfs.Dir("dir/dir", 0o755),
 			wantState: &State{Type: fs.ModeDir},
 		},
 		"link": {
-			name: "dir/link",
-			file: &testFile{
-				Name: "dir/link",
-				Type: fs.ModeSymlink,
-				Dest: "../dest-dir/dest-file",
-			},
-			destFile: &testFile{
-				Name: "dest-dir/dest-file",
-				Type: 0,
-			},
+			name:     "dir/link",
+			file:     errfs.Link("dir/link", "../dest-dir/dest-file"),
+			destFile: errfs.File("dest-dir/dest-file", 0o644),
 			wantState: &State{
 				Type:     fs.ModeSymlink,
 				Dest:     "../dest-dir/dest-file",
@@ -62,18 +48,18 @@ func TestStater(t *testing.T) {
 		},
 		"file lstat error": {
 			name:      "dir/file",
-			file:      &testFile{Name: "dir/file", Type: 0o644, Err: errfs.ErrLstat},
+			file:      errfs.File("dir/file", 0o644, errfs.ErrLstat),
 			wantError: errfs.ErrLstat,
 		},
 		"file readlink error": {
 			name:      "dir/link",
-			file:      &testFile{Name: "dir/link", Type: fs.ModeSymlink, Err: errfs.ErrReadLink},
+			file:      errfs.Link("dir/link", "bad/dest", errfs.ErrReadLink),
 			wantError: errfs.ErrReadLink,
 		},
 		"dest lstat error": {
 			name:      "dir/link",
-			file:      &testFile{Name: "dir/link", Type: fs.ModeSymlink, Dest: "../dest-dir/dest-file"},
-			destFile:  &testFile{Name: "dest-dir/dest-file", Type: 0o644, Err: errfs.ErrLstat},
+			file:      errfs.Link("dir/link", "../dest-dir/dest-file"),
+			destFile:  errfs.File("dest-dir/dest-file", 0o644, errfs.ErrLstat),
 			wantError: errfs.ErrLstat,
 		},
 		"no file": {
