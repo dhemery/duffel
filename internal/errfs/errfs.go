@@ -94,7 +94,7 @@ func (fsys *FS) AddEntry(f *ErrFile) error {
 	}
 
 	dir := path.Dir(f.name)
-	parent, err := fsys.find(dir)
+	parent, err := fsys.Find(dir)
 	if errors.Is(err, fs.ErrNotExist) {
 		parent = Dir(dir, 0o755)
 		err = fsys.AddEntry(parent)
@@ -112,12 +112,12 @@ func (fsys *FS) AddEntry(f *ErrFile) error {
 	return nil
 }
 
-func (fsys *FS) find(name string) (*ErrFile, error) {
+func (fsys *FS) Find(name string) (*ErrFile, error) {
 	if name == "." {
 		return fsys.root, nil
 	}
 
-	parent, err := fsys.find(path.Dir(name))
+	parent, err := fsys.Find(path.Dir(name))
 	if err != nil {
 		return nil, err
 	}
@@ -140,7 +140,7 @@ func (fsys *FS) find(name string) (*ErrFile, error) {
 func (fsys *FS) Open(name string) (fs.File, error) {
 	const op = fsOp + "open"
 
-	f, err := fsys.find(name)
+	f, err := fsys.Find(name)
 	if err != nil {
 		return nil, &fs.PathError{Op: op, Path: name, Err: err}
 	}
@@ -156,7 +156,7 @@ func (fsys *FS) Open(name string) (fs.File, error) {
 // that error is returned instead.
 func (fsys *FS) Lstat(name string) (fs.FileInfo, error) {
 	const op = fsOp + "lstat"
-	file, err := fsys.find(name)
+	file, err := fsys.Find(name)
 	if err != nil {
 		return nil, &fs.PathError{Op: op, Path: name, Err: err}
 	}
@@ -174,7 +174,7 @@ func (fsys *FS) Lstat(name string) (fs.FileInfo, error) {
 // that error is returned instead.
 func (fsys *FS) ReadDir(name string) ([]fs.DirEntry, error) {
 	const op = fsOp + "readdir"
-	file, err := fsys.find(name)
+	file, err := fsys.Find(name)
 	if err != nil {
 		return nil, &fs.PathError{Op: op, Path: name, Err: err}
 	}
@@ -200,7 +200,7 @@ func (fsys *FS) ReadDir(name string) ([]fs.DirEntry, error) {
 // that error is returned instead.
 func (fsys *FS) ReadLink(name string) (string, error) {
 	const op = fsOp + "readlink"
-	file, err := fsys.find(name)
+	file, err := fsys.Find(name)
 	if err != nil {
 		return "", &fs.PathError{Op: op, Path: name, Err: err}
 	}
@@ -227,7 +227,7 @@ func (fsys *FS) Symlink(oldname, newname string) error {
 // Lstat returns that error instead of the file info.
 func (fsys *FS) Stat(name string) (fs.FileInfo, error) {
 	const op = fsOp + "stat"
-	file, err := fsys.find(name)
+	file, err := fsys.Find(name)
 	if err != nil {
 		return nil, &fs.PathError{Op: op, Path: name, Err: err}
 	}
@@ -337,7 +337,7 @@ func (fsys *FS) String() string {
 		if err != nil {
 			return err
 		}
-		f, _ := fsys.find(name)
+		f, _ := fsys.Find(name)
 		out.WriteRune('"')
 		out.WriteString(name)
 		out.WriteString(`" `)
@@ -349,6 +349,20 @@ func (fsys *FS) String() string {
 		return err.Error()
 	}
 	return out.String()
+}
+
+func (f *ErrFile) Equal(o *ErrFile) bool {
+	fNil := f == nil
+	oNil := o == nil
+	if fNil != oNil {
+		return false
+	}
+	if fNil {
+		return true
+	}
+	return f.name == o.name &&
+		f.mode == o.mode &&
+		f.dest == o.dest
 }
 
 func (f *ErrFile) String() string {
