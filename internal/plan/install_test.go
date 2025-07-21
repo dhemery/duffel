@@ -291,14 +291,14 @@ func (test test) run(t *testing.T) {
 		merger := NewMerger(pkgFinder, analyzer)
 		install := NewInstallOp(test.source, test.target, merger)
 
-		entry := test.itemFile
+		itemFile := test.itemFile
 		state := test.targetState
 
-		gotState, gotErr := install.Apply(entry.FullName, entry, state)
+		gotState, gotErr := install.Apply(itemFile.Name, itemFile.Entry(), state)
 
 		if !cmp.Equal(gotState, test.wantState) {
 			t.Errorf("Apply(%q) state result:\n got %v\nwant %v",
-				entry.FullName, gotState, test.wantState)
+				itemFile.Name, gotState, test.wantState)
 		}
 
 		switch want := test.wantErr.(type) {
@@ -306,12 +306,12 @@ func (test test) run(t *testing.T) {
 			errDiff := cmp.Diff(want, gotErr)
 			if errDiff != "" {
 				t.Errorf("Apply(%q) error:\n%s",
-					entry.FullName, errDiff)
+					itemFile.Name, errDiff)
 			}
 		default:
 			if !errors.Is(gotErr, want) {
 				t.Errorf("Apply(%q) error:\n got: %v\nwant: %v",
-					entry.FullName, gotErr, want)
+					itemFile.Name, gotErr, want)
 			}
 		}
 
@@ -322,7 +322,7 @@ func (test test) run(t *testing.T) {
 		indexDiff := cmp.Diff(test.wantNewStates, gotStates, cmpopts.EquateEmpty())
 		if indexDiff != "" {
 			t.Errorf("planned states after Apply(%q):\n%s",
-				entry.FullName, indexDiff)
+				itemFile.Name, indexDiff)
 		}
 	})
 }
