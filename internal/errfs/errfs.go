@@ -261,6 +261,10 @@ func newFile(name string, mode fs.FileMode, dest string, errs ...Error) *ErrFile
 	return f
 }
 
+func (f *ErrFile) FullName() string {
+	return f.name
+}
+
 // Close implements fs.File.
 // It does nothing.
 func (f *ErrFile) Close() error {

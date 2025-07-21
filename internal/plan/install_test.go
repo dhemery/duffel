@@ -21,10 +21,10 @@ func TestInstallOp(t *testing.T) {
 type test struct {
 	desc          string                 // Description of the test.
 	source        string                 // The source directory to install.
-	itemFile      testFile               // The item to install.
+	itemFile      *errfs.ErrFile         // The item to install.
 	target        string                 // The target directory to install to.
 	targetState   *file.State            // The target state passed to Apply.
-	files         []testFile             // Files on the file system.
+	files         []*errfs.ErrFile       // Files on the file system.
 	wantState     *file.State            // State returned by Apply.
 	wantErr       error                  // Error returned by Apply.
 	wantNewStates map[string]*file.State // States added to index during Apply.
@@ -44,7 +44,7 @@ var entryAndStateSuite = suite{
 			desc:        "create new target link to file item",
 			source:      "source",
 			target:      "target",
-			itemFile:    regularFile("source/pkg/item"),
+			itemFile:    errfs.File("source/pkg/item", 0o644),
 			targetState: nil,
 			wantState:   linkState("../source/pkg/item", 0),
 			wantErr:     nil,
@@ -53,7 +53,7 @@ var entryAndStateSuite = suite{
 			desc:        "create new target link to dir item",
 			source:      "source",
 			target:      "target",
-			itemFile:    dirFile("source/pkg/item"),
+			itemFile:    errfs.Dir("source/pkg/item", 0o755),
 			targetState: nil,
 			wantState:   linkState("../source/pkg/item", fs.ModeDir),
 			wantErr:     fs.SkipDir, // Do not walk the dir. Linking to it suffices.
@@ -62,7 +62,7 @@ var entryAndStateSuite = suite{
 			desc:        "create new target link to symlink item",
 			source:      "source",
 			target:      "target",
-			itemFile:    linkFile("source/pkg/item", "some/dest"),
+			itemFile:    errfs.Link("source/pkg/item", "some/dest"),
 			targetState: nil,
 			wantState:   linkState("../source/pkg/item", fs.ModeSymlink),
 			wantErr:     nil,
@@ -71,7 +71,7 @@ var entryAndStateSuite = suite{
 			desc:        "create new target link to sub-item",
 			source:      "source",
 			target:      "target",
-			itemFile:    regularFile("source/pkg/dir/sub1/sub2/item"),
+			itemFile:    errfs.File("source/pkg/dir/sub1/sub2/item", 0o644),
 			targetState: nil,
 			wantState:   linkState("../../../../source/pkg/dir/sub1/sub2/item", 0),
 			wantErr:     nil,
@@ -80,7 +80,7 @@ var entryAndStateSuite = suite{
 			desc:        "install dir item contents to existing target dir",
 			source:      "source",
 			target:      "target",
-			itemFile:    dirFile("source/pkg/item"),
+			itemFile:    errfs.Dir("source/pkg/item", 0o755),
 			targetState: dirState(),
 			wantState:   dirState(), // No change in state.
 			wantErr:     nil,        // No error: Continue walking to install the item's contents.
@@ -89,7 +89,7 @@ var entryAndStateSuite = suite{
 			desc:        "target already links to current dir item",
 			source:      "source",
 			target:      "target",
-			itemFile:    dirFile("source/pkg/item"),
+			itemFile:    errfs.Dir("source/pkg/item", 0o755),
 			targetState: linkState("../source/pkg/item", fs.ModeDir),
 			wantState:   linkState("../source/pkg/item", fs.ModeDir),
 			wantErr:     fs.SkipDir, // Do not walk the dir item. It's already linked.
@@ -98,7 +98,7 @@ var entryAndStateSuite = suite{
 			desc:        "target already links to current non-dir item",
 			source:      "source",
 			target:      "target",
-			itemFile:    regularFile("source/pkg/item"),
+			itemFile:    errfs.File("source/pkg/item", 0o644),
 			targetState: linkState("../source/pkg/item", 0),
 			wantState:   linkState("../source/pkg/item", 0),
 			wantErr:     nil,
@@ -107,7 +107,7 @@ var entryAndStateSuite = suite{
 			desc:        "target already links to current sub-item",
 			source:      "source",
 			target:      "target",
-			itemFile:    regularFile("source/pkg/dir/sub1/sub2/item"),
+			itemFile:    errfs.File("source/pkg/dir/sub1/sub2/item", 0o644),
 			targetState: linkState("../../../../source/pkg/dir/sub1/sub2/item", 0),
 			wantState:   linkState("../../../../source/pkg/dir/sub1/sub2/item", 0),
 			wantErr:     nil,
@@ -127,9 +127,9 @@ var mergeSuite = suite{
 		{
 			desc:        "dest is not in a package",
 			source:      "source",
-			itemFile:    dirFile("source/pkg/item"),
+			itemFile:    errfs.Dir("source/pkg/item", 0o755),
 			targetState: linkState("../dir1/dir2/item", fs.ModeDir|0o755),
-			files:       []testFile{dirFile("dir1/dir2/item")},
+			files:       []*errfs.ErrFile{errfs.Dir("dir1/dir2/item", 0o755)},
 			wantState:   nil,
 			wantErr:     file.ErrNotInPackage,
 		},
@@ -137,10 +137,10 @@ var mergeSuite = suite{
 			desc:        "dest is a duffel source dir",
 			source:      "source",
 			target:      "target-dir",
-			itemFile:    dirFile("source/pkg/item"),
+			itemFile:    errfs.Dir("source/pkg/item", 0o755),
 			targetState: linkState("../duffel/source-dir", fs.ModeDir|0o755),
-			files: []testFile{
-				regularFile("duffel/source-dir/.duffel"),
+			files: []*errfs.ErrFile{
+				errfs.File("duffel/source-dir/.duffel", 0o644),
 			},
 			wantState: nil,
 			wantErr:   file.ErrIsSource,
@@ -148,12 +148,12 @@ var mergeSuite = suite{
 		{
 			desc:        "dest is duffel package",
 			source:      "source",
-			itemFile:    dirFile("source/pkg/item"),
+			itemFile:    errfs.Dir("source/pkg/item", 0o755),
 			targetState: linkState("../duffel/source/pkg", fs.ModeDir|0o755),
 			target:      "target",
-			files: []testFile{
-				regularFile("duffel/source/.duffel"),
-				regularFile("duffel/source/pkg/item/content"),
+			files: []*errfs.ErrFile{
+				errfs.File("duffel/source/.duffel", 0o644),
+				errfs.File("duffel/source/pkg/item/content", 0o644),
 			},
 			wantState: nil,
 			wantErr:   file.ErrIsPackage,
@@ -162,11 +162,11 @@ var mergeSuite = suite{
 			desc:        "dest is a top level item in a package",
 			source:      "source",
 			target:      "target",
-			itemFile:    dirFile("source/pkg/item"),
+			itemFile:    errfs.Dir("source/pkg/item", 0o755),
 			targetState: linkState("../duffel/source/pkg/item", fs.ModeDir|0o755),
-			files: []testFile{
-				regularFile("duffel/source/.duffel"),
-				regularFile("duffel/source/pkg/item/content"),
+			files: []*errfs.ErrFile{
+				errfs.File("duffel/source/.duffel", 0o644),
+				errfs.File("duffel/source/pkg/item/content", 0o644),
 			},
 			wantState: &file.State{Type: fs.ModeDir | 0o755},
 			wantErr:   nil,
@@ -179,12 +179,12 @@ var mergeSuite = suite{
 			desc:     "dest is a nested item in a package",
 			source:   "source",
 			target:   "target",
-			itemFile: dirFile("source/pkg/item3"),
+			itemFile: errfs.Dir("source/pkg/item3", 0o755),
 			targetState: linkState("../duffel/source/pkg/item1/item2/item3",
 				fs.ModeDir|0o755),
-			files: []testFile{
-				regularFile("duffel/source/.duffel"),
-				regularFile("duffel/source/pkg/item1/item2/item3/content"),
+			files: []*errfs.ErrFile{
+				errfs.File("duffel/source/.duffel", 0o644),
+				errfs.File("duffel/source/pkg/item1/item2/item3/content", 0o644),
 			},
 			wantState: &file.State{Type: fs.ModeDir | 0o755},
 			wantErr:   nil,
@@ -206,7 +206,7 @@ var conflictSuite = suite{
 			desc:        "target is a file, source is a dir",
 			source:      "source",
 			target:      "target",
-			itemFile:    dirFile("source/pkg/item"),
+			itemFile:    errfs.Dir("source/pkg/item", 0o755),
 			targetState: fileState(),
 			wantErr: &InstallError{
 				Item:        "source/pkg/item",
@@ -219,7 +219,7 @@ var conflictSuite = suite{
 			desc:        "target is unknown type, source is a dir",
 			source:      "source",
 			target:      "target",
-			itemFile:    dirFile("source/pkg/item"),
+			itemFile:    errfs.Dir("source/pkg/item", 0o755),
 			targetState: &file.State{Type: fs.ModeDevice},
 			wantErr: &InstallError{
 				Item:        "source/pkg/item",
@@ -232,7 +232,7 @@ var conflictSuite = suite{
 			desc:        "target links to a non-dir, source is a dir",
 			source:      "source",
 			target:      "target",
-			itemFile:    dirFile("source/pkg/item"),
+			itemFile:    errfs.Dir("source/pkg/item", 0o755),
 			targetState: linkState("link/to/file", 0o644),
 			wantErr: &InstallError{
 				Item:        "source/pkg/item",
@@ -245,7 +245,7 @@ var conflictSuite = suite{
 			desc:        "target is a dir, source is not a dir",
 			source:      "source",
 			target:      "target",
-			itemFile:    regularFile("source/pkg/item"),
+			itemFile:    errfs.File("source/pkg/item", 0o644),
 			targetState: dirState(),
 			wantErr: &InstallError{
 				Item:        "source/pkg/item",
@@ -258,7 +258,7 @@ var conflictSuite = suite{
 			desc:        "target links to a dir, source is not a dir",
 			source:      "source",
 			target:      "target",
-			itemFile:    regularFile("source/pkg/item"),
+			itemFile:    errfs.File("source/pkg/item", 0o644),
 			targetState: linkState("target/some/dest", fs.ModeDir|0o755),
 			wantErr: &InstallError{
 				Item:        "source/pkg/item",
@@ -282,7 +282,7 @@ func (test test) run(t *testing.T) {
 	t.Run(test.desc, func(t *testing.T) {
 		testFS := errfs.New()
 		for _, tf := range test.files {
-			testFS.Add(tf.name, tf.mode, tf.dest)
+			testFS.AddEntry(tf)
 		}
 		pkgFinder := file.NewPkgFinder(testFS)
 		stater := file.Stater{FS: testFS}
@@ -294,11 +294,11 @@ func (test test) run(t *testing.T) {
 		entry := test.itemFile
 		state := test.targetState
 
-		gotState, gotErr := install.Apply(test.itemFile.name, entry, state)
+		gotState, gotErr := install.Apply(test.itemFile.FullName(), entry, state)
 
 		if !cmp.Equal(gotState, test.wantState) {
 			t.Errorf("Apply(%q) state result:\n got %v\nwant %v",
-				test.itemFile.name, gotState, test.wantState)
+				test.itemFile.FullName(), gotState, test.wantState)
 		}
 
 		switch want := test.wantErr.(type) {
@@ -306,12 +306,12 @@ func (test test) run(t *testing.T) {
 			errDiff := cmp.Diff(want, gotErr)
 			if errDiff != "" {
 				t.Errorf("Apply(%q) error:\n%s",
-					test.itemFile.name, errDiff)
+					test.itemFile.FullName(), errDiff)
 			}
 		default:
 			if !errors.Is(gotErr, want) {
 				t.Errorf("Apply(%q) error:\n got: %v\nwant: %v",
-					test.itemFile.name, gotErr, want)
+					test.itemFile.FullName(), gotErr, want)
 			}
 		}
 
@@ -322,44 +322,9 @@ func (test test) run(t *testing.T) {
 		indexDiff := cmp.Diff(test.wantNewStates, gotStates, cmpopts.EquateEmpty())
 		if indexDiff != "" {
 			t.Errorf("planned states after Apply(%q):\n%s",
-				test.itemFile.name, indexDiff)
+				test.itemFile.FullName(), indexDiff)
 		}
 	})
-}
-
-type testFile struct {
-	name string
-	mode fs.FileMode
-	dest string
-	err  errfs.Error
-}
-
-func (tf testFile) Info() (fs.FileInfo, error) {
-	return nil, nil
-}
-
-func (tf testFile) IsDir() bool {
-	return tf.mode.IsDir()
-}
-
-func (tf testFile) Name() string {
-	return tf.name
-}
-
-func (tf testFile) Type() fs.FileMode {
-	return tf.mode.Type()
-}
-
-func dirFile(name string) testFile {
-	return testFile{name: name, mode: fs.ModeDir | 0o755}
-}
-
-func linkFile(name string, dest string) testFile {
-	return testFile{name: name, mode: fs.ModeSymlink, dest: dest}
-}
-
-func regularFile(name string) testFile {
-	return testFile{name: name, mode: 0o644}
 }
 
 func dirState() *file.State {
