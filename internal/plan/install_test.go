@@ -282,7 +282,7 @@ func (test test) run(t *testing.T) {
 	t.Run(test.desc, func(t *testing.T) {
 		testFS := errfs.New()
 		for _, tf := range test.files {
-			testFS.AddEntry(tf)
+			testFS.Add(tf)
 		}
 		pkgFinder := file.NewPkgFinder(testFS)
 		stater := file.Stater{FS: testFS}

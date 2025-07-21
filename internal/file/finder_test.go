@@ -53,9 +53,9 @@ func TestPkgFinder(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			testFS := errfs.New()
-			testFS.AddDir(test.findName, 0o755)
+			testFS.Add(errfs.Dir(test.findName, 0o755))
 			if test.duffelFile != "" {
-				testFS.AddFile(test.duffelFile, 0o644)
+				testFS.Add(errfs.File(test.duffelFile, 0o644))
 			}
 
 			finder := NewPkgFinder(testFS)

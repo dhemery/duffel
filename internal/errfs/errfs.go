@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io/fs"
 	"maps"
+	"os"
 	"path"
 	"slices"
 	"strings"
@@ -38,40 +39,12 @@ func (e Error) Error() string {
 
 // New returns a new FS.
 func New() *FS {
-	return &FS{root: newFile("", fs.ModeDir|0o775, "")}
+	return &FS{root: Dir("", 0755)}
 }
 
 // FS is a tree of [*file].
 type FS struct {
 	root *ErrFile
-}
-
-// AddFile adds a regular file to fsys
-// with the given name, permissions, and prepared errors.
-// Any missing ancestor directories are also added.
-func (fsys *FS) AddFile(name string, perm fs.FileMode, errs ...Error) error {
-	return fsys.AddEntry(File(name, perm, errs...))
-}
-
-// AddDir adds a directory to fsys
-// with the given name, permissions, and prepared errors.
-// Any missing ancestor directories are also added.
-func (fsys *FS) AddDir(name string, perm fs.FileMode, errs ...Error) error {
-	return fsys.AddEntry(Dir(name, perm, errs...))
-}
-
-// AddLink adds a symlink to fsys
-// with the given name, destination, and prepared errors.
-// Any missing ancestor directories are also added.
-func (fsys *FS) AddLink(name string, dest string, errs ...Error) error {
-	return fsys.AddEntry(Link(name, dest, errs...))
-}
-
-// Add adds a new [*ErrFile] to fsys
-// with the given name, mode, destination, and prepared errors.
-// Any missing ancestor directories are also added.
-func (fsys *FS) Add(name string, mode fs.FileMode, dest string, errs ...Error) error {
-	return fsys.AddEntry(newFile(name, mode, dest, errs...))
 }
 
 func Dir(name string, perm fs.FileMode, errs ...Error) *ErrFile {
@@ -86,7 +59,7 @@ func Link(name string, dest string, errs ...Error) *ErrFile {
 	return newFile(name, fs.ModeSymlink, dest, errs...)
 }
 
-func (fsys *FS) AddEntry(f *ErrFile) error {
+func (fsys *FS) Add(f *ErrFile) error {
 	const op = fsOp + "add"
 
 	if f.name == "." {
@@ -97,7 +70,7 @@ func (fsys *FS) AddEntry(f *ErrFile) error {
 	parent, err := fsys.Find(dir)
 	if errors.Is(err, fs.ErrNotExist) {
 		parent = Dir(dir, 0o755)
-		err = fsys.AddEntry(parent)
+		err = fsys.Add(parent)
 	}
 	if err != nil {
 		return &fs.PathError{Op: op, Path: f.name, Err: err}
@@ -218,7 +191,10 @@ func (fsys *FS) ReadLink(name string) (string, error) {
 
 func (fsys *FS) Symlink(oldname, newname string) error {
 	const op = fsOp + "symlink"
-	return fsys.Add(newname, fs.ModeSymlink, oldname)
+	if err := fsys.Add(Link(newname, oldname)); err != nil {
+		return &os.LinkError{Op: op, Old: oldname, New: newname, Err: err}
+	}
+	return nil
 }
 
 // Stat returns a [fs.FileInfo] that describes the named file.

@@ -38,9 +38,9 @@ func TestExecuteEmptyTargetNoConflictingPackageItems(t *testing.T) {
 	}
 
 	testFS := errfs.New()
-	testFS.AddDir("target", 0o755)
+	testFS.Add(errfs.Dir("target", 0o755))
 	for _, spec := range specs {
-		testFS.AddEntry(spec.sourceFile)
+		testFS.Add(spec.sourceFile)
 	}
 
 	req := &Request{

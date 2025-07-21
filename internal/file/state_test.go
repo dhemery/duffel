@@ -15,7 +15,7 @@ func add(tfs *errfs.FS, f *errfs.ErrFile) {
 	if f == nil {
 		return
 	}
-	tfs.AddEntry(f)
+	tfs.Add(f)
 }
 
 func TestStater(t *testing.T) {
