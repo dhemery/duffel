@@ -39,45 +39,45 @@ func (e Error) Error() string {
 
 // New returns a new FS.
 func New() *FS {
-	return &FS{root: Dir("", 0755)}
+	return &FS{root: NewDir("", 0o755)}
 }
 
 // FS is a tree of [*file].
 type FS struct {
-	root *ErrFile
+	root *File
 }
 
-func Dir(name string, perm fs.FileMode, errs ...Error) *ErrFile {
+func NewDir(name string, perm fs.FileMode, errs ...Error) *File {
 	return newFile(name, fs.ModeDir|perm.Perm(), "", errs...)
 }
 
-func File(name string, perm fs.FileMode, errs ...Error) *ErrFile {
+func NewFile(name string, perm fs.FileMode, errs ...Error) *File {
 	return newFile(name, perm.Perm(), "", errs...)
 }
 
-func Link(name string, dest string, errs ...Error) *ErrFile {
+func NewLink(name string, dest string, errs ...Error) *File {
 	return newFile(name, fs.ModeSymlink, dest, errs...)
 }
 
-func (fsys *FS) Add(f *ErrFile) error {
+func (fsys *FS) Add(f *File) error {
 	const op = fsOp + "add"
 
-	if f.name == "." {
-		return &fs.PathError{Op: op, Path: f.name, Err: fs.ErrInvalid}
+	if f.FullName == "." {
+		return &fs.PathError{Op: op, Path: f.FullName, Err: fs.ErrInvalid}
 	}
 
-	dir := path.Dir(f.name)
+	dir := path.Dir(f.FullName)
 	parent, err := fsys.Find(dir)
 	if errors.Is(err, fs.ErrNotExist) {
-		parent = Dir(dir, 0o755)
+		parent = NewDir(dir, 0o755)
 		err = fsys.Add(parent)
 	}
 	if err != nil {
-		return &fs.PathError{Op: op, Path: f.name, Err: err}
+		return &fs.PathError{Op: op, Path: f.FullName, Err: err}
 	}
 
-	if _, ok := parent.entries[f.name]; ok {
-		return &fs.PathError{Op: op, Path: f.name, Err: fs.ErrExist}
+	if _, ok := parent.entries[f.FullName]; ok {
+		return &fs.PathError{Op: op, Path: f.FullName, Err: fs.ErrExist}
 	}
 
 	parent.entries[f.Name()] = f
@@ -85,7 +85,7 @@ func (fsys *FS) Add(f *ErrFile) error {
 	return nil
 }
 
-func (fsys *FS) Find(name string) (*ErrFile, error) {
+func (fsys *FS) Find(name string) (*File, error) {
 	if name == "." {
 		return fsys.root, nil
 	}
@@ -100,7 +100,7 @@ func (fsys *FS) Find(name string) (*ErrFile, error) {
 	}
 
 	for _, e := range parent.entries {
-		if e.name == name {
+		if e.FullName == name {
 			return e, nil
 		}
 	}
@@ -191,7 +191,7 @@ func (fsys *FS) ReadLink(name string) (string, error) {
 
 func (fsys *FS) Symlink(oldname, newname string) error {
 	const op = fsOp + "symlink"
-	if err := fsys.Add(Link(newname, oldname)); err != nil {
+	if err := fsys.Add(NewLink(newname, oldname)); err != nil {
 		return &os.LinkError{Op: op, Old: oldname, New: newname, Err: err}
 	}
 	return nil
@@ -215,21 +215,21 @@ func (fsys *FS) Stat(name string) (fs.FileInfo, error) {
 	return file, nil
 }
 
-type ErrFile struct {
-	name    string              // The full name of the file
-	mode    fs.FileMode         // The file mode
-	dest    string              // The link destination if the file is a symlink
-	entries map[string]*ErrFile // The dir entries if the file is dir
-	errors  map[Error]bool      // Errors to return from corresponding methods
+type File struct {
+	FullName string           // The full name of the file
+	mode     fs.FileMode      // The file mode
+	dest     string           // The link destination if the file is a symlink
+	entries  map[string]*File // The dir entries if the file is dir
+	errors   map[Error]bool   // Errors to return from corresponding methods
 }
 
-func newFile(name string, mode fs.FileMode, dest string, errs ...Error) *ErrFile {
-	f := &ErrFile{
-		name:    name,
-		mode:    mode,
-		dest:    dest,
-		entries: map[string]*ErrFile{},
-		errors:  map[Error]bool{},
+func newFile(name string, mode fs.FileMode, dest string, errs ...Error) *File {
+	f := &File{
+		FullName: name,
+		mode:     mode,
+		dest:     dest,
+		entries:  map[string]*File{},
+		errors:   map[Error]bool{},
 	}
 	for _, e := range errs {
 		f.errors[e] = true
@@ -237,73 +237,69 @@ func newFile(name string, mode fs.FileMode, dest string, errs ...Error) *ErrFile
 	return f
 }
 
-func (f *ErrFile) FullName() string {
-	return f.name
-}
-
 // Close implements fs.File.
 // It does nothing.
-func (f *ErrFile) Close() error {
+func (f *File) Close() error {
 	return nil
 }
 
 // Info implements fs.DirEntry.
-func (f *ErrFile) Info() (fs.FileInfo, error) {
+func (f *File) Info() (fs.FileInfo, error) {
 	return f, nil
 }
 
 // IsDir implements fs.DirEntry and fs.FileInfo.
-func (f *ErrFile) IsDir() bool {
+func (f *File) IsDir() bool {
 	return f.mode&fs.ModeDir != 0
 }
 
 // ModTime implements fs.FileInfo.
 // It always returns the zero time.
-func (f *ErrFile) ModTime() time.Time {
+func (f *File) ModTime() time.Time {
 	return time.Time{}
 }
 
 // Mode implements fs.FileInfo.
-func (f *ErrFile) Mode() fs.FileMode {
+func (f *File) Mode() fs.FileMode {
 	return f.mode
 }
 
 // Name implements fs.DirEntry and fs.FileInfo.
-func (f *ErrFile) Name() string {
-	return path.Base(f.name)
+func (f *File) Name() string {
+	return path.Base(f.FullName)
 }
 
 // Read implements fs.File.
 // It always returns 0, [errors.ErrUnsupported].
-func (f *ErrFile) Read([]byte) (int, error) {
+func (f *File) Read([]byte) (int, error) {
 	const op = fileOp + "read"
-	return 0, &fs.PathError{Op: op, Path: f.name, Err: errors.ErrUnsupported}
+	return 0, &fs.PathError{Op: op, Path: f.FullName, Err: errors.ErrUnsupported}
 }
 
 // Size implements fs.FileInfo.
 // It always returns 0.
-func (f *ErrFile) Size() int64 {
+func (f *File) Size() int64 {
 	return 0
 }
 
 // Stat implements fs.File.
 // It does not follow links.
-func (f *ErrFile) Stat() (fs.FileInfo, error) {
+func (f *File) Stat() (fs.FileInfo, error) {
 	const op = fileOp + "stat"
 	if f.errors[ErrStat] {
-		return nil, &fs.PathError{Op: op, Path: f.name, Err: ErrStat}
+		return nil, &fs.PathError{Op: op, Path: f.FullName, Err: ErrStat}
 	}
 	return f, nil
 }
 
 // Sys implements fs.FileInfo.
 // It returns the full name of the file.
-func (f *ErrFile) Sys() any {
-	return f.name
+func (f *File) Sys() any {
+	return f.FullName
 }
 
 // Type implements fs.DirEntry.
-func (f *ErrFile) Type() fs.FileMode {
+func (f *File) Type() fs.FileMode {
 	return f.mode.Type()
 }
 
@@ -327,7 +323,7 @@ func (fsys *FS) String() string {
 	return out.String()
 }
 
-func (f *ErrFile) Equal(o *ErrFile) bool {
+func (f *File) Equal(o *File) bool {
 	fNil := f == nil
 	oNil := o == nil
 	if fNil != oNil {
@@ -336,18 +332,18 @@ func (f *ErrFile) Equal(o *ErrFile) bool {
 	if fNil {
 		return true
 	}
-	return f.name == o.name &&
+	return f.FullName == o.FullName &&
 		f.mode == o.mode &&
 		f.dest == o.dest
 }
 
-func (f *ErrFile) String() string {
+func (f *File) String() string {
 	var out strings.Builder
 	out.WriteString(f.mode.String())
 	if f.IsDir() {
 		var children []string
 		for _, e := range f.entries {
-			children = append(children, path.Base(e.name))
+			children = append(children, path.Base(e.FullName))
 		}
 		out.WriteString(" [")
 		out.WriteString(strings.Join(children, ", "))

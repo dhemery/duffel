@@ -15,35 +15,35 @@ func TestMerge(t *testing.T) {
 	tests := map[string]struct {
 		mergeDir   string                 // The name of the directory to merge.
 		target     string                 // The target to merge into.
-		files      []*errfs.ErrFile       // Other files on the file system.
+		files      []*errfs.File          // Other files on the file system.
 		wantErr    error                  // Error returned by Merge.
 		wantStates map[string]*file.State // States added to index during Merge.
 	}{
 		"not in a package": {
 			mergeDir: "dir1/dir2/dir3/dir4/dir5/dir6",
-			files:    []*errfs.ErrFile{}, // No other files, so no .duffel file
+			files:    []*errfs.File{}, // No other files, so no .duffel file
 			wantErr:  file.ErrNotInPackage,
 		},
 		"duffel source dir": {
 			mergeDir: "duffel/source-dir",
-			files: []*errfs.ErrFile{
-				errfs.File("duffel/source-dir/.duffel", 0o644),
+			files: []*errfs.File{
+				errfs.NewFile("duffel/source-dir/.duffel", 0o644),
 			},
 			wantErr: file.ErrIsSource,
 		},
 		"duffel package": {
 			mergeDir: "duffel/source-dir/pkg-dir",
-			files: []*errfs.ErrFile{
-				errfs.File("duffel/source-dir/.duffel", 0o644),
+			files: []*errfs.File{
+				errfs.NewFile("duffel/source-dir/.duffel", 0o644),
 			},
 			wantErr: file.ErrIsPackage,
 		},
 		"top level item in a package": {
 			mergeDir: "duffel/source-dir/pkg-dir/item",
 			target:   "target-dir",
-			files: []*errfs.ErrFile{
-				errfs.File("duffel/source-dir/.duffel", 0o644),
-				errfs.File("duffel/source-dir/pkg-dir/item/content", 0o644),
+			files: []*errfs.File{
+				errfs.NewFile("duffel/source-dir/.duffel", 0o644),
+				errfs.NewFile("duffel/source-dir/pkg-dir/item/content", 0o644),
 			},
 			wantStates: map[string]*file.State{
 				"target-dir/item/content": {
@@ -56,9 +56,9 @@ func TestMerge(t *testing.T) {
 		"nested item in a package": {
 			mergeDir: "duffel/source-dir/pkg-dir/item1/item2/item3",
 			target:   "target-dir",
-			files: []*errfs.ErrFile{
-				errfs.File("duffel/source-dir/.duffel", 0o644),
-				errfs.File("duffel/source-dir/pkg-dir/item1/item2/item3/content", 0o644),
+			files: []*errfs.File{
+				errfs.NewFile("duffel/source-dir/.duffel", 0o644),
+				errfs.NewFile("duffel/source-dir/pkg-dir/item1/item2/item3/content", 0o644),
 			},
 			wantStates: map[string]*file.State{
 				"target-dir/item1/item2/item3/content": {
@@ -71,11 +71,11 @@ func TestMerge(t *testing.T) {
 		"various file types in a package": {
 			mergeDir: "duffel/source-dir/pkg-dir/item",
 			target:   "target-dir",
-			files: []*errfs.ErrFile{
-				errfs.File("duffel/source-dir/.duffel", 0o644),
-				errfs.Dir("duffel/source-dir/pkg-dir/item/dir", 0o755),
-				errfs.File("duffel/source-dir/pkg-dir/item/file", 0o644),
-				errfs.Link("duffel/source-dir/pkg-dir/item/link", "some/dest"),
+			files: []*errfs.File{
+				errfs.NewFile("duffel/source-dir/.duffel", 0o644),
+				errfs.NewDir("duffel/source-dir/pkg-dir/item/dir", 0o755),
+				errfs.NewFile("duffel/source-dir/pkg-dir/item/file", 0o644),
+				errfs.NewLink("duffel/source-dir/pkg-dir/item/link", "some/dest"),
 			},
 			wantStates: map[string]*file.State{
 				"target-dir/item/dir": {
@@ -101,7 +101,7 @@ func TestMerge(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			testFS := errfs.New()
-			testFS.Add(errfs.Dir(test.mergeDir, 0o755))
+			testFS.Add(errfs.NewDir(test.mergeDir, 0o755))
 			for _, tf := range test.files {
 				testFS.Add(tf)
 			}
