@@ -304,10 +304,9 @@ func (test test) run(t *testing.T) {
 
 		switch want := test.wantErr.(type) {
 		case *InstallError:
-			errDiff := cmp.Diff(want, gotErr)
-			if errDiff != "" {
+			if diff := cmp.Diff(want, gotErr); diff != "" {
 				t.Errorf("Apply(%q) error:\n%s",
-					itemFile.Name, errDiff)
+					itemFile.Name, diff)
 			}
 		default:
 			if !errors.Is(gotErr, want) {
@@ -320,10 +319,9 @@ func (test test) run(t *testing.T) {
 		for n, spec := range index.All() {
 			gotStates[n] = spec.Planned
 		}
-		indexDiff := cmp.Diff(test.wantNewStates, gotStates, cmpopts.EquateEmpty())
-		if indexDiff != "" {
+		if diff := cmp.Diff(test.wantNewStates, gotStates, cmpopts.EquateEmpty()); diff != "" {
 			t.Errorf("planned states after Apply(%q):\n%s",
-				itemFile.Name, indexDiff)
+				itemFile.Name, diff)
 		}
 	})
 }

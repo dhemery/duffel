@@ -65,9 +65,8 @@ func TestExecuteEmptyTargetNoConflictingPackageItems(t *testing.T) {
 			continue
 		}
 
-		fileDiff := cmp.Diff(wantFile, gotFile, cmpopts.IgnoreUnexported(errfs.File{}))
-		if fileDiff != "" {
-			t.Errorf("%q:\n%s", wantFile.Name, fileDiff)
+		if diff := cmp.Diff(wantFile, gotFile, cmpopts.IgnoreUnexported(errfs.File{})); diff != "" {
+			t.Errorf("%q:\n%s", wantFile.Name, diff)
 		}
 
 	}

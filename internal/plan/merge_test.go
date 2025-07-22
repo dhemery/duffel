@@ -124,10 +124,9 @@ func TestMerge(t *testing.T) {
 			for n, spec := range index.All() {
 				gotStates[n] = spec.Planned
 			}
-			indexDiff := cmp.Diff(test.wantStates, gotStates, cmpopts.EquateEmpty())
-			if indexDiff != "" {
+			if diff := cmp.Diff(test.wantStates, gotStates, cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("planned states after Merge(%q, %q):\n%s",
-					test.mergeDir, test.target, indexDiff)
+					test.mergeDir, test.target, diff)
 			}
 			if t.Failed() {
 				t.Logf("files after Merge(%q, %q):\n%s",
