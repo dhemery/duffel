@@ -64,7 +64,7 @@ func (i *index) SetState(name string, state *file.State) {
 	i.specs[name] = spec
 }
 
-// Specs returns an iterator over the indexed specs.
-func (i *index) Specs() iter.Seq2[string, Spec] {
+// All returns an iterator over the indexed specs.
+func (i *index) All() iter.Seq2[string, Spec] {
 	return maps.All(i.specs)
 }

@@ -3,7 +3,6 @@ package plan
 import (
 	"encoding/json"
 	"io/fs"
-	"iter"
 	"path"
 
 	"github.com/dhemery/duffel/internal/file"
@@ -16,9 +15,9 @@ type Plan struct {
 	Tasks  []Task `json:"tasks"`
 }
 
-func New(target string, specs iter.Seq2[string, Spec]) Plan {
+func New(target string, specs Specs) Plan {
 	p := Plan{Target: target, Tasks: []Task{}}
-	for item, spec := range specs {
+	for item, spec := range specs.All() {
 		state := spec.Planned
 		if state == nil {
 			continue

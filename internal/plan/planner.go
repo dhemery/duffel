@@ -9,11 +9,6 @@ import (
 )
 
 type Analyst interface {
-	Analyzer
-	Specs() iter.Seq2[string, Spec]
-}
-
-type Analyzer interface {
 	Analyze(op PkgOp, target string) error
 }
 
@@ -22,13 +17,8 @@ type Index interface {
 	SetState(item string, state *file.State)
 }
 
-type SpecIndex interface {
-	Index
-	Specs() iter.Seq2[string, Spec]
-}
-
-type ItemOp interface {
-	Apply(name string, entry fs.DirEntry, indexState *file.State) (*file.State, error)
+type Specs interface {
+	All() iter.Seq2[string, Spec]
 }
 
 type PkgOp interface {
@@ -36,16 +26,21 @@ type PkgOp interface {
 	VisitFunc(target string, index Index) fs.WalkDirFunc
 }
 
-func NewPlanner(target string, analyst Analyst) planner {
+type SpecsAnalyst interface {
+	Analyst
+	Specs
+}
+
+func NewPlanner(target string, analyzer SpecsAnalyst) planner {
 	return planner{
 		target:  target,
-		analyst: analyst,
+		analyst: analyzer,
 	}
 }
 
 type planner struct {
 	target  string
-	analyst Analyst
+	analyst SpecsAnalyst
 }
 
 func (p planner) Plan(ops []PkgOp) (Plan, error) {
@@ -55,24 +50,29 @@ func (p planner) Plan(ops []PkgOp) (Plan, error) {
 			return Plan{}, err
 		}
 	}
-	return New(p.target, p.analyst.Specs()), nil
+	return New(p.target, p.analyst), nil
 }
 
-func NewAnalyst(fsys fs.FS, index SpecIndex) analyst {
-	return analyst{fsys: fsys, index: index}
+type SpecsIndex interface {
+	Index
+	Specs
+}
+
+func NewAnalyst(fsys fs.FS, specs SpecsIndex) analyst {
+	return analyst{fsys: fsys, SpecsIndex: specs}
 }
 
 type analyst struct {
-	fsys  fs.FS
-	index SpecIndex
+	fsys fs.FS
+	SpecsIndex
 }
 
 func (a analyst) Analyze(op PkgOp, target string) error {
-	return fs.WalkDir(a.fsys, op.WalkDir(), op.VisitFunc(target, a.index))
+	return fs.WalkDir(a.fsys, op.WalkDir(), op.VisitFunc(target, a))
 }
 
-func (a analyst) Specs() iter.Seq2[string, Spec] {
-	return a.index.Specs()
+type ItemOp interface {
+	Apply(name string, entry fs.DirEntry, indexState *file.State) (*file.State, error)
 }
 
 func NewPkgOp(pkgDir string, itemOp ItemOp) pkgOp {

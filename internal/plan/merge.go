@@ -10,13 +10,13 @@ type PkgFinder interface {
 	FindPkg(name string) (file.PkgItem, error)
 }
 
-func NewMerger(pkgFinder PkgFinder, analyzer Analyzer) merger {
+func NewMerger(pkgFinder PkgFinder, analyzer Analyst) merger {
 	return merger{pkgFinder, analyzer}
 }
 
 type merger struct {
 	pkgFinder PkgFinder
-	analyzer  Analyzer
+	analyzer  Analyst
 }
 
 func (m merger) Merge(name, target string) error {

@@ -317,7 +317,7 @@ func (test test) run(t *testing.T) {
 		}
 
 		gotStates := map[string]*file.State{}
-		for n, spec := range index.Specs() {
+		for n, spec := range index.All() {
 			gotStates[n] = spec.Planned
 		}
 		indexDiff := cmp.Diff(test.wantNewStates, gotStates, cmpopts.EquateEmpty())

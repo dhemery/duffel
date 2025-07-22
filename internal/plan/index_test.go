@@ -166,7 +166,7 @@ func TestIndex(t *testing.T) {
 				call(index, t)
 			}
 
-			specs := maps.Collect(index.Specs())
+			specs := maps.Collect(index.All())
 			specsDiff := cmp.Diff(test.wantSpecs, specs)
 			if specsDiff != "" {
 				t.Errorf("Specs() after calls: %s", specsDiff)
