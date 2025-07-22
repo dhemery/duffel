@@ -40,9 +40,9 @@ func TestExecuteEmptyTargetNoConflictingPackageItems(t *testing.T) {
 	}
 
 	testFS := errfs.New()
-	testFS.Add(errfs.NewDir("target", 0o755))
+	errfs.AddDir(testFS, "target", 0o755)
 	for _, spec := range specs {
-		testFS.Add(spec.sourceFile)
+		errfs.Add(testFS, spec.sourceFile)
 	}
 
 	req := &Request{
@@ -59,7 +59,7 @@ func TestExecuteEmptyTargetNoConflictingPackageItems(t *testing.T) {
 
 	for _, spec := range specs {
 		wantFile := spec.targetFile
-		gotFile, err := testFS.Find(wantFile.Name)
+		gotFile, err := errfs.Find(testFS, wantFile.Name)
 		if err != nil {
 			t.Error(err)
 			continue

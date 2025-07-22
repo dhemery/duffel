@@ -156,7 +156,7 @@ func TestIndex(t *testing.T) {
 		t.Run(desc, func(t *testing.T) {
 			testFS := errfs.New()
 			for _, f := range test.files {
-				testFS.Add(f)
+				errfs.Add(testFS, f)
 			}
 			testStater := newOneTimeStater(file.Stater{FS: testFS})
 

@@ -42,24 +42,89 @@ func New() *FS {
 	return &FS{root: NewDir("", 0o755)}
 }
 
-// FS is a tree of [*file].
-type FS struct {
-	root *File
+// Add adds file to fsys,
+// along with any missing ancestor directories.
+// If the file was created with errs,
+// each relevant file operation and file system operation
+// will return the corresponding error.
+func Add(fsys *FS, file *File) error {
+	return fsys.add(file)
 }
 
+// AddDir creates the specified directory and adds it to fsys,
+// along witn any missing ancestor directories.
+// If errs is non-empty,
+// each relevant file operation and file system operation
+// will return the corresponding error.
+func AddDir(fsys *FS, name string, perm fs.FileMode, errs ...Error) error {
+	return fsys.add(NewDir(name, perm, errs...))
+}
+
+// AddFile creates the specified file and adds it to fsys,
+// along witn any missing ancestor directories.
+// If errs is non-empty,
+// each relevant file operation and file system operation
+// will return the corresponding error.
+func AddFile(fsys *FS, name string, perm fs.FileMode, errs ...Error) error {
+	return fsys.add(NewFile(name, perm, errs...))
+}
+
+// AddLink creates the specified symlink and adds it to fsys,
+// along witn any missing ancestor directories.
+// If errs is non-empty,
+// each relevant file operation and file system operation
+// will return the corresponding error.
+func AddLink(fsys *FS, name string, dest string, errs ...Error) error {
+	return fsys.add(NewLink(name, dest, errs...))
+}
+
+// Find returns the named file.
+func Find(fsys *FS, name string) (*File, error) {
+	return fsys.find(name)
+}
+
+// NewDir creates a new directory file.
+// If errs is non-empty,
+// each relevant file operation
+// will return the corresponding error.
 func NewDir(name string, perm fs.FileMode, errs ...Error) *File {
 	return newFile(name, fs.ModeDir|perm.Perm(), "", errs...)
 }
 
+// NewFile creates a new regular file.
+// If errs is non-empty,
+// each relevant file operation
+// will return the corresponding error.
 func NewFile(name string, perm fs.FileMode, errs ...Error) *File {
 	return newFile(name, perm.Perm(), "", errs...)
 }
 
+// NewLink creates a new symlink file.
+// If errs is non-empty,
+// each relevant file operation
+// will return the corresponding error.
 func NewLink(name string, dest string, errs ...Error) *File {
 	return newFile(name, fs.ModeSymlink, dest, errs...)
 }
 
-func (fsys *FS) Add(f *File) error {
+// FileToInfo returns an [Info] that describes f.
+// The result implements [fs.FileInfo]
+func FileToInfo(f *File) Info {
+	return f.info()
+}
+
+// FileToEntry returns an [Entry] that describes f.
+// The result implements [fs.DirEntry]
+func FileToEntry(f *File) Entry {
+	return f.entry()
+}
+
+// FS is a tree of [*File].
+type FS struct {
+	root *File
+}
+
+func (fsys *FS) add(f *File) error {
 	const op = fsOp + "add"
 
 	if f.Name == "." {
@@ -67,10 +132,10 @@ func (fsys *FS) Add(f *File) error {
 	}
 
 	dir := path.Dir(f.Name)
-	parent, err := fsys.Find(dir)
+	parent, err := fsys.find(dir)
 	if errors.Is(err, fs.ErrNotExist) {
 		parent = NewDir(dir, 0o755)
-		err = fsys.Add(parent)
+		err = fsys.add(parent)
 	}
 	if err != nil {
 		return &fs.PathError{Op: op, Path: f.Name, Err: err}
@@ -80,17 +145,18 @@ func (fsys *FS) Add(f *File) error {
 		return &fs.PathError{Op: op, Path: f.Name, Err: fs.ErrExist}
 	}
 
-	parent.entries[f.Name] = f
+	e := f.entry()
+	parent.entries[e.Name()] = e
 
 	return nil
 }
 
-func (fsys *FS) Find(name string) (*File, error) {
+func (fsys *FS) find(name string) (*File, error) {
 	if name == "." {
 		return fsys.root, nil
 	}
 
-	parent, err := fsys.Find(path.Dir(name))
+	parent, err := fsys.find(path.Dir(name))
 	if err != nil {
 		return nil, err
 	}
@@ -99,9 +165,10 @@ func (fsys *FS) Find(name string) (*File, error) {
 		return nil, fs.ErrInvalid
 	}
 
+	base := path.Base(name)
 	for _, e := range parent.entries {
-		if e.Name == name {
-			return e, nil
+		if e.Name() == base {
+			return e.file, nil
 		}
 	}
 	return nil, fs.ErrNotExist
@@ -113,7 +180,7 @@ func (fsys *FS) Find(name string) (*File, error) {
 func (fsys *FS) Open(name string) (fs.File, error) {
 	const op = fsOp + "open"
 
-	f, err := fsys.Find(name)
+	f, err := fsys.find(name)
 	if err != nil {
 		return nil, &fs.PathError{Op: op, Path: name, Err: err}
 	}
@@ -129,7 +196,7 @@ func (fsys *FS) Open(name string) (fs.File, error) {
 // that error is returned instead.
 func (fsys *FS) Lstat(name string) (fs.FileInfo, error) {
 	const op = fsOp + "lstat"
-	file, err := fsys.Find(name)
+	file, err := fsys.find(name)
 	if err != nil {
 		return nil, &fs.PathError{Op: op, Path: name, Err: err}
 	}
@@ -138,7 +205,7 @@ func (fsys *FS) Lstat(name string) (fs.FileInfo, error) {
 		return nil, &fs.PathError{Op: op, Path: name, Err: ErrLstat}
 	}
 
-	return file.Info(), nil
+	return file.info(), nil
 }
 
 // ReadDir reads the named directory
@@ -147,7 +214,7 @@ func (fsys *FS) Lstat(name string) (fs.FileInfo, error) {
 // that error is returned instead.
 func (fsys *FS) ReadDir(name string) ([]fs.DirEntry, error) {
 	const op = fsOp + "readdir"
-	file, err := fsys.Find(name)
+	file, err := fsys.find(name)
 	if err != nil {
 		return nil, &fs.PathError{Op: op, Path: name, Err: err}
 	}
@@ -162,7 +229,7 @@ func (fsys *FS) ReadDir(name string) ([]fs.DirEntry, error) {
 
 	var entries []fs.DirEntry
 	for _, key := range slices.Sorted(maps.Keys(file.entries)) {
-		entries = append(entries, file.entries[key].Entry())
+		entries = append(entries, file.entries[key])
 	}
 
 	return entries, nil
@@ -173,7 +240,7 @@ func (fsys *FS) ReadDir(name string) ([]fs.DirEntry, error) {
 // that error is returned instead.
 func (fsys *FS) ReadLink(name string) (string, error) {
 	const op = fsOp + "readlink"
-	file, err := fsys.Find(name)
+	file, err := fsys.find(name)
 	if err != nil {
 		return "", &fs.PathError{Op: op, Path: name, Err: err}
 	}
@@ -189,10 +256,13 @@ func (fsys *FS) ReadLink(name string) (string, error) {
 	return file.Dest, nil
 }
 
-func (fsys *FS) Symlink(oldname, newname string) error {
+// Symlink creates a new symlink with the given name and destination.
+// TODO: Do not use fsys.add. Instead find the parent, and fail if error.
+// TODO: Return an error if the parent was created with ErrCreate.
+func (fsys *FS) Symlink(dest, name string) error {
 	const op = fsOp + "symlink"
-	if err := fsys.Add(NewLink(newname, oldname)); err != nil {
-		return &os.LinkError{Op: op, Old: oldname, New: newname, Err: err}
+	if err := fsys.add(NewLink(name, dest)); err != nil {
+		return &os.LinkError{Op: op, Old: dest, New: name, Err: err}
 	}
 	return nil
 }
@@ -200,10 +270,10 @@ func (fsys *FS) Symlink(oldname, newname string) error {
 // Stat returns a [fs.FileInfo] that describes the named file.
 // This implementation of Stat does not follow symlinks.
 // If the file was created with ErrStat,
-// Lstat returns that error instead of the file info.
+// that error is returned instead.
 func (fsys *FS) Stat(name string) (fs.FileInfo, error) {
 	const op = fsOp + "stat"
-	file, err := fsys.Find(name)
+	file, err := fsys.find(name)
 	if err != nil {
 		return nil, &fs.PathError{Op: op, Path: name, Err: err}
 	}
@@ -212,15 +282,43 @@ func (fsys *FS) Stat(name string) (fs.FileInfo, error) {
 		return nil, &fs.PathError{Op: op, Path: name, Err: ErrStat}
 	}
 
-	return file.Info(), nil
+	return Info{file}, nil
+}
+
+func (fsys *FS) String() string {
+	var out strings.Builder
+	err := fs.WalkDir(fsys, ".", func(name string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		f, _ := fsys.find(name)
+		out.WriteRune('"')
+		out.WriteString(name)
+		out.WriteString(`" `)
+		out.WriteString(f.String())
+		out.WriteRune('\n')
+		return nil
+	})
+	if err != nil {
+		return err.Error()
+	}
+	return out.String()
 }
 
 type File struct {
 	Name    string           // The full name of the file
 	Mode    fs.FileMode      // The file mode
 	Dest    string           // The link destination if the file is a symlink
-	entries map[string]*File // The dir entries if the file is dir
+	entries map[string]Entry // The dir entries if the file is dir
 	errors  map[Error]bool   // Errors to return from corresponding methods
+}
+
+func (f *File) entry() Entry {
+	return Entry{f}
+}
+
+func (f *File) info() Info {
+	return Info{f}
 }
 
 func newFile(name string, mode fs.FileMode, dest string, errs ...Error) *File {
@@ -228,7 +326,7 @@ func newFile(name string, mode fs.FileMode, dest string, errs ...Error) *File {
 		Name:    name,
 		Mode:    mode,
 		Dest:    dest,
-		entries: map[string]*File{},
+		entries: map[string]Entry{},
 		errors:  map[Error]bool{},
 	}
 	for _, e := range errs {
@@ -241,14 +339,6 @@ func newFile(name string, mode fs.FileMode, dest string, errs ...Error) *File {
 // It does nothing.
 func (f *File) Close() error {
 	return nil
-}
-
-func (f *File) Entry() *Entry {
-	return &Entry{f}
-}
-
-func (f *File) Info() *Info {
-	return &Info{f}
 }
 
 // Read implements fs.File.
@@ -265,88 +355,7 @@ func (f *File) Stat() (fs.FileInfo, error) {
 	if f.errors[ErrStat] {
 		return nil, &fs.PathError{Op: op, Path: f.Name, Err: ErrStat}
 	}
-	return f.Info(), nil
-}
-
-type Info struct {
-	file *File
-}
-
-// IsDir implements fs.DirEntry and fs.FileInfo.
-func (i *Info) IsDir() bool {
-	return i.Mode().IsDir()
-}
-
-// ModTime implements fs.FileInfo.
-// It always returns the zero time.
-func (i *Info) ModTime() time.Time {
-	return time.Time{}
-}
-
-// Mode implements fs.FileInfo.
-func (i *Info) Mode() fs.FileMode {
-	return i.file.Mode
-}
-
-// Name implements fs.FileInfo.
-func (i *Info) Name() string {
-	return path.Base(i.file.Name)
-}
-
-// Size implements fs.FileInfo.
-// It always returns 0.
-func (i *Info) Size() int64 {
-	return 0
-}
-
-// Sys implements fs.FileInfo.
-// It returns the full name of the file.
-func (i *Info) Sys() any {
-	return i.Name
-}
-
-type Entry struct {
-	file *File
-}
-
-// Info implements fs.DirEntry.
-func (e *Entry) Info() (fs.FileInfo, error) {
-	return e.file.Info(), nil
-}
-
-// IsDir implements fs.DirEntry.
-func (e *Entry) IsDir() bool {
-	return e.Type().IsDir()
-}
-
-// Name implements fs.DirEntry.
-func (e *Entry) Name() string {
-	return path.Base(e.file.Name)
-}
-
-// Type implements fs.DirEntry.
-func (e *Entry) Type() fs.FileMode {
-	return e.file.Mode.Type()
-}
-
-func (fsys *FS) String() string {
-	var out strings.Builder
-	err := fs.WalkDir(fsys, ".", func(name string, entry fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		f, _ := fsys.Find(name)
-		out.WriteRune('"')
-		out.WriteString(name)
-		out.WriteString(`" `)
-		out.WriteString(f.String())
-		out.WriteRune('\n')
-		return nil
-	})
-	if err != nil {
-		return err.Error()
-	}
-	return out.String()
+	return Info{f}, nil
 }
 
 func (f *File) String() string {
@@ -355,7 +364,7 @@ func (f *File) String() string {
 	if f.Mode.IsDir() {
 		var children []string
 		for _, e := range f.entries {
-			children = append(children, path.Base(e.Name))
+			children = append(children, e.Name())
 		}
 		out.WriteString(" [")
 		out.WriteString(strings.Join(children, ", "))
@@ -378,4 +387,65 @@ func (f *File) String() string {
 		out.WriteRune(']')
 	}
 	return out.String()
+}
+
+type Info struct {
+	file *File
+}
+
+// IsDir implements fs.DirEntry and fs.FileInfo.
+func (i Info) IsDir() bool {
+	return i.Mode().IsDir()
+}
+
+// ModTime implements fs.FileInfo.
+// It always returns the zero time.
+func (i Info) ModTime() time.Time {
+	return time.Time{}
+}
+
+// Mode implements fs.FileInfo.
+func (i Info) Mode() fs.FileMode {
+	return i.file.Mode
+}
+
+// Name implements fs.FileInfo.
+func (i Info) Name() string {
+	return path.Base(i.file.Name)
+}
+
+// Size implements fs.FileInfo.
+// It always returns 0.
+func (i Info) Size() int64 {
+	return 0
+}
+
+// Sys implements fs.FileInfo.
+// It returns the full name of the file.
+func (i Info) Sys() any {
+	return i.Name
+}
+
+type Entry struct {
+	file *File
+}
+
+// Info implements fs.DirEntry.
+func (e Entry) Info() (fs.FileInfo, error) {
+	return e.file.info(), nil
+}
+
+// IsDir implements fs.DirEntry.
+func (e Entry) IsDir() bool {
+	return e.Type().IsDir()
+}
+
+// Name implements fs.DirEntry.
+func (e Entry) Name() string {
+	return path.Base(e.file.Name)
+}
+
+// Type implements fs.DirEntry.
+func (e Entry) Type() fs.FileMode {
+	return e.file.Mode.Type()
 }

@@ -101,9 +101,9 @@ func TestMerge(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			testFS := errfs.New()
-			testFS.Add(errfs.NewDir(test.mergeDir, 0o755))
+			errfs.AddDir(testFS, test.mergeDir, 0o755)
 			for _, tf := range test.files {
-				testFS.Add(tf)
+				errfs.Add(testFS, tf)
 			}
 
 			stater := file.Stater{FS: testFS}

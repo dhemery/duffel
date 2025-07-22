@@ -282,7 +282,7 @@ func (test test) run(t *testing.T) {
 	t.Run(test.desc, func(t *testing.T) {
 		testFS := errfs.New()
 		for _, tf := range test.files {
-			testFS.Add(tf)
+			errfs.Add(testFS, tf)
 		}
 		pkgFinder := file.NewPkgFinder(testFS)
 		stater := file.Stater{FS: testFS}
@@ -292,9 +292,10 @@ func (test test) run(t *testing.T) {
 		install := NewInstallOp(test.source, test.target, merger)
 
 		itemFile := test.itemFile
+		entry := errfs.FileToEntry(itemFile)
 		state := test.targetState
 
-		gotState, gotErr := install.Apply(itemFile.Name, itemFile.Entry(), state)
+		gotState, gotErr := install.Apply(itemFile.Name, entry, state)
 
 		if !cmp.Equal(gotState, test.wantState) {
 			t.Errorf("Apply(%q) state result:\n got %v\nwant %v",
