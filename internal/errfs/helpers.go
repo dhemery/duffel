@@ -72,5 +72,5 @@ func FileToInfo(f *File) fs.FileInfo {
 
 // FileToEntry returns a [fs.DirEntry] that describes f.
 func FileToEntry(f *File) fs.DirEntry {
-	return dirEntry{f}
+	return f.entry()
 }

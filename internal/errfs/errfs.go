@@ -27,11 +27,6 @@ const (
 	addOp  = "add"         // For the Add helper methods.
 )
 
-// New returns a new FS.
-func New() *FS {
-	return &FS{root: newNode(NewDir("", 0o755))}
-}
-
 type node struct {
 	file    *File
 	entries map[string]node
@@ -39,6 +34,11 @@ type node struct {
 
 func newNode(f *File) node {
 	return node{f, map[string]node{}}
+}
+
+// New returns a new FS.
+func New() *FS {
+	return &FS{root: newNode(NewDir("", 0o755))}
 }
 
 // FS is a limited, in-memory [fs.FS] that can be configured
@@ -132,7 +132,7 @@ func (fsys *FS) Lstat(name string) (fs.FileInfo, error) {
 		return nil, &fs.PathError{Op: op, Path: name, Err: opErr}
 	}
 
-	return fileInfo{file}, nil
+	return file.info(), nil
 }
 
 // ReadDir reads the named directory
@@ -157,7 +157,7 @@ func (fsys *FS) ReadDir(name string) ([]fs.DirEntry, error) {
 
 	var entries []fs.DirEntry
 	for _, key := range slices.Sorted(maps.Keys(node.entries)) {
-		entries = append(entries, dirEntry{node.entries[key].file})
+		entries = append(entries, node.entries[key].file.entry())
 	}
 
 	return entries, nil
@@ -212,7 +212,7 @@ func (fsys *FS) Stat(name string) (fs.FileInfo, error) {
 		return nil, &fs.PathError{Op: op, Path: name, Err: opErr}
 	}
 
-	return fileInfo{file}, nil
+	return file.info(), nil
 }
 
 func (fsys *FS) String() string {
@@ -258,6 +258,14 @@ func newFile(name string, mode fs.FileMode, dest string, errs ...Error) *File {
 	return f
 }
 
+func (f *File) entry() fs.DirEntry {
+	return fs.FileInfoToDirEntry(f.info())
+}
+
+func (f *File) info() fs.FileInfo {
+	return info{path.Base(f.Name), f.Mode}
+}
+
 // Close implements fs.File.
 // It does nothing.
 func (f *File) Close() error {
@@ -280,7 +288,7 @@ func (f *File) Stat() (fs.FileInfo, error) {
 	if opErr, ok := f.errors[statOp]; ok {
 		return nil, &fs.PathError{Op: op, Path: f.Name, Err: opErr}
 	}
-	return fileInfo{f}, nil
+	return f.info(), nil
 }
 
 func (f *File) String() string {
@@ -303,63 +311,40 @@ func (f *File) String() string {
 	return out.String()
 }
 
-type fileInfo struct {
-	file *File
+type info struct {
+	name string
+	mode fs.FileMode
 }
 
-// IsDir implements fs.DirEntry and fs.FileInfo.
-func (i fileInfo) IsDir() bool {
-	return i.Mode().IsDir()
+// IsDir implements fs.FileInfo.
+func (fi info) IsDir() bool {
+	return fi.Mode().IsDir()
 }
 
 // ModTime implements fs.FileInfo.
 // It always returns the zero time.
-func (i fileInfo) ModTime() time.Time {
+func (fi info) ModTime() time.Time {
 	return time.Time{}
 }
 
 // Mode implements fs.FileInfo.
-func (i fileInfo) Mode() fs.FileMode {
-	return i.file.Mode
+func (fi info) Mode() fs.FileMode {
+	return fi.mode
 }
 
 // Name implements fs.FileInfo.
-func (i fileInfo) Name() string {
-	return path.Base(i.file.Name)
+func (fi info) Name() string {
+	return fi.name
 }
 
 // Size implements fs.FileInfo.
 // It always returns 0.
-func (i fileInfo) Size() int64 {
+func (fi info) Size() int64 {
 	return 0
 }
 
 // Sys implements fs.FileInfo.
-// It returns the full name of the file.
-func (i fileInfo) Sys() any {
-	return i.file.Name
-}
-
-type dirEntry struct {
-	file *File
-}
-
-// Info implements fs.DirEntry.
-func (e dirEntry) Info() (fs.FileInfo, error) {
-	return fileInfo(e), nil
-}
-
-// IsDir implements fs.DirEntry.
-func (e dirEntry) IsDir() bool {
-	return e.Type().IsDir()
-}
-
-// Name implements fs.DirEntry.
-func (e dirEntry) Name() string {
-	return path.Base(e.file.Name)
-}
-
-// Type implements fs.DirEntry.
-func (e dirEntry) Type() fs.FileMode {
-	return e.file.Mode.Type()
+// It returns nil.
+func (fi info) Sys() any {
+	return nil
 }
