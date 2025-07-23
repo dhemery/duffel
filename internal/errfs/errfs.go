@@ -29,63 +29,73 @@ const (
 
 // New returns a new FS.
 func New() *FS {
-	return &FS{root: NewDir("", 0o755)}
+	return &FS{root: newNode(NewDir("", 0o755))}
+}
+
+type node struct {
+	file    *File
+	entries map[string]node
+}
+
+func newNode(f *File) node {
+	return node{f, map[string]node{}}
 }
 
 // FS is a limited, in-memory [fs.FS] that can be configured
 // to return specified errors from operations on the file system and its files.
 type FS struct {
-	root *File
+	root node
 }
 
-func (fsys *FS) add(f *File) error {
+// add adds a node for f to fsys and returns the node.
+func (fsys *FS) add(file *File) (node, error) {
 	const op = fsOp + addOp
+	node := newNode(file)
 
-	if f.Name == "." {
-		return &fs.PathError{Op: op, Path: f.Name, Err: fs.ErrInvalid}
+	name := file.Name
+	if name == "." {
+		return node, &fs.PathError{Op: op, Path: name, Err: fs.ErrInvalid}
 	}
 
-	dir := path.Dir(f.Name)
+	dir := path.Dir(name)
 	parent, err := fsys.find(dir)
 	if errors.Is(err, fs.ErrNotExist) {
-		parent = NewDir(dir, 0o755)
-		err = fsys.add(parent)
+		parent, err = fsys.add(NewDir(dir, 0o755))
 	}
 	if err != nil {
-		return &fs.PathError{Op: op, Path: f.Name, Err: err}
+		return node, &fs.PathError{Op: op, Path: name, Err: err}
 	}
 
-	if _, ok := parent.entries[f.Name]; ok {
-		return &fs.PathError{Op: op, Path: f.Name, Err: fs.ErrExist}
+	if _, ok := parent.entries[name]; ok {
+		return node, &fs.PathError{Op: op, Path: name, Err: fs.ErrExist}
 	}
 
-	e := f.entry()
-	parent.entries[e.Name()] = e
+	parent.entries[name] = node
 
-	return nil
+	return node, nil
 }
 
-func (fsys *FS) find(name string) (*File, error) {
+// find returns the node for the named file.
+func (fsys *FS) find(name string) (node, error) {
 	if name == "." {
 		return fsys.root, nil
 	}
 
 	parent, err := fsys.find(path.Dir(name))
 	if err != nil {
-		return nil, err
+		return node{}, err
 	}
 
-	if !parent.Mode.IsDir() {
-		return nil, fs.ErrInvalid
+	if !parent.file.Mode.IsDir() {
+		return node{}, fs.ErrInvalid
 	}
 
-	base := path.Base(name)
-	for _, e := range parent.entries {
-		if e.Name() == base {
-			return e.file, nil
+	for _, entry := range parent.entries {
+		if entry.file.Name == name {
+			return entry, nil
 		}
 	}
-	return nil, fs.ErrNotExist
+	return node{}, fs.ErrNotExist
 }
 
 // Open returnes the named file.
@@ -94,10 +104,12 @@ func (fsys *FS) find(name string) (*File, error) {
 func (fsys *FS) Open(name string) (fs.File, error) {
 	const op = fsOp + openOp
 
-	file, err := fsys.find(name)
+	node, err := fsys.find(name)
 	if err != nil {
 		return nil, &fs.PathError{Op: op, Path: name, Err: err}
 	}
+
+	file := node.file
 	if opErr, ok := file.errors[openOp]; ok {
 		return nil, &fs.PathError{Op: op, Path: name, Err: opErr}
 	}
@@ -110,16 +122,17 @@ func (fsys *FS) Open(name string) (fs.File, error) {
 // that error is returned instead.
 func (fsys *FS) Lstat(name string) (fs.FileInfo, error) {
 	const op = fsOp + lstatOp
-	file, err := fsys.find(name)
+	node, err := fsys.find(name)
 	if err != nil {
 		return nil, &fs.PathError{Op: op, Path: name, Err: err}
 	}
 
+	file := node.file
 	if opErr, ok := file.errors[lstatOp]; ok {
 		return nil, &fs.PathError{Op: op, Path: name, Err: opErr}
 	}
 
-	return file.info(), nil
+	return fileInfo{file}, nil
 }
 
 // ReadDir reads the named directory
@@ -128,11 +141,12 @@ func (fsys *FS) Lstat(name string) (fs.FileInfo, error) {
 // that error is returned instead.
 func (fsys *FS) ReadDir(name string) ([]fs.DirEntry, error) {
 	const op = fsOp + readDirOp
-	file, err := fsys.find(name)
+	node, err := fsys.find(name)
 	if err != nil {
 		return nil, &fs.PathError{Op: op, Path: name, Err: err}
 	}
 
+	file := node.file
 	if !file.Mode.IsDir() {
 		return nil, &fs.PathError{Op: op, Path: name, Err: fs.ErrInvalid}
 	}
@@ -142,8 +156,8 @@ func (fsys *FS) ReadDir(name string) ([]fs.DirEntry, error) {
 	}
 
 	var entries []fs.DirEntry
-	for _, key := range slices.Sorted(maps.Keys(file.entries)) {
-		entries = append(entries, file.entries[key])
+	for _, key := range slices.Sorted(maps.Keys(node.entries)) {
+		entries = append(entries, dirEntry{node.entries[key].file})
 	}
 
 	return entries, nil
@@ -154,11 +168,12 @@ func (fsys *FS) ReadDir(name string) ([]fs.DirEntry, error) {
 // that error is returned instead.
 func (fsys *FS) ReadLink(name string) (string, error) {
 	const op = fsOp + readLinkOp
-	file, err := fsys.find(name)
+	node, err := fsys.find(name)
 	if err != nil {
 		return "", &fs.PathError{Op: op, Path: name, Err: err}
 	}
 
+	file := node.file
 	if file.Mode&fs.ModeSymlink == 0 {
 		return "", &fs.PathError{Op: op, Path: name, Err: fs.ErrInvalid}
 	}
@@ -175,7 +190,7 @@ func (fsys *FS) ReadLink(name string) (string, error) {
 // TODO: Return an error if the parent was created with a Symlink.
 func (fsys *FS) Symlink(dest, name string) error {
 	const op = fsOp + symlinkOp
-	if err := fsys.add(NewLink(name, dest)); err != nil {
+	if err := Add(fsys, NewLink(name, dest)); err != nil {
 		return &os.LinkError{Op: op, Old: dest, New: name, Err: err}
 	}
 	return nil
@@ -187,11 +202,12 @@ func (fsys *FS) Symlink(dest, name string) error {
 // that error is returned instead.
 func (fsys *FS) Stat(name string) (fs.FileInfo, error) {
 	const op = fsOp + statOp
-	file, err := fsys.find(name)
+	node, err := fsys.find(name)
 	if err != nil {
 		return nil, &fs.PathError{Op: op, Path: name, Err: err}
 	}
 
+	file := node.file
 	if opErr, ok := file.errors[statOp]; ok {
 		return nil, &fs.PathError{Op: op, Path: name, Err: opErr}
 	}
@@ -205,11 +221,14 @@ func (fsys *FS) String() string {
 		if err != nil {
 			return err
 		}
-		f, _ := fsys.find(name)
+		file, err := Find(fsys, name)
+		if err != nil {
+			return err
+		}
 		out.WriteRune('"')
 		out.WriteString(name)
 		out.WriteString(`" `)
-		out.WriteString(f.String())
+		out.WriteString(file.String())
 		out.WriteRune('\n')
 		return nil
 	})
@@ -220,28 +239,18 @@ func (fsys *FS) String() string {
 }
 
 type File struct {
-	Name    string              // The full name of the file.
-	Mode    fs.FileMode         // The file mode.
-	Dest    string              // The link destination if the file is a symlink.
-	entries map[string]dirEntry // The dir entries if the file is dir.
-	errors  map[string]Error    // Errors to return from relevant operations.
-}
-
-func (f *File) entry() dirEntry {
-	return dirEntry{f}
-}
-
-func (f *File) info() fileInfo {
-	return fileInfo{f}
+	Name   string           // The full name of the file.
+	Mode   fs.FileMode      // The file mode.
+	Dest   string           // The link destination if the file is a symlink.
+	errors map[string]Error // Errors to return from relevant operations.
 }
 
 func newFile(name string, mode fs.FileMode, dest string, errs ...Error) *File {
 	f := &File{
-		Name:    name,
-		Mode:    mode,
-		Dest:    dest,
-		entries: map[string]dirEntry{},
-		errors:  map[string]Error{},
+		Name:   name,
+		Mode:   mode,
+		Dest:   dest,
+		errors: map[string]Error{},
 	}
 	for _, e := range errs {
 		f.errors[e.op] = e
@@ -277,15 +286,6 @@ func (f *File) Stat() (fs.FileInfo, error) {
 func (f *File) String() string {
 	var out strings.Builder
 	out.WriteString(f.Mode.String())
-	if f.Mode.IsDir() {
-		var children []string
-		for _, e := range f.entries {
-			children = append(children, e.Name())
-		}
-		out.WriteString(" [")
-		out.WriteString(strings.Join(children, ", "))
-		out.WriteRune(']')
-	}
 	if f.Mode&fs.ModeSymlink != 0 {
 		out.WriteString(` "`)
 		out.WriteString(f.Dest)
@@ -346,7 +346,7 @@ type dirEntry struct {
 
 // Info implements fs.DirEntry.
 func (e dirEntry) Info() (fs.FileInfo, error) {
-	return e.file.info(), nil
+	return fileInfo(e), nil
 }
 
 // IsDir implements fs.DirEntry.

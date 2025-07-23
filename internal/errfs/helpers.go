@@ -7,7 +7,8 @@ import "io/fs"
 // Add adds file to fsys,
 // along with any missing ancestor directories.
 func Add(fsys *FS, file *File) error {
-	return fsys.add(file)
+	_, err := fsys.add(file)
+	return err
 }
 
 // AddDir creates the specified directory file and adds it to fsys,
@@ -15,7 +16,7 @@ func Add(fsys *FS, file *File) error {
 // Each [Error] configures the associated operation
 // on the directory to return that error.
 func AddDir(fsys *FS, name string, perm fs.FileMode, errs ...Error) error {
-	return fsys.add(NewDir(name, perm, errs...))
+	return Add(fsys, NewDir(name, perm, errs...))
 }
 
 // AddFile creates the specified file and adds it to fsys,
@@ -23,7 +24,7 @@ func AddDir(fsys *FS, name string, perm fs.FileMode, errs ...Error) error {
 // Each [Error] configures the associated operation
 // on the file to return that error.
 func AddFile(fsys *FS, name string, perm fs.FileMode, errs ...Error) error {
-	return fsys.add(NewFile(name, perm, errs...))
+	return Add(fsys, NewFile(name, perm, errs...))
 }
 
 // AddLink creates the specified symlink file and adds it to fsys,
@@ -31,12 +32,16 @@ func AddFile(fsys *FS, name string, perm fs.FileMode, errs ...Error) error {
 // Each [Error] configures the associated operation
 // on the symlink to return that error.
 func AddLink(fsys *FS, name string, dest string, errs ...Error) error {
-	return fsys.add(NewLink(name, dest, errs...))
+	return Add(fsys, NewLink(name, dest, errs...))
 }
 
 // Find returns the named file.
 func Find(fsys *FS, name string) (*File, error) {
-	return fsys.find(name)
+	node, err := fsys.find(name)
+	if err != nil {
+		return nil, err
+	}
+	return node.file, nil
 }
 
 // NewDir creates a new directory file.
@@ -67,5 +72,5 @@ func FileToInfo(f *File) fs.FileInfo {
 
 // FileToEntry returns a [fs.DirEntry] that describes f.
 func FileToEntry(f *File) fs.DirEntry {
-	return f.entry()
+	return dirEntry{f}
 }
