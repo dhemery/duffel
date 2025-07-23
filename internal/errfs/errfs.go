@@ -52,7 +52,7 @@ func (fsys *FS) add(file *File) (node, error) {
 	const op = fsOp + addOp
 	node := newNode(file)
 
-	name := file.Name
+	name := file.name
 	if name == "." {
 		return node, &fs.PathError{Op: op, Path: name, Err: fs.ErrInvalid}
 	}
@@ -86,12 +86,12 @@ func (fsys *FS) find(name string) (node, error) {
 		return node{}, err
 	}
 
-	if !parent.file.Mode.IsDir() {
+	if !parent.file.mode.IsDir() {
 		return node{}, fs.ErrInvalid
 	}
 
 	for _, entry := range parent.entries {
-		if entry.file.Name == name {
+		if entry.file.name == name {
 			return entry, nil
 		}
 	}
@@ -147,7 +147,7 @@ func (fsys *FS) ReadDir(name string) ([]fs.DirEntry, error) {
 	}
 
 	file := node.file
-	if !file.Mode.IsDir() {
+	if !file.mode.IsDir() {
 		return nil, &fs.PathError{Op: op, Path: name, Err: fs.ErrInvalid}
 	}
 
@@ -174,7 +174,7 @@ func (fsys *FS) ReadLink(name string) (string, error) {
 	}
 
 	file := node.file
-	if file.Mode&fs.ModeSymlink == 0 {
+	if file.mode&fs.ModeSymlink == 0 {
 		return "", &fs.PathError{Op: op, Path: name, Err: fs.ErrInvalid}
 	}
 
@@ -182,7 +182,7 @@ func (fsys *FS) ReadLink(name string) (string, error) {
 		return "", &fs.PathError{Op: op, Path: name, Err: opErr}
 	}
 
-	return file.Dest, nil
+	return file.dest, nil
 }
 
 // Symlink creates a new symlink with the given name and destination.
@@ -225,11 +225,10 @@ func (fsys *FS) String() string {
 		if err != nil {
 			return err
 		}
-		out.WriteRune('"')
-		out.WriteString(name)
-		out.WriteString(`" `)
+		if out.Len() > 0 {
+			out.WriteRune('\n')
+		}
 		out.WriteString(file.String())
-		out.WriteRune('\n')
 		return nil
 	})
 	if err != nil {
@@ -239,17 +238,17 @@ func (fsys *FS) String() string {
 }
 
 type File struct {
-	Name   string           // The full name of the file.
-	Mode   fs.FileMode      // The file mode.
-	Dest   string           // The link destination if the file is a symlink.
+	name   string           // The full name used to create the file.
+	mode   fs.FileMode      // The file mode.
+	dest   string           // The link destination if the file is a symlink.
 	errors map[string]Error // Errors to return from relevant operations.
 }
 
-func newFile(name string, mode fs.FileMode, dest string, errs ...Error) *File {
+func newFile(name string, mode fs.FileMode, dest string, errs []Error) *File {
 	f := &File{
-		Name:   name,
-		Mode:   mode,
-		Dest:   dest,
+		name:   name,
+		mode:   mode,
+		dest:   dest,
 		errors: map[string]Error{},
 	}
 	for _, e := range errs {
@@ -263,20 +262,20 @@ func (f *File) entry() fs.DirEntry {
 }
 
 func (f *File) info() fs.FileInfo {
-	return info{path.Base(f.Name), f.Mode}
+	return info{path.Base(f.name), f.mode}
 }
 
 // Close implements fs.File.
-// It does nothing.
+// This implementation does nothing.
 func (f *File) Close() error {
 	return nil
 }
 
 // Read implements fs.File.
-// It always returns 0, [errors.ErrUnsupported].
+// This implementation returns [*fs.PathError] with [errors.ErrUnsupported].
 func (f *File) Read([]byte) (int, error) {
 	const op = fileOp + readOp
-	return 0, &fs.PathError{Op: op, Path: f.Name, Err: errors.ErrUnsupported}
+	return 0, &fs.PathError{Op: op, Path: f.name, Err: errors.ErrUnsupported}
 }
 
 // Stat returns a [fs.FileInfo] that describes f.
@@ -286,17 +285,20 @@ func (f *File) Read([]byte) (int, error) {
 func (f *File) Stat() (fs.FileInfo, error) {
 	const op = fileOp + statOp
 	if opErr, ok := f.errors[statOp]; ok {
-		return nil, &fs.PathError{Op: op, Path: f.Name, Err: opErr}
+		return nil, &fs.PathError{Op: op, Path: f.name, Err: opErr}
 	}
 	return f.info(), nil
 }
 
 func (f *File) String() string {
 	var out strings.Builder
-	out.WriteString(f.Mode.String())
-	if f.Mode&fs.ModeSymlink != 0 {
+	out.WriteRune('"')
+	out.WriteString(f.name)
+	out.WriteString(`" `)
+	out.WriteString(f.mode.String())
+	if f.mode&fs.ModeSymlink != 0 {
 		out.WriteString(` "`)
-		out.WriteString(f.Dest)
+		out.WriteString(f.dest)
 		out.WriteRune('"')
 	}
 	var errors []string

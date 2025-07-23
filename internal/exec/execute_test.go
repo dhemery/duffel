@@ -5,7 +5,6 @@ import (
 
 	"github.com/dhemery/duffel/internal/errfs"
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 func TestExecuteEmptyTargetNoConflictingPackageItems(t *testing.T) {
@@ -59,20 +58,24 @@ func TestExecuteEmptyTargetNoConflictingPackageItems(t *testing.T) {
 
 	for _, spec := range specs {
 		wantFile := spec.targetFile
-		gotFile, err := errfs.Find(testFS, wantFile.Name)
+		wantFileName := errfs.FileName(wantFile)
+		gotFile, err := errfs.Find(testFS, wantFileName)
 		if err != nil {
 			t.Error(err)
 			continue
 		}
 
-		if diff := cmp.Diff(wantFile, gotFile, cmpopts.IgnoreUnexported(errfs.File{})); diff != "" {
-			t.Errorf("%q:\n%s", wantFile.Name, diff)
+		if diff := cmp.Diff(wantFile, gotFile, compareFiles()); diff != "" {
+			t.Errorf("%q:\n%s", wantFileName, diff)
 		}
-
 	}
 
 	if t.Failed() {
 		t.Log("files after failure:")
-		t.Error(testFS.String())
+		t.Log(testFS.String())
 	}
+}
+
+func compareFiles() cmp.Option {
+	return cmp.AllowUnexported(errfs.File{})
 }
