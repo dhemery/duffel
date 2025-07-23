@@ -8,7 +8,6 @@ import (
 	"testing"
 
 	"github.com/dhemery/duffel/internal/errfs"
-	"github.com/google/go-cmp/cmp"
 )
 
 func add(tfs *errfs.FS, f *errfs.File) {
@@ -85,7 +84,7 @@ func TestStater(t *testing.T) {
 					test.name, err, test.wantError)
 			}
 
-			if !cmp.Equal(state, test.wantState) {
+			if !state.Equal(test.wantState) {
 				t.Errorf("State(%s) state:\n got %v\nwant %v",
 					test.name, state, test.wantState)
 			}

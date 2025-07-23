@@ -4,60 +4,57 @@ import (
 	"io/fs"
 	"testing"
 
+	"github.com/dhemery/duffel/internal/file"
 	"github.com/google/go-cmp/cmp"
 )
 
 func TestNewTask(t *testing.T) {
 	tests := map[string]struct {
-		item string
-		spec Spec
-		want Task
+		current *file.State
+		planned *file.State
+		wantOps []FileOp
 	}{
 		"no change from nil to nil": {
-			item: "item",
-			spec: Spec{
-				Current: nil,
-				Planned: nil,
-			},
-			want: Task{Item: "item", Ops: []FileOp{}},
+			wantOps: []FileOp{},
 		},
 		"no change from link to link, same dest file": {
-			item: "item",
-			spec: Spec{
-				Current: linkState("../some/dest", 0),
-				Planned: linkState("../some/dest", 0),
-			},
-			want: Task{Item: "item", Ops: []FileOp{}},
+			current: linkState("../some/dest", 0),
+			planned: linkState("../some/dest", 0),
+			wantOps: []FileOp{},
 		},
 		"no change from link to link, same dest dir": {
-			item: "item",
-			spec: Spec{
-				Current: linkState("../some/dest", fs.ModeDir),
-				Planned: linkState("../some/dest", fs.ModeDir),
-			},
-			want: Task{Item: "item", Ops: []FileOp{}},
+			current: linkState("../some/dest", fs.ModeDir),
+			planned: linkState("../some/dest", fs.ModeDir),
+			wantOps: []FileOp{},
 		},
 		"no change from link to link, same dest link": {
-			item: "item",
-			spec: Spec{
-				Current: linkState("../some/dest", fs.ModeSymlink),
-				Planned: linkState("../some/dest", fs.ModeSymlink),
-			},
-			want: Task{Item: "item", Ops: []FileOp{}},
+			current: linkState("../some/dest", fs.ModeSymlink),
+			planned: linkState("../some/dest", fs.ModeSymlink),
+			wantOps: []FileOp{},
 		},
 		"no change from dir to dir": {
-			item: "item",
-			spec: Spec{
-				Current: dirState(),
-				Planned: dirState(),
+			current: dirState(),
+			planned: dirState(),
+			wantOps: []FileOp{},
+		},
+		"from nil to symlink": {
+			current: nil,
+			planned: linkState("../planned/dest", 0),
+			wantOps: []FileOp{
+				NewSymlinkOp("../planned/dest"),
 			},
-			want: Task{Item: "item", Ops: []FileOp{}},
 		},
 	}
 	for desc, test := range tests {
 		t.Run(desc, func(t *testing.T) {
-			got := NewTask(test.item, test.spec)
-			if diff := cmp.Diff(test.want, got); diff != "" {
+			item := "item"
+			spec := Spec{test.current, test.planned}
+
+			gotTask := NewTask(item, spec)
+
+			wantTask := Task{Item: item, Ops: test.wantOps}
+
+			if diff := cmp.Diff(wantTask, gotTask); diff != "" {
 				t.Errorf("NewTask():\n%s", diff)
 			}
 		})

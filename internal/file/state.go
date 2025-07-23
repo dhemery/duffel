@@ -14,6 +14,20 @@ type State struct {
 	DestType fs.FileMode
 }
 
+func (s *State) Equal(o *State) bool {
+	sNil := s == nil
+	oNil := o == nil
+	if sNil != oNil {
+		return false
+	}
+	if sNil {
+		return true
+	}
+	return s.Type == o.Type &&
+		s.Dest == o.Dest &&
+		s.DestType == o.DestType
+}
+
 // MarshalJSON returns the JSON representation of s.
 // It represents the Mode field as a descriptive string
 // by calling [fs.FileMode.String] on the Mode.
