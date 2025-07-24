@@ -6,6 +6,7 @@ import (
 
 	"github.com/dhemery/duffel/internal/file"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 func TestNewTask(t *testing.T) {
@@ -44,7 +45,13 @@ func TestNewTask(t *testing.T) {
 				NewSymlinkOp("../planned/dest"),
 			},
 		},
+		"from nil to dir": {
+			current: nil,
+			planned: dirState(),
+			wantOps: []FileOp{MkDirOp},
+		},
 	}
+
 	for desc, test := range tests {
 		t.Run(desc, func(t *testing.T) {
 			item := "item"
@@ -54,7 +61,7 @@ func TestNewTask(t *testing.T) {
 
 			wantTask := Task{Item: item, Ops: test.wantOps}
 
-			if diff := cmp.Diff(wantTask, gotTask); diff != "" {
+			if diff := cmp.Diff(wantTask, gotTask, cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("NewTask():\n%s", diff)
 			}
 		})

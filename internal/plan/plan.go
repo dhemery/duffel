@@ -43,13 +43,18 @@ type FileOp interface {
 }
 
 func NewTask(item string, spec Spec) Task {
-	t := Task{Item: item, Ops: []FileOp{}}
-	c, p := spec.Current, spec.Planned
-	if c.Equal(p) {
+	t := Task{Item: item}
+	current, planned := spec.Current, spec.Planned
+	if current.Equal(planned) {
 		return t
 	}
 
-	t.Ops = append(t.Ops, NewSymlinkOp(p.Dest))
+	switch planned.Type {
+	case fs.ModeDir:
+		t.Ops = append(t.Ops, MkDirOp)
+	case fs.ModeSymlink:
+		t.Ops = append(t.Ops, NewSymlinkOp(planned.Dest))
+	}
 
 	return t
 }
@@ -86,21 +91,4 @@ func (t Task) MarshalJSON() ([]byte, error) {
 	// Skip the the state's opening brace to continue after the task fields
 	stateJSON = stateJSON[1:]
 	return append(taskJSON, stateJSON...), nil
-}
-
-type Common struct {
-	Op   string `json:"op"`
-	Dest string `json:"dest,omitempty"`
-}
-
-func NewSymlinkOp(dest string) SymlinkOp {
-	return SymlinkOp{Common{Op: "symlink", Dest: dest}}
-}
-
-type SymlinkOp struct {
-	Common
-}
-
-func (op SymlinkOp) Execute(fsys fs.FS, target string) error {
-	return file.Symlink(fsys, op.Dest, target)
 }
