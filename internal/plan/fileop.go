@@ -19,11 +19,9 @@ func (op SymlinkOp) Execute(fsys fs.FS, target string) error {
 	return file.Symlink(fsys, op.Dest, target)
 }
 
-var MkDirOp = mkDirOp{"mkdir"}
+var MkDirOp = mkDirOp("mkdir")
 
-type mkDirOp struct {
-	Op string `json:"op"`
-}
+type mkDirOp string
 
 func (op mkDirOp) Execute(fsys fs.FS, target string) error {
 	return file.MkDir(fsys, target, fs.ModeDir|0o755)
