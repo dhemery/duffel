@@ -28,27 +28,27 @@ func DirFS(dir string) dirFS {
 	}
 }
 
-func (f dirFS) join(path string) (string, error) {
-	if !fs.ValidPath(path) {
-		return "", fmt.Errorf("path %s: %w", path, fs.ErrInvalid)
+func (f dirFS) join(name string) (string, error) {
+	if !fs.ValidPath(name) {
+		return "", fmt.Errorf("path %s: %w", name, fs.ErrInvalid)
 	}
-	return filepath.Join(f.Dir, path), nil
+	return filepath.Join(f.Dir, name), nil
 }
 
-func (f dirFS) Sub(dir string) (fs.FS, error) {
-	full, err := f.join(dir)
+func (f dirFS) Mkdir(name string, perm fs.FileMode) error {
+	full, err := f.join(name)
 	if err != nil {
-		return nil, &fs.PathError{Op: "sub", Path: dir, Err: err}
-	}
-	return DirFS(full), nil
-}
-
-func (f dirFS) Mkdir(path string, perm fs.FileMode) error {
-	full, err := f.join(path)
-	if err != nil {
-		return &fs.PathError{Op: "mkdir", Path: path, Err: err}
+		return &fs.PathError{Op: "mkdir", Path: name, Err: err}
 	}
 	return os.Mkdir(full, perm)
+}
+
+func (f dirFS) Remove(name string) error {
+	full, err := f.join(name)
+	if err != nil {
+		return &fs.PathError{Op: "remove", Path: name, Err: err}
+	}
+	return os.Remove(full)
 }
 
 func (f dirFS) Symlink(oldname, newname string) error {

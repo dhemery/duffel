@@ -16,11 +16,29 @@ type must struct {
 	*testing.T
 }
 
+func (m must) Lstat(name string) fs.FileInfo {
+	m.Helper()
+	e, err := os.Lstat(name)
+	if err != nil {
+		m.Fatal("must lstat", err)
+	}
+	return e
+}
+
 func (m must) MkdirAll(name string, perm fs.FileMode) {
 	m.Helper()
 	if err := os.MkdirAll(name, perm); err != nil {
 		m.Fatal("must mkdir all", err)
 	}
+}
+
+func (m must) ReadDir(name string) []fs.DirEntry {
+	m.Helper()
+	ee, err := os.ReadDir(name)
+	if err != nil {
+		m.Fatal("must read dir", err)
+	}
+	return ee
 }
 
 func (m must) Readlink(name string) string {
@@ -40,24 +58,6 @@ func (m must) Readlink(name string) string {
 		m.Fatal("must read link", err)
 	}
 	return gotDest
-}
-
-func (m must) Lstat(name string) fs.FileInfo {
-	m.Helper()
-	e, err := os.Lstat(name)
-	if err != nil {
-		m.Fatal("must lstat", err)
-	}
-	return e
-}
-
-func (m must) ReadDir(name string) []fs.DirEntry {
-	m.Helper()
-	ee, err := os.ReadDir(name)
-	if err != nil {
-		m.Fatal("must read dir", err)
-	}
-	return ee
 }
 
 func (m must) Symlink(oldname, newname string) {

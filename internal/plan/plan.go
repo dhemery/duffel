@@ -42,6 +42,12 @@ func NewTask(item string, spec Spec) Task {
 		return t
 	}
 
+	switch {
+	case current == nil:
+	case current.Type == fs.ModeSymlink:
+		t.Ops = append(t.Ops, RemoveOp)
+	}
+
 	switch planned.Type {
 	case fs.ModeDir:
 		t.Ops = append(t.Ops, MkDirOp)

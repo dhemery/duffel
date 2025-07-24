@@ -48,7 +48,17 @@ func TestNewTask(t *testing.T) {
 		"from nil to dir": {
 			current: nil,
 			planned: dirState(),
-			wantOps: []FileOp{MkDirOp},
+			wantOps: []FileOp{
+				MkDirOp,
+			},
+		},
+		"from symlink to dir": {
+			current: linkState("some/dest", 0),
+			planned: dirState(),
+			wantOps: []FileOp{
+				RemoveOp,
+				MkDirOp,
+			},
 		},
 	}
 
