@@ -188,10 +188,10 @@ func (fsys *FS) ReadLink(name string) (string, error) {
 // Symlink creates a new symlink with the given name and destination.
 // TODO: Do not use fsys.add. Instead find the parent, and fail if error.
 // TODO: Return an error if the parent was created with a Symlink.
-func (fsys *FS) Symlink(dest, name string) error {
+func (fsys *FS) Symlink(oldname, newname string) error {
 	const op = fsOp + symlinkOp
-	if err := Add(fsys, NewLink(name, dest)); err != nil {
-		return &os.LinkError{Op: op, Old: dest, New: name, Err: err}
+	if err := Add(fsys, NewLink(newname, oldname)); err != nil {
+		return &os.LinkError{Op: op, Old: oldname, New: newname, Err: err}
 	}
 	return nil
 }

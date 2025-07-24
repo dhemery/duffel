@@ -1,7 +1,6 @@
 package file
 
 import (
-	"encoding/json"
 	"errors"
 	"io/fs"
 	"path"
@@ -26,19 +25,6 @@ func (s *State) Equal(o *State) bool {
 	return s.Type == o.Type &&
 		s.Dest == o.Dest &&
 		s.DestType == o.DestType
-}
-
-// MarshalJSON returns the JSON representation of s.
-// It represents the Mode field as a descriptive string
-// by calling [fs.FileMode.String] on the Mode.
-func (s State) MarshalJSON() ([]byte, error) {
-	return json.Marshal(struct {
-		Mode string `json:"mode"`
-		Dest string `json:"dest,omitzero"`
-	}{
-		Mode: s.Type.String(),
-		Dest: s.Dest,
-	})
 }
 
 // A Stater describes the states of files in a file system.

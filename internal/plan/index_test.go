@@ -170,6 +170,10 @@ func TestIndex(t *testing.T) {
 			if diff := cmp.Diff(test.wantSpecs, specs); diff != "" {
 				t.Errorf("Specs() after calls: %s", diff)
 			}
+
+			if t.Failed() {
+				t.Log("files after failure:\n", testFS)
+			}
 		})
 	}
 }

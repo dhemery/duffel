@@ -2,7 +2,7 @@ package main
 
 import (
 	"bytes"
-	"cmp"
+	. "cmp"
 	"encoding/json"
 	"errors"
 	"io/fs"
@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/dhemery/duffel/internal/duftest"
+	"github.com/google/go-cmp/cmp"
 )
 
 // TestMain executes the test binary as the duffel command if
@@ -72,8 +73,8 @@ func TestDirOptions(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			root := t.TempDir()
 			wd := filepath.Join(root, test.wd)
-			absSource := filepath.Join(wd, cmp.Or(test.sourceOpt, defaultSource))
-			absTarget := filepath.Join(wd, cmp.Or(test.targetOpt, defaultTarget))
+			absSource := filepath.Join(wd, Or(test.sourceOpt, defaultSource))
+			absTarget := filepath.Join(wd, Or(test.targetOpt, defaultTarget))
 			absSourcePkgItem := filepath.Join(absSource, pkg, item)
 
 			must := duftest.Must(t)
@@ -140,31 +141,31 @@ func TestDryRun(t *testing.T) {
 		t.Error("created target item:", fs.FormatFileInfo(info))
 	}
 
-	var plan struct {
-		Target string
-		Tasks  []map[string]string
+	type itemop struct {
+		Op   string
+		Dest string
 	}
-	err = json.Unmarshal(td.stdout.Bytes(), &plan)
-	if err != nil {
+	type task struct {
+		Item string
+		Ops  []itemop
+	}
+	type plan struct {
+		Target string
+		Tasks  []task
+	}
+
+	var gotPlan plan
+	if err = json.Unmarshal(td.stdout.Bytes(), &gotPlan); err != nil {
 		t.Fatal(err)
 	}
 
-	tasks := plan.Tasks
-	if len(plan.Tasks) == 0 {
-		t.Fatal("no tasks planned")
-	}
-	task := tasks[0]
-
-	gotItem := task["item"]
-	wantItem := item
-	if gotItem != wantItem {
-		t.Errorf("want item %q, got %q", wantItem, gotItem)
-	}
-
-	gotDest := task["dest"]
 	wantDest, _ := filepath.Rel(absTarget, absSourcePkgItem)
-	if gotDest != wantDest {
-		t.Errorf("want dest %q, got %q", wantDest, gotDest)
+	wantOp := itemop{Op: "symlink", Dest: wantDest}
+	wantTask := task{Item: "item", Ops: []itemop{wantOp}}
+	wantPlan := plan{Target: absTarget[1:], Tasks: []task{wantTask}}
+
+	if diff := cmp.Diff(wantPlan, gotPlan); diff != "" {
+		t.Error("plan:", diff)
 	}
 }
 

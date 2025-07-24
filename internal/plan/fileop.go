@@ -7,7 +7,7 @@ import (
 )
 
 func NewSymlinkOp(dest string) SymlinkOp {
-	return SymlinkOp{Op: "symlink"}
+	return SymlinkOp{Op: "symlink", Dest: dest}
 }
 
 type SymlinkOp struct {
@@ -22,7 +22,7 @@ func (op SymlinkOp) Execute(fsys fs.FS, target string) error {
 var MkDirOp = mkDirOp{"mkdir"}
 
 type mkDirOp struct {
-	Op string
+	Op string `json:"op"`
 }
 
 func (op mkDirOp) Execute(fsys fs.FS, target string) error {
