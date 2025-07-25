@@ -5,8 +5,6 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
-
-	"github.com/dhemery/duffel/internal/file"
 )
 
 type Merger interface {
@@ -35,7 +33,7 @@ type installOp struct {
 // Entry describes the state of the file in the source tree.
 // TargetState describes the state of the target file
 // after earlier tasks.
-func (op installOp) Apply(name string, entry fs.DirEntry, targetState *file.State) (*file.State, error) {
+func (op installOp) Apply(name string, entry fs.DirEntry, targetState *State) (*State, error) {
 	pkgItem := name[len(op.source)+1:]
 	_, item, _ := strings.Cut(pkgItem, "/")
 	targetItem := path.Join(op.target, item)
@@ -49,7 +47,7 @@ func (op installOp) Apply(name string, entry fs.DirEntry, targetState *file.Stat
 			// There's no need to walk its contents.
 			err = fs.SkipDir
 		}
-		return &file.State{
+		return &State{
 			Type:     fs.ModeSymlink,
 			Dest:     itemAsDest,
 			DestType: entry.Type(),
@@ -116,11 +114,11 @@ func (op installOp) Apply(name string, entry fs.DirEntry, targetState *file.Stat
 	// No conflicts installing the target destination's contents.
 	// Now change the target to a dir, and walk the current item
 	// to install its contents into the dir.
-	dirState := &file.State{Type: fs.ModeDir}
+	dirState := &State{Type: fs.ModeDir}
 	return dirState, nil
 }
 
-func conflictError(item string, entry fs.DirEntry, target string, state *file.State) error {
+func conflictError(item string, entry fs.DirEntry, target string, state *State) error {
 	return &InstallError{
 		Item:        item,
 		ItemType:    entry.Type(),

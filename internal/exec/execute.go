@@ -6,7 +6,6 @@ import (
 	"io/fs"
 	"path"
 
-	"github.com/dhemery/duffel/internal/file"
 	"github.com/dhemery/duffel/internal/plan"
 )
 
@@ -18,10 +17,10 @@ type Request struct {
 }
 
 func Execute(r *Request, dryRun bool, w io.Writer) error {
-	stater := file.Stater{FS: r.FS}
+	stater := plan.NewStater(r.FS)
 	index := plan.NewIndex(stater)
 
-	pkgFinder := file.NewPkgFinder(r.FS)
+	pkgFinder := plan.NewPkgFinder(r.FS)
 	analyzer := plan.NewAnalyst(r.FS, index)
 	merger := plan.NewMerger(pkgFinder, analyzer)
 	install := plan.NewInstallOp(r.Source, r.Target, merger)

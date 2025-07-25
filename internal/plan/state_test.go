@@ -1,4 +1,4 @@
-package file
+package plan
 
 import (
 	"errors"
@@ -73,7 +73,7 @@ func TestStater(t *testing.T) {
 			add(testFS, test.file)
 			add(testFS, test.destFile)
 
-			stater := Stater{FS: testFS}
+			stater := NewStater(testFS)
 
 			state, err := stater.State(test.name)
 

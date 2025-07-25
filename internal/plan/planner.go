@@ -4,8 +4,6 @@ import (
 	"io/fs"
 	"iter"
 	"path"
-
-	"github.com/dhemery/duffel/internal/file"
 )
 
 type Analyst interface {
@@ -13,8 +11,8 @@ type Analyst interface {
 }
 
 type Index interface {
-	State(name string) (*file.State, error)
-	SetState(item string, state *file.State)
+	State(name string) (*State, error)
+	SetState(item string, state *State)
 }
 
 type Specs interface {
@@ -72,7 +70,7 @@ func (a analyst) Analyze(op PkgOp, target string) error {
 }
 
 type ItemOp interface {
-	Apply(name string, entry fs.DirEntry, indexState *file.State) (*file.State, error)
+	Apply(name string, entry fs.DirEntry, indexState *State) (*State, error)
 }
 
 func NewPkgOp(pkgDir string, itemOp ItemOp) pkgOp {

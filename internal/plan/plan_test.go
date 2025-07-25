@@ -6,7 +6,6 @@ import (
 	"maps"
 	"testing"
 
-	"github.com/dhemery/duffel/internal/file"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
@@ -96,8 +95,8 @@ func TestNewPlan(t *testing.T) {
 
 func TestNewTask(t *testing.T) {
 	tests := map[string]struct {
-		current *file.State
-		planned *file.State
+		current *State
+		planned *State
 		wantOps []FileOp
 	}{
 		"no change from nil to nil": {

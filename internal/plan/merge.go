@@ -2,12 +2,10 @@ package plan
 
 import (
 	"path"
-
-	"github.com/dhemery/duffel/internal/file"
 )
 
 type PkgFinder interface {
-	FindPkg(name string) (file.PkgItem, error)
+	FindPkg(name string) (PkgItem, error)
 }
 
 func NewMerger(pkgFinder PkgFinder, analyzer Analyst) merger {

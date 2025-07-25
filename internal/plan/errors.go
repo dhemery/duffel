@@ -3,15 +3,13 @@ package plan
 import (
 	"fmt"
 	"io/fs"
-
-	"github.com/dhemery/duffel/internal/file"
 )
 
 type InstallError struct {
 	Item        string
 	ItemType    fs.FileMode
 	Target      string
-	TargetState *file.State
+	TargetState *State
 }
 
 func (e *InstallError) Error() string {
@@ -32,7 +30,7 @@ func typeString(m fs.FileMode) string {
 	}
 }
 
-func stateString(s *file.State) string {
+func stateString(s *State) string {
 	if s == nil {
 		return "<nil>"
 	}

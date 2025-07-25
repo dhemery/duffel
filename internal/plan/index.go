@@ -4,21 +4,17 @@ import (
 	"fmt"
 	"iter"
 	"maps"
-
-	"github.com/dhemery/duffel/internal/file"
 )
 
-// Stater describes the states of files.
 type Stater interface {
-	// State returns the state of the named file.
-	State(name string) (*file.State, error)
+	State(name string) (*State, error)
 }
 
 // Spec describes the current and planned states
 // of a file in the target tree.
 type Spec struct {
-	Current *file.State
-	Planned *file.State
+	Current *State
+	Planned *State
 }
 
 // NewIndex returns a new, empty index that retrieves current file
@@ -40,7 +36,7 @@ type index struct {
 // State retrieves the current state of the file,
 // stores it as both the current and planned states,
 // and returns the retrieved state.
-func (i *index) State(name string) (*file.State, error) {
+func (i *index) State(name string) (*State, error) {
 	spec, ok := i.specs[name]
 	if !ok {
 		state, err := i.files.State(name)
@@ -54,7 +50,7 @@ func (i *index) State(name string) (*file.State, error) {
 }
 
 // SetState sets the planned state of the named file.
-func (i *index) SetState(name string, state *file.State) {
+func (i *index) SetState(name string, state *State) {
 	spec, ok := i.specs[name]
 	if !ok {
 		panic(fmt.Errorf("index.SetState(%q,_): no such spec", name))

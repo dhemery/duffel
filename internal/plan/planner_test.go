@@ -6,17 +6,16 @@ import (
 	"path"
 	"testing"
 
-	"github.com/dhemery/duffel/internal/file"
 	"github.com/google/go-cmp/cmp"
 )
 
 type indexValue struct {
-	state *file.State
+	state *State
 	err   error
 }
 type testIndex map[string]indexValue
 
-func (i testIndex) State(name string) (*file.State, error) {
+func (i testIndex) State(name string) (*State, error) {
 	v, ok := i[name]
 	if !ok {
 		return nil, fs.ErrInvalid
@@ -24,13 +23,13 @@ func (i testIndex) State(name string) (*file.State, error) {
 	return v.state, v.err
 }
 
-func (i testIndex) SetState(name string, state *file.State) {
+func (i testIndex) SetState(name string, state *State) {
 	i[name] = indexValue{state: state}
 }
 
-type itemOpFunc func(name string, entry fs.DirEntry, inState *file.State) (*file.State, error)
+type itemOpFunc func(name string, entry fs.DirEntry, inState *State) (*State, error)
 
-func (f itemOpFunc) Apply(name string, entry fs.DirEntry, inState *file.State) (*file.State, error) {
+func (f itemOpFunc) Apply(name string, entry fs.DirEntry, inState *State) (*State, error) {
 	return f(name, entry, inState)
 }
 
@@ -45,23 +44,23 @@ func TestPkgOpApplyItemOp(t *testing.T) {
 	anItemOpError := errors.New("error returned from item op")
 
 	tests := map[string]struct {
-		indexState  *file.State // Initial state of the item in the index
-		itemOpState *file.State // State returned by the item op
-		itemOpError error       // Error returned by item op
-		wantErr     error       // Error returned by visit func
-		wantState   *file.State // Index's state for the item after visit func
+		indexState  *State // Initial state of the item in the index
+		itemOpState *State // State returned by the item op
+		itemOpError error  // Error returned by item op
+		wantErr     error  // Error returned by visit func
+		wantState   *State // Index's state for the item after visit func
 	}{
 		"no index state, item op returns state": {
 			indexState:  nil,
-			itemOpState: &file.State{Type: fs.ModeSymlink, Dest: "dest/from/item/op"},
-			wantState:   &file.State{Type: fs.ModeSymlink, Dest: "dest/from/item/op"},
+			itemOpState: &State{Type: fs.ModeSymlink, Dest: "dest/from/item/op"},
+			wantState:   &State{Type: fs.ModeSymlink, Dest: "dest/from/item/op"},
 		},
 		"no index state, item op returns state and SkipDir error": {
 			indexState:  nil,
-			itemOpState: &file.State{Type: fs.ModeSymlink, Dest: "dest/from/item/op"},
+			itemOpState: &State{Type: fs.ModeSymlink, Dest: "dest/from/item/op"},
 			itemOpError: fs.SkipDir,
 			wantErr:     fs.SkipDir,
-			wantState:   &file.State{Type: fs.ModeSymlink, Dest: "dest/from/item/op"},
+			wantState:   &State{Type: fs.ModeSymlink, Dest: "dest/from/item/op"},
 		},
 		"no index state, item op reports error": {
 			indexState:  nil,
@@ -70,33 +69,33 @@ func TestPkgOpApplyItemOp(t *testing.T) {
 			wantState:   nil,
 		},
 		"index state is dir, item op returns state": {
-			indexState:  &file.State{Type: fs.ModeDir},
-			itemOpState: &file.State{Type: fs.ModeSymlink, Dest: "dest/from/item/op"},
-			wantState:   &file.State{Type: fs.ModeSymlink, Dest: "dest/from/item/op"},
+			indexState:  &State{Type: fs.ModeDir},
+			itemOpState: &State{Type: fs.ModeSymlink, Dest: "dest/from/item/op"},
+			wantState:   &State{Type: fs.ModeSymlink, Dest: "dest/from/item/op"},
 		},
 		"index state is link, item op returns state": {
-			indexState:  &file.State{Type: fs.ModeSymlink, Dest: "dest/from/index"},
-			itemOpState: &file.State{Type: fs.ModeDir},
-			wantState:   &file.State{Type: fs.ModeDir},
+			indexState:  &State{Type: fs.ModeSymlink, Dest: "dest/from/index"},
+			itemOpState: &State{Type: fs.ModeDir},
+			wantState:   &State{Type: fs.ModeDir},
 		},
 		"index state is file, item op reports error": {
-			indexState:  &file.State{Type: 0},
+			indexState:  &State{Type: 0},
 			itemOpError: anItemOpError,
 			wantErr:     anItemOpError,
-			wantState:   &file.State{Type: 0},
+			wantState:   &State{Type: 0},
 		},
 		"index state is dir, item op reports error": {
-			indexState:  &file.State{Type: fs.ModeDir},
+			indexState:  &State{Type: fs.ModeDir},
 			itemOpError: anItemOpError,
 			wantErr:     anItemOpError,
-			wantState:   &file.State{Type: fs.ModeDir},
+			wantState:   &State{Type: fs.ModeDir},
 		},
 		"index state is link, item op reports error": {
-			indexState:  &file.State{Type: fs.ModeSymlink, Dest: "dest/from/index"},
+			indexState:  &State{Type: fs.ModeSymlink, Dest: "dest/from/index"},
 			itemOpState: nil,
 			itemOpError: anItemOpError,
 			wantErr:     anItemOpError,
-			wantState:   &file.State{Type: fs.ModeSymlink, Dest: "dest/from/index"},
+			wantState:   &State{Type: fs.ModeSymlink, Dest: "dest/from/index"},
 		},
 	}
 
@@ -106,7 +105,7 @@ func TestPkgOpApplyItemOp(t *testing.T) {
 			sourcePkgItem := path.Join(sourcePkg, item)
 
 			var gotItemOpCall bool
-			itemOp := itemOpFunc(func(gotName string, gotEntry fs.DirEntry, gotState *file.State) (*file.State, error) {
+			itemOp := itemOpFunc(func(gotName string, gotEntry fs.DirEntry, gotState *State) (*State, error) {
 				gotItemOpCall = true
 				if gotName != sourcePkgItem {
 					t.Errorf("item op: got name %q, want %q", gotName, sourcePkgItem)
@@ -135,7 +134,7 @@ func TestPkgOpApplyItemOp(t *testing.T) {
 				t.Fatalf("error:\n got%v\nwant %v", gotErr, test.wantErr)
 			}
 
-			var gotState *file.State
+			var gotState *State
 			if v, ok := testIndex[targetItem]; ok {
 				gotState = v.state
 			}
@@ -207,7 +206,7 @@ func TestPkgOpWalkFuncError(t *testing.T) {
 				t.Errorf("error:\n got: %v\nwant: %v", gotErr, test.wantError)
 			}
 
-			var gotState *file.State
+			var gotState *State
 			if v, ok := testIndex[test.item]; ok {
 				gotState = v.state
 			}

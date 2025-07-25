@@ -1,4 +1,4 @@
-package file
+package plan
 
 import (
 	"errors"
@@ -27,13 +27,17 @@ func (s *State) Equal(o *State) bool {
 		s.DestType == o.DestType
 }
 
-// A Stater describes the states of files in a file system.
-type Stater struct {
+func NewStater(fsys fs.FS) stater {
+	return stater{fsys}
+}
+
+// A stater describes the states of files in a file system.
+type stater struct {
 	FS fs.FS
 }
 
 // State returns the state of the named file.
-func (s Stater) State(name string) (*State, error) {
+func (s stater) State(name string) (*State, error) {
 	info, err := fs.Lstat(s.FS, name)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil

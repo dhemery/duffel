@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/dhemery/duffel/internal/errfs"
-	"github.com/dhemery/duffel/internal/file"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -19,15 +18,15 @@ func TestInstallOp(t *testing.T) {
 }
 
 type test struct {
-	desc          string                 // Description of the test.
-	source        string                 // The source directory to install.
-	itemFile      *errfs.File            // The item to install.
-	target        string                 // The target directory to install to.
-	targetState   *file.State            // The target state passed to Apply.
-	files         []*errfs.File          // Files on the file system.
-	wantState     *file.State            // State returned by Apply.
-	wantErr       error                  // Error returned by Apply.
-	wantNewStates map[string]*file.State // States added to index during Apply.
+	desc          string            // Description of the test.
+	source        string            // The source directory to install.
+	itemFile      *errfs.File       // The item to install.
+	target        string            // The target directory to install to.
+	targetState   *State            // The target state passed to Apply.
+	files         []*errfs.File     // Files on the file system.
+	wantState     *State            // State returned by Apply.
+	wantErr       error             // Error returned by Apply.
+	wantNewStates map[string]*State // States added to index during Apply.
 }
 
 type suite struct {
@@ -131,7 +130,7 @@ var mergeSuite = suite{
 			targetState: linkState("../dir1/dir2/item", fs.ModeDir),
 			files:       []*errfs.File{errfs.NewDir("dir1/dir2/item", 0o755)},
 			wantState:   nil,
-			wantErr:     file.ErrNotInPackage,
+			wantErr:     ErrNotInPackage,
 		},
 		{
 			desc:        "dest is a duffel source dir",
@@ -143,7 +142,7 @@ var mergeSuite = suite{
 				errfs.NewFile("duffel/source-dir/.duffel", 0o644),
 			},
 			wantState: nil,
-			wantErr:   file.ErrIsSource,
+			wantErr:   ErrIsSource,
 		},
 		{
 			desc:        "dest is duffel package",
@@ -156,7 +155,7 @@ var mergeSuite = suite{
 				errfs.NewFile("duffel/source/pkg/item/content", 0o644),
 			},
 			wantState: nil,
-			wantErr:   file.ErrIsPackage,
+			wantErr:   ErrIsPackage,
 		},
 		{
 			desc:        "dest is a top level item in a package",
@@ -168,9 +167,9 @@ var mergeSuite = suite{
 				errfs.NewFile("duffel/source/.duffel", 0o644),
 				errfs.NewFile("duffel/source/pkg/item/content", 0o644),
 			},
-			wantState: &file.State{Type: fs.ModeDir},
+			wantState: &State{Type: fs.ModeDir},
 			wantErr:   nil,
-			wantNewStates: map[string]*file.State{
+			wantNewStates: map[string]*State{
 				"target/item/content": linkState(
 					"../../duffel/source/pkg/item/content", 0),
 			},
@@ -185,9 +184,9 @@ var mergeSuite = suite{
 				errfs.NewFile("duffel/source/.duffel", 0o644),
 				errfs.NewFile("duffel/source/pkg/item1/item2/item3/content", 0o644),
 			},
-			wantState: &file.State{Type: fs.ModeDir},
+			wantState: &State{Type: fs.ModeDir},
 			wantErr:   nil,
-			wantNewStates: map[string]*file.State{
+			wantNewStates: map[string]*State{
 				"target/item1/item2/item3/content": linkState(
 					"../../../../duffel/source/pkg/item1/item2/item3/content",
 					0),
@@ -219,12 +218,12 @@ var conflictSuite = suite{
 			source:      "source",
 			target:      "target",
 			itemFile:    errfs.NewDir("source/pkg/item", 0o755),
-			targetState: &file.State{Type: fs.ModeDevice},
+			targetState: &State{Type: fs.ModeDevice},
 			wantErr: &InstallError{
 				Item:        "source/pkg/item",
 				ItemType:    fs.ModeDir,
 				Target:      "target/item",
-				TargetState: &file.State{Type: fs.ModeDevice},
+				TargetState: &State{Type: fs.ModeDevice},
 			},
 		},
 		{
@@ -283,8 +282,8 @@ func (test test) run(t *testing.T) {
 		for _, tf := range test.files {
 			errfs.Add(testFS, tf)
 		}
-		pkgFinder := file.NewPkgFinder(testFS)
-		stater := file.Stater{FS: testFS}
+		pkgFinder := NewPkgFinder(testFS)
+		stater := NewStater(testFS)
 		index := NewIndex(stater)
 		analyzer := NewAnalyst(testFS, index)
 		merger := NewMerger(pkgFinder, analyzer)
@@ -315,7 +314,7 @@ func (test test) run(t *testing.T) {
 			}
 		}
 
-		gotStates := map[string]*file.State{}
+		gotStates := map[string]*State{}
 		for n, spec := range index.All() {
 			gotStates[n] = spec.Planned
 		}
@@ -326,14 +325,14 @@ func (test test) run(t *testing.T) {
 	})
 }
 
-func dirState() *file.State {
-	return &file.State{Type: fs.ModeDir}
+func dirState() *State {
+	return &State{Type: fs.ModeDir}
 }
 
-func fileState() *file.State {
-	return &file.State{Type: 0}
+func fileState() *State {
+	return &State{Type: 0}
 }
 
-func linkState(dest string, destType fs.FileMode) *file.State {
-	return &file.State{Type: fs.ModeSymlink, Dest: dest, DestType: destType}
+func linkState(dest string, destType fs.FileMode) *State {
+	return &State{Type: fs.ModeSymlink, Dest: dest, DestType: destType}
 }
