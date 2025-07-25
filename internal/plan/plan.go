@@ -17,6 +17,9 @@ func New(target string, specs Specs) Plan {
 	for item, spec := range specs.All() {
 		item := item[len(target)+1:]
 		task := NewTask(item, spec)
+		if len(task.Ops) == 0 {
+			continue
+		}
 		p.Tasks = append(p.Tasks, task)
 	}
 	return p
@@ -53,6 +56,8 @@ func NewTask(item string, spec Spec) Task {
 		t.Ops = append(t.Ops, MkDirOp)
 	case fs.ModeSymlink:
 		t.Ops = append(t.Ops, NewSymlinkOp(planned.Dest))
+	default:
+		panic("unknown planned mode: " + planned.Type.String())
 	}
 
 	return t

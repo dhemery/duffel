@@ -116,7 +116,7 @@ func (op installOp) Apply(name string, entry fs.DirEntry, targetState *file.Stat
 	// No conflicts installing the target destination's contents.
 	// Now change the target to a dir, and walk the current item
 	// to install its contents into the dir.
-	dirState := &file.State{Type: fs.ModeDir | 0o755}
+	dirState := &file.State{Type: fs.ModeDir}
 	return dirState, nil
 }
 

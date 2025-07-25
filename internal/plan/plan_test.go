@@ -2,12 +2,58 @@ package plan
 
 import (
 	"io/fs"
+	"iter"
+	"maps"
 	"testing"
 
 	"github.com/dhemery/duffel/internal/file"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
+
+type specMap map[string]Spec
+
+func (sm specMap) All() iter.Seq2[string, Spec] {
+	return maps.All(sm)
+}
+
+func TestNewPlan(t *testing.T) {
+	tests := map[string]struct {
+		specs     specMap
+		wantTasks []Task
+	}{
+		"do nothing": {
+			specs: specMap{
+				"target/dir": Spec{
+					Current: dirState(),
+					Planned: dirState(),
+				},
+				"target/file": Spec{
+					Current: fileState(),
+					Planned: fileState(),
+				},
+				"target/link": Spec{
+					Current: linkState("some/dest", 0),
+					Planned: linkState("some/dest", 0),
+				},
+			},
+			wantTasks: []Task{}, // No tasks, because no states change.
+		},
+	}
+
+	for desc, test := range tests {
+		const target = "target"
+		t.Run(desc, func(t *testing.T) {
+			plan := New(target, test.specs)
+
+			wantPlan := Plan{Target: target, Tasks: test.wantTasks}
+
+			if diff := cmp.Diff(wantPlan, plan); diff != "" {
+				t.Error("Plan: ", diff)
+			}
+		})
+	}
+}
 
 func TestNewTask(t *testing.T) {
 	tests := map[string]struct {

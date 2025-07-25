@@ -128,7 +128,7 @@ var mergeSuite = suite{
 			desc:        "dest is not in a package",
 			source:      "source",
 			itemFile:    errfs.NewDir("source/pkg/item", 0o755),
-			targetState: linkState("../dir1/dir2/item", fs.ModeDir|0o755),
+			targetState: linkState("../dir1/dir2/item", fs.ModeDir),
 			files:       []*errfs.File{errfs.NewDir("dir1/dir2/item", 0o755)},
 			wantState:   nil,
 			wantErr:     file.ErrNotInPackage,
@@ -138,7 +138,7 @@ var mergeSuite = suite{
 			source:      "source",
 			target:      "target-dir",
 			itemFile:    errfs.NewDir("source/pkg/item", 0o755),
-			targetState: linkState("../duffel/source-dir", fs.ModeDir|0o755),
+			targetState: linkState("../duffel/source-dir", fs.ModeDir),
 			files: []*errfs.File{
 				errfs.NewFile("duffel/source-dir/.duffel", 0o644),
 			},
@@ -149,7 +149,7 @@ var mergeSuite = suite{
 			desc:        "dest is duffel package",
 			source:      "source",
 			itemFile:    errfs.NewDir("source/pkg/item", 0o755),
-			targetState: linkState("../duffel/source/pkg", fs.ModeDir|0o755),
+			targetState: linkState("../duffel/source/pkg", fs.ModeDir),
 			target:      "target",
 			files: []*errfs.File{
 				errfs.NewFile("duffel/source/.duffel", 0o644),
@@ -163,12 +163,12 @@ var mergeSuite = suite{
 			source:      "source",
 			target:      "target",
 			itemFile:    errfs.NewDir("source/pkg/item", 0o755),
-			targetState: linkState("../duffel/source/pkg/item", fs.ModeDir|0o755),
+			targetState: linkState("../duffel/source/pkg/item", fs.ModeDir),
 			files: []*errfs.File{
 				errfs.NewFile("duffel/source/.duffel", 0o644),
 				errfs.NewFile("duffel/source/pkg/item/content", 0o644),
 			},
-			wantState: &file.State{Type: fs.ModeDir | 0o755},
+			wantState: &file.State{Type: fs.ModeDir},
 			wantErr:   nil,
 			wantNewStates: map[string]*file.State{
 				"target/item/content": linkState(
@@ -176,17 +176,16 @@ var mergeSuite = suite{
 			},
 		},
 		{
-			desc:     "dest is a nested item in a package",
-			source:   "source",
-			target:   "target",
-			itemFile: errfs.NewDir("source/pkg/item3", 0o755),
-			targetState: linkState("../duffel/source/pkg/item1/item2/item3",
-				fs.ModeDir|0o755),
+			desc:        "dest is a nested item in a package",
+			source:      "source",
+			target:      "target",
+			itemFile:    errfs.NewDir("source/pkg/item3", 0o755),
+			targetState: linkState("../duffel/source/pkg/item1/item2/item3", fs.ModeDir),
 			files: []*errfs.File{
 				errfs.NewFile("duffel/source/.duffel", 0o644),
 				errfs.NewFile("duffel/source/pkg/item1/item2/item3/content", 0o644),
 			},
-			wantState: &file.State{Type: fs.ModeDir | 0o755},
+			wantState: &file.State{Type: fs.ModeDir},
 			wantErr:   nil,
 			wantNewStates: map[string]*file.State{
 				"target/item1/item2/item3/content": linkState(
@@ -259,12 +258,12 @@ var conflictSuite = suite{
 			source:      "source",
 			target:      "target",
 			itemFile:    errfs.NewFile("source/pkg/item", 0o644),
-			targetState: linkState("target/some/dest", fs.ModeDir|0o755),
+			targetState: linkState("target/some/dest", fs.ModeDir),
 			wantErr: &InstallError{
 				Item:        "source/pkg/item",
 				ItemType:    0,
 				Target:      "target/item",
-				TargetState: linkState("target/some/dest", fs.ModeDir|0o755),
+				TargetState: linkState("target/some/dest", fs.ModeDir),
 			},
 		},
 	},
