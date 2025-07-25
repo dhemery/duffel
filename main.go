@@ -9,6 +9,7 @@ import (
 
 	"github.com/dhemery/duffel/internal/exec"
 	"github.com/dhemery/duffel/internal/file"
+	"github.com/dhemery/duffel/internal/log"
 )
 
 func main() {
@@ -16,10 +17,15 @@ func main() {
 	dryRunOpt := flags.Bool("n", false, "Print planned actions without executing them.")
 	sourceOpt := flags.String("source", ".", "The source `dir`")
 	targetOpt := flags.String("target", "..", "The target `dir`")
+	logOpt := flags.String("log", "warn", "Log level (error|warn|info|debug|trace|none)")
 
 	flags.Parse(os.Args[1:])
-	root := "/"
 
+	if err := log.SetByName(*logOpt, os.Stderr); err != nil {
+		fatal(err)
+	}
+
+	root := "/"
 	fsys := file.DirFS(root)
 
 	absTarget, err := filepath.Abs(*targetOpt)
