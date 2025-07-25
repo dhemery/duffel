@@ -22,8 +22,10 @@ func TestNewPlan(t *testing.T) {
 		specs     specMap
 		wantTasks []Task
 	}{
-		"do nothing": {
+		"omit do nothing tasks": {
 			specs: specMap{
+				// Each spec's planned state is the same as the current state,
+				// so the target tree is already at the planned state.
 				"target/dir": Spec{
 					Current: dirState(),
 					Planned: dirState(),
@@ -37,7 +39,44 @@ func TestNewPlan(t *testing.T) {
 					Planned: linkState("some/dest", 0),
 				},
 			},
-			wantTasks: []Task{}, // No tasks, because no states change.
+			wantTasks: []Task{},
+		},
+		"several tasks": {
+			specs: specMap{
+				"target/new-dir": Spec{
+					Current: nil,
+					Planned: dirState(),
+				},
+				"target/new-link": Spec{
+					Current: nil,
+					Planned: linkState("some/dest", 0),
+				},
+				"target/link-to-dir": Spec{
+					Current: linkState("some/dest", 0),
+					Planned: dirState(),
+				},
+			},
+			wantTasks: []Task{ // Note: Sorted by item.
+				{
+					Item: "link-to-dir",
+					Ops: []FileOp{
+						RemoveOp,
+						MkDirOp,
+					},
+				},
+				{
+					Item: "new-dir",
+					Ops: []FileOp{
+						MkDirOp,
+					},
+				},
+				{
+					Item: "new-link",
+					Ops: []FileOp{
+						NewSymlinkOp("some/dest"),
+					},
+				},
+			},
 		},
 	}
 

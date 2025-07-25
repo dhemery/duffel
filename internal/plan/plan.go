@@ -1,8 +1,10 @@
 package plan
 
 import (
+	"cmp"
 	"io/fs"
 	"path"
+	"slices"
 )
 
 // A Plan is the sequence of tasks
@@ -22,6 +24,9 @@ func New(target string, specs Specs) Plan {
 		}
 		p.Tasks = append(p.Tasks, task)
 	}
+	slices.SortFunc(p.Tasks, func(l, r Task) int {
+		return cmp.Compare(l.Item, r.Item)
+	})
 	return p
 }
 
