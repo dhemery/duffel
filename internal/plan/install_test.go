@@ -303,7 +303,7 @@ func (test test) run(t *testing.T) {
 
 		switch want := test.wantErr.(type) {
 		case *InstallError:
-			if diff := cmp.Diff(want, gotErr); diff != "" {
+			if diff := cmp.Diff(want, gotErr, equateErrFields()); diff != "" {
 				t.Errorf("Apply(%q) error:\n%s",
 					itemName, diff)
 			}

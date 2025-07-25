@@ -1,7 +1,6 @@
 package plan
 
 import (
-	"errors"
 	"io/fs"
 	"testing"
 
@@ -21,21 +20,21 @@ func TestMerge(t *testing.T) {
 		"not in a package": {
 			mergeDir: "dir1/dir2/dir3/dir4/dir5/dir6",
 			files:    []*errfs.File{}, // No other files, so no .duffel file
-			wantErr:  ErrNotInPackage,
+			wantErr:  &MergeError{Name: "dir1/dir2/dir3/dir4/dir5/dir6", Err: ErrNotInPackage},
 		},
 		"duffel source dir": {
 			mergeDir: "duffel/source-dir",
 			files: []*errfs.File{
 				errfs.NewFile("duffel/source-dir/.duffel", 0o644),
 			},
-			wantErr: ErrIsSource,
+			wantErr: &MergeError{Name: "duffel/source-dir", Err: ErrIsSource},
 		},
 		"duffel package": {
 			mergeDir: "duffel/source-dir/pkg-dir",
 			files: []*errfs.File{
 				errfs.NewFile("duffel/source-dir/.duffel", 0o644),
 			},
-			wantErr: ErrIsPackage,
+			wantErr: &MergeError{Name: "duffel/source-dir/pkg-dir", Err: ErrIsPackage},
 		},
 		"top level item in a package": {
 			mergeDir: "duffel/source-dir/pkg-dir/item",
@@ -114,9 +113,9 @@ func TestMerge(t *testing.T) {
 
 			err := merger.Merge(test.mergeDir, test.target)
 
-			if !errors.Is(err, test.wantErr) {
-				t.Errorf("Merge(%q, %q) error:\n got: %v\nwant: %v",
-					test.mergeDir, test.target, err, test.wantErr)
+			if diff := cmp.Diff(test.wantErr, err, equateErrFields()); diff != "" {
+				t.Errorf("Merge(%q, %q) error:\n%s",
+					test.mergeDir, test.target, diff)
 			}
 
 			gotStates := map[string]*State{}
@@ -133,4 +132,19 @@ func TestMerge(t *testing.T) {
 			}
 		})
 	}
+}
+
+func isErrField() func(cmp.Path) bool {
+	return func(p cmp.Path) bool {
+		last := p.Last()
+		sf, ok := last.(cmp.StructField)
+		if !ok {
+			return false
+		}
+		return sf.Name() == "Err"
+	}
+}
+
+func equateErrFields() cmp.Option {
+	return cmp.FilterPath(isErrField(), cmpopts.EquateErrors())
 }
