@@ -6,12 +6,14 @@ import (
 	"testing"
 
 	"github.com/dhemery/duffel/internal/errfs"
+	"github.com/dhemery/duffel/internal/log"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 func TestInstallOp(t *testing.T) {
+	log.Set(log.LevelNone, nil)
 	entryAndStateSuite.run(t)
 	conflictSuite.run(t)
 	mergeSuite.run(t)

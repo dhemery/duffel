@@ -4,10 +4,12 @@ import (
 	"testing"
 
 	"github.com/dhemery/duffel/internal/errfs"
+	"github.com/dhemery/duffel/internal/log"
 	"github.com/google/go-cmp/cmp"
 )
 
 func TestExecuteEmptyTargetNoConflictingPackageItems(t *testing.T) {
+	log.Set(log.LevelNone, nil)
 	specs := []struct {
 		sourceFile *errfs.File // A file in the source tree.
 		targetFile *errfs.File // A desired symlink in the target tree.

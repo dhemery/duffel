@@ -3,7 +3,10 @@ package plan
 import (
 	"fmt"
 	"iter"
+	"log/slog"
 	"maps"
+
+	"github.com/dhemery/duffel/internal/log"
 )
 
 type Stater interface {
@@ -43,6 +46,10 @@ func (i *index) State(name string) (*State, error) {
 		if err != nil {
 			return nil, err
 		}
+		log.Info("record file state",
+			slog.String("name", name),
+			slog.Any("state", state),
+		)
 		spec = Spec{state, state}
 		i.specs[name] = spec
 	}
@@ -55,6 +62,10 @@ func (i *index) SetState(name string, state *State) {
 	if !ok {
 		panic(fmt.Errorf("index.SetState(%q,_): no such spec", name))
 	}
+	log.Info("set planned state",
+		slog.String("name", name),
+		slog.Any("state", state),
+	)
 
 	spec.Planned = state
 	i.specs[name] = spec

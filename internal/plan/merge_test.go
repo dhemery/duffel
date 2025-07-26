@@ -5,11 +5,13 @@ import (
 	"testing"
 
 	"github.com/dhemery/duffel/internal/errfs"
+	"github.com/dhemery/duffel/internal/log"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 func TestMerge(t *testing.T) {
+	log.Set(log.LevelNone, nil)
 	tests := map[string]struct {
 		mergeDir   string            // The name of the directory to merge.
 		target     string            // The target to merge into.

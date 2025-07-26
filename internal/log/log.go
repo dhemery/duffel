@@ -2,20 +2,30 @@
 package log
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log/slog"
 )
 
+const (
+	LevelNone  = slog.LevelError + 4
+	LevelError = slog.LevelError
+	LevelWarn  = slog.LevelWarn
+	LevelInfo  = slog.LevelInfo
+	LevelDebug = slog.LevelDebug
+	LevelTrace = slog.LevelDebug - 4
+)
+
 var Level = &slog.LevelVar{}
 
 var LevelNames = map[string]slog.Level{
-	"none":  slog.LevelError + 4,
-	"error": slog.LevelError,
-	"warn":  slog.LevelWarn,
-	"info":  slog.LevelInfo,
-	"debug": slog.LevelDebug,
-	"trace": slog.LevelDebug - 4,
+	"none":  LevelNone,
+	"error": LevelError,
+	"warn":  LevelWarn,
+	"info":  LevelInfo,
+	"debug": LevelDebug,
+	"trace": LevelTrace,
 }
 
 func SetByName(level string, w io.Writer) error {
@@ -41,4 +51,26 @@ func Set(l slog.Level, w io.Writer) {
 	}
 	h := slog.NewJSONHandler(w, ho)
 	slog.SetDefault(slog.New(h))
+}
+
+var ctx = context.TODO()
+
+func Error(msg string, attrs ...slog.Attr) {
+	slog.LogAttrs(ctx, LevelError, msg, attrs...)
+}
+
+func Warn(msg string, attrs ...slog.Attr) {
+	slog.LogAttrs(ctx, LevelWarn, msg, attrs...)
+}
+
+func Info(msg string, attrs ...slog.Attr) {
+	slog.LogAttrs(ctx, LevelInfo, msg, attrs...)
+}
+
+func Debug(msg string, attrs ...slog.Attr) {
+	slog.LogAttrs(ctx, LevelDebug, msg, attrs...)
+}
+
+func Trace(msg string, attrs ...slog.Attr) {
+	slog.LogAttrs(ctx, LevelTrace, msg, attrs...)
 }

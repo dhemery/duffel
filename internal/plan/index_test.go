@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/dhemery/duffel/internal/errfs"
+	"github.com/dhemery/duffel/internal/log"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -57,6 +58,7 @@ func (ots oneTimeStater) State(name string) (*State, error) {
 }
 
 func TestIndex(t *testing.T) {
+	log.Set(log.LevelNone, nil)
 	tests := map[string]struct {
 		files     []*errfs.File
 		calls     []indexCall

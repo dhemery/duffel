@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"log/slog"
 	"os"
 	"path/filepath"
 
@@ -54,6 +53,6 @@ func main() {
 }
 
 func fatal(err error) {
-	slog.Error(err.Error())
+	log.Error(err.Error())
 	os.Exit(1)
 }
