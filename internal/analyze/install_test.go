@@ -49,7 +49,7 @@ var entryAndStateSuite = suite{
 			target:      "target",
 			itemFile:    errfs.NewFile("source/pkg/item", 0o644),
 			targetState: nil,
-			wantState:   linkState("../source/pkg/item", 0),
+			wantState:   file.LinkState("../source/pkg/item", 0),
 			wantErr:     nil,
 		},
 		{
@@ -58,7 +58,7 @@ var entryAndStateSuite = suite{
 			target:      "target",
 			itemFile:    errfs.NewDir("source/pkg/item", 0o755),
 			targetState: nil,
-			wantState:   linkState("../source/pkg/item", fs.ModeDir),
+			wantState:   file.LinkState("../source/pkg/item", fs.ModeDir),
 			wantErr:     fs.SkipDir, // Do not walk the dir. Linking to it suffices.
 		},
 		{
@@ -67,7 +67,7 @@ var entryAndStateSuite = suite{
 			target:      "target",
 			itemFile:    errfs.NewLink("source/pkg/item", "some/dest"),
 			targetState: nil,
-			wantState:   linkState("../source/pkg/item", fs.ModeSymlink),
+			wantState:   file.LinkState("../source/pkg/item", fs.ModeSymlink),
 			wantErr:     nil,
 		},
 		{
@@ -76,7 +76,7 @@ var entryAndStateSuite = suite{
 			target:      "target",
 			itemFile:    errfs.NewFile("source/pkg/dir/sub1/sub2/item", 0o644),
 			targetState: nil,
-			wantState:   linkState("../../../../source/pkg/dir/sub1/sub2/item", 0),
+			wantState:   file.LinkState("../../../../source/pkg/dir/sub1/sub2/item", 0),
 			wantErr:     nil,
 		},
 		{
@@ -84,17 +84,17 @@ var entryAndStateSuite = suite{
 			source:      "source",
 			target:      "target",
 			itemFile:    errfs.NewDir("source/pkg/item", 0o755),
-			targetState: dirState(),
-			wantState:   dirState(), // No change in state.
-			wantErr:     nil,        // No error: Continue walking to install the item's contents.
+			targetState: file.DirState(),
+			wantState:   file.DirState(), // No change in state.
+			wantErr:     nil,             // No error: Continue walking to install the item's contents.
 		},
 		{
 			desc:        "target already links to current dir item",
 			source:      "source",
 			target:      "target",
 			itemFile:    errfs.NewDir("source/pkg/item", 0o755),
-			targetState: linkState("../source/pkg/item", fs.ModeDir),
-			wantState:   linkState("../source/pkg/item", fs.ModeDir),
+			targetState: file.LinkState("../source/pkg/item", fs.ModeDir),
+			wantState:   file.LinkState("../source/pkg/item", fs.ModeDir),
 			wantErr:     fs.SkipDir, // Do not walk the dir item. It's already linked.
 		},
 		{
@@ -102,8 +102,8 @@ var entryAndStateSuite = suite{
 			source:      "source",
 			target:      "target",
 			itemFile:    errfs.NewFile("source/pkg/item", 0o644),
-			targetState: linkState("../source/pkg/item", 0),
-			wantState:   linkState("../source/pkg/item", 0),
+			targetState: file.LinkState("../source/pkg/item", 0),
+			wantState:   file.LinkState("../source/pkg/item", 0),
 			wantErr:     nil,
 		},
 		{
@@ -111,8 +111,8 @@ var entryAndStateSuite = suite{
 			source:      "source",
 			target:      "target",
 			itemFile:    errfs.NewFile("source/pkg/dir/sub1/sub2/item", 0o644),
-			targetState: linkState("../../../../source/pkg/dir/sub1/sub2/item", 0),
-			wantState:   linkState("../../../../source/pkg/dir/sub1/sub2/item", 0),
+			targetState: file.LinkState("../../../../source/pkg/dir/sub1/sub2/item", 0),
+			wantState:   file.LinkState("../../../../source/pkg/dir/sub1/sub2/item", 0),
 			wantErr:     nil,
 		},
 	},
@@ -131,7 +131,7 @@ var mergeSuite = suite{
 			desc:        "dest is not in a package",
 			source:      "source",
 			itemFile:    errfs.NewDir("source/pkg/item", 0o755),
-			targetState: linkState("../dir1/dir2/item", fs.ModeDir),
+			targetState: file.LinkState("../dir1/dir2/item", fs.ModeDir),
 			files:       []*errfs.File{errfs.NewDir("dir1/dir2/item", 0o755)},
 			wantState:   nil,
 			wantErr:     ErrNotInPackage,
@@ -141,7 +141,7 @@ var mergeSuite = suite{
 			source:      "source",
 			target:      "target-dir",
 			itemFile:    errfs.NewDir("source/pkg/item", 0o755),
-			targetState: linkState("../duffel/source-dir", fs.ModeDir),
+			targetState: file.LinkState("../duffel/source-dir", fs.ModeDir),
 			files: []*errfs.File{
 				errfs.NewFile("duffel/source-dir/.duffel", 0o644),
 			},
@@ -152,7 +152,7 @@ var mergeSuite = suite{
 			desc:        "dest is duffel package",
 			source:      "source",
 			itemFile:    errfs.NewDir("source/pkg/item", 0o755),
-			targetState: linkState("../duffel/source/pkg", fs.ModeDir),
+			targetState: file.LinkState("../duffel/source/pkg", fs.ModeDir),
 			target:      "target",
 			files: []*errfs.File{
 				errfs.NewFile("duffel/source/.duffel", 0o644),
@@ -166,7 +166,7 @@ var mergeSuite = suite{
 			source:      "source",
 			target:      "target",
 			itemFile:    errfs.NewDir("source/pkg/item", 0o755),
-			targetState: linkState("../duffel/source/pkg/item", fs.ModeDir),
+			targetState: file.LinkState("../duffel/source/pkg/item", fs.ModeDir),
 			files: []*errfs.File{
 				errfs.NewFile("duffel/source/.duffel", 0o644),
 				errfs.NewFile("duffel/source/pkg/item/content", 0o644),
@@ -174,7 +174,7 @@ var mergeSuite = suite{
 			wantState: &file.State{Type: fs.ModeDir},
 			wantErr:   nil,
 			wantNewStates: map[string]*file.State{
-				"target/item/content": linkState(
+				"target/item/content": file.LinkState(
 					"../../duffel/source/pkg/item/content", 0),
 			},
 		},
@@ -183,7 +183,7 @@ var mergeSuite = suite{
 			source:      "source",
 			target:      "target",
 			itemFile:    errfs.NewDir("source/pkg/item3", 0o755),
-			targetState: linkState("../duffel/source/pkg/item1/item2/item3", fs.ModeDir),
+			targetState: file.LinkState("../duffel/source/pkg/item1/item2/item3", fs.ModeDir),
 			files: []*errfs.File{
 				errfs.NewFile("duffel/source/.duffel", 0o644),
 				errfs.NewFile("duffel/source/pkg/item1/item2/item3/content", 0o644),
@@ -191,7 +191,7 @@ var mergeSuite = suite{
 			wantState: &file.State{Type: fs.ModeDir},
 			wantErr:   nil,
 			wantNewStates: map[string]*file.State{
-				"target/item1/item2/item3/content": linkState(
+				"target/item1/item2/item3/content": file.LinkState(
 					"../../../../duffel/source/pkg/item1/item2/item3/content",
 					0),
 			},
@@ -209,12 +209,12 @@ var conflictSuite = suite{
 			source:      "source",
 			target:      "target",
 			itemFile:    errfs.NewDir("source/pkg/item", 0o755),
-			targetState: fileState(),
+			targetState: file.FileState(),
 			wantErr: &InstallError{
 				Item:        "source/pkg/item",
 				ItemType:    fs.ModeDir,
 				Target:      "target/item",
-				TargetState: fileState(),
+				TargetState: file.FileState(),
 			},
 		},
 		{
@@ -235,12 +235,12 @@ var conflictSuite = suite{
 			source:      "source",
 			target:      "target",
 			itemFile:    errfs.NewDir("source/pkg/item", 0o755),
-			targetState: linkState("link/to/file", 0o644),
+			targetState: file.LinkState("link/to/file", 0o644),
 			wantErr: &InstallError{
 				Item:        "source/pkg/item",
 				ItemType:    fs.ModeDir,
 				Target:      "target/item",
-				TargetState: linkState("link/to/file", 0o644),
+				TargetState: file.LinkState("link/to/file", 0o644),
 			},
 		},
 		{
@@ -248,12 +248,12 @@ var conflictSuite = suite{
 			source:      "source",
 			target:      "target",
 			itemFile:    errfs.NewFile("source/pkg/item", 0o644),
-			targetState: dirState(),
+			targetState: file.DirState(),
 			wantErr: &InstallError{
 				Item:        "source/pkg/item",
 				ItemType:    0, // regular file
 				Target:      "target/item",
-				TargetState: dirState(),
+				TargetState: file.DirState(),
 			},
 		},
 		{
@@ -261,12 +261,12 @@ var conflictSuite = suite{
 			source:      "source",
 			target:      "target",
 			itemFile:    errfs.NewFile("source/pkg/item", 0o644),
-			targetState: linkState("target/some/dest", fs.ModeDir),
+			targetState: file.LinkState("target/some/dest", fs.ModeDir),
 			wantErr: &InstallError{
 				Item:        "source/pkg/item",
 				ItemType:    0,
 				Target:      "target/item",
-				TargetState: linkState("target/some/dest", fs.ModeDir),
+				TargetState: file.LinkState("target/some/dest", fs.ModeDir),
 			},
 		},
 	},
@@ -335,16 +335,4 @@ func (test test) run(t *testing.T) {
 			t.Log("log:\n", logbuf.String())
 		}
 	})
-}
-
-func dirState() *file.State {
-	return &file.State{Type: fs.ModeDir}
-}
-
-func fileState() *file.State {
-	return &file.State{Type: 0}
-}
-
-func linkState(dest string, destType fs.FileMode) *file.State {
-	return &file.State{Type: fs.ModeSymlink, Dest: dest, DestType: destType}
 }
