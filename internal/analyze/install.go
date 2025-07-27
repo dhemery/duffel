@@ -31,11 +31,11 @@ type installOp struct {
 }
 
 // Apply describes the installed state
-// of the target file that corresponds to the given item.
-// Pkg and item identify the item to be installed.
+// of the target file that corresponds to the given package item.
+// Name identifies the  packageitem to be installed.
 // Entry describes the state of the file in the source tree.
-// TargetState describes the state of the target file
-// after earlier tasks.
+// TargetState describes the planned state of the target file
+// as planned by earlier analysis.
 func (op installOp) Apply(name string, entry fs.DirEntry, targetState *file.State) (*file.State, error) {
 	pkgItem := name[len(op.source)+1:]
 	_, item, _ := strings.Cut(pkgItem, "/")
