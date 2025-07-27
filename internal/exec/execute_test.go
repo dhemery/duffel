@@ -1,6 +1,7 @@
 package exec
 
 import (
+	"log/slog"
 	"testing"
 
 	"github.com/dhemery/duffel/internal/errfs"
@@ -9,7 +10,7 @@ import (
 )
 
 func TestExecuteEmptyTargetNoConflictingPackageItems(t *testing.T) {
-	log.Set(log.LevelNone, nil)
+	slog.SetDefault(log.NewJSONLogger(slog.LevelError+4, t.Output()))
 	specs := []struct {
 		sourceFile *errfs.File // A file in the source tree.
 		targetFile *errfs.File // A desired symlink in the target tree.

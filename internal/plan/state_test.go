@@ -86,7 +86,7 @@ func TestStater(t *testing.T) {
 				t.Errorf("State(%s) state:\n got %v\nwant %v",
 					test.name, state, test.wantState)
 			}
-			if t.Failed() {
+			if t.Failed() || testing.Verbose() {
 				t.Log("files after failure:\n", testFS)
 			}
 		})

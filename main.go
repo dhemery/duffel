@@ -1,8 +1,10 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 
@@ -11,18 +13,21 @@ import (
 	"github.com/dhemery/duffel/internal/log"
 )
 
+var (
+	ErrLogLevel = errors.New("unknown log level")
+	logLevel    = slog.LevelError
+)
+
 func main() {
 	flags := flag.NewFlagSet("duffel", flag.ExitOnError)
 	dryRunOpt := flags.Bool("n", false, "Print planned actions without executing them.")
 	sourceOpt := flags.String("source", ".", "The source `dir`")
 	targetOpt := flags.String("target", "..", "The target `dir`")
-	logOpt := flags.String("log", "warn", "Log level (error|warn|info|debug|trace|none)")
+	flags.Func("log", "Set log level (default error)", setLogLevel)
 
 	flags.Parse(os.Args[1:])
 
-	if err := log.SetByName(*logOpt, os.Stderr); err != nil {
-		fatal(err)
-	}
+	slog.SetDefault(log.NewJSONLogger(logLevel, os.Stderr))
 
 	root := "/"
 	fsys := file.DirFS(root)
@@ -53,6 +58,24 @@ func main() {
 }
 
 func fatal(err error) {
-	log.Error(err.Error())
+	slog.Error(err.Error())
 	os.Exit(1)
+}
+
+func setLogLevel(name string) error {
+	switch name {
+	case "none":
+		logLevel = slog.LevelError + 4
+	case "error":
+		logLevel = slog.LevelError
+	case "warn":
+		logLevel = slog.LevelWarn
+	case "info":
+		logLevel = slog.LevelInfo
+	case "debug":
+		logLevel = slog.LevelDebug
+	default:
+		return fmt.Errorf("%s: unknown log level; level must be one of: none, error, warn, info, debug", name)
+	}
+	return nil
 }

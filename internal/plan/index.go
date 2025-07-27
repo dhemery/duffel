@@ -5,8 +5,6 @@ import (
 	"iter"
 	"log/slog"
 	"maps"
-
-	"github.com/dhemery/duffel/internal/log"
 )
 
 type Stater interface {
@@ -26,12 +24,14 @@ func NewIndex(files Stater) *index {
 	return &index{
 		specs: map[string]Spec{},
 		files: files,
+		log:   *slog.Default().WithGroup("index"),
 	}
 }
 
 type index struct {
 	specs map[string]Spec
 	files Stater
+	log   slog.Logger
 }
 
 // State returns the planned state of the named file.
@@ -46,10 +46,7 @@ func (i *index) State(name string) (*State, error) {
 		if err != nil {
 			return nil, err
 		}
-		log.Info("record file state",
-			slog.String("name", name),
-			slog.Any("state", state),
-		)
+		i.log.Info("record file state", "name", name, "state", state)
 		spec = Spec{state, state}
 		i.specs[name] = spec
 	}
@@ -62,10 +59,7 @@ func (i *index) SetState(name string, state *State) {
 	if !ok {
 		panic(fmt.Errorf("index.SetState(%q,_): no such spec", name))
 	}
-	log.Info("set planned state",
-		slog.String("name", name),
-		slog.Any("state", state),
-	)
+	i.log.Info("set planned state", "name", name, "state", state)
 
 	spec.Planned = state
 	i.specs[name] = spec

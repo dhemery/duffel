@@ -1,7 +1,9 @@
 package plan
 
 import (
+	"bytes"
 	"io/fs"
+	"log/slog"
 	"testing"
 
 	"github.com/dhemery/duffel/internal/errfs"
@@ -11,7 +13,6 @@ import (
 )
 
 func TestMerge(t *testing.T) {
-	log.Set(log.LevelNone, nil)
 	tests := map[string]struct {
 		mergeDir   string            // The name of the directory to merge.
 		target     string            // The target to merge into.
@@ -100,6 +101,9 @@ func TestMerge(t *testing.T) {
 
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
+			var logbuf bytes.Buffer
+			SetTestLogger(log.NewJSONLogger(slog.LevelInfo, &logbuf), t)
+
 			testFS := errfs.New()
 			errfs.AddDir(testFS, test.mergeDir, 0o755)
 			for _, tf := range test.files {
@@ -128,9 +132,9 @@ func TestMerge(t *testing.T) {
 				t.Errorf("planned states after Merge(%q, %q):\n%s",
 					test.mergeDir, test.target, diff)
 			}
-			if t.Failed() {
-				t.Logf("files after Merge(%q, %q):\n%s",
-					test.mergeDir, test.target, testFS)
+			if t.Failed() || testing.Verbose() {
+				t.Log("files:\n", testFS)
+				t.Log("log:\n", logbuf.String())
 			}
 		})
 	}

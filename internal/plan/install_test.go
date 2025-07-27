@@ -1,8 +1,10 @@
 package plan
 
 import (
+	"bytes"
 	"errors"
 	"io/fs"
+	"log/slog"
 	"testing"
 
 	"github.com/dhemery/duffel/internal/errfs"
@@ -13,7 +15,6 @@ import (
 )
 
 func TestInstallOp(t *testing.T) {
-	log.Set(log.LevelNone, nil)
 	entryAndStateSuite.run(t)
 	conflictSuite.run(t)
 	mergeSuite.run(t)
@@ -280,6 +281,9 @@ func (s suite) run(t *testing.T) {
 
 func (test test) run(t *testing.T) {
 	t.Run(test.desc, func(t *testing.T) {
+		var logbuf bytes.Buffer
+		SetTestLogger(log.NewJSONLogger(slog.LevelInfo, &logbuf), t)
+
 		testFS := errfs.New()
 		for _, tf := range test.files {
 			errfs.Add(testFS, tf)
@@ -323,6 +327,11 @@ func (test test) run(t *testing.T) {
 		if diff := cmp.Diff(test.wantNewStates, gotStates, cmpopts.EquateEmpty()); diff != "" {
 			t.Errorf("planned states after Apply(%q):\n%s",
 				itemName, diff)
+		}
+
+		if t.Failed() || testing.Verbose() {
+			t.Log("files:\n", testFS)
+			t.Log("log:\n", logbuf.String())
 		}
 	})
 }

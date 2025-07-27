@@ -1,9 +1,11 @@
 package plan
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"maps"
 	"testing"
 
@@ -58,7 +60,6 @@ func (ots oneTimeStater) State(name string) (*State, error) {
 }
 
 func TestIndex(t *testing.T) {
-	log.Set(log.LevelNone, nil)
 	tests := map[string]struct {
 		files     []*errfs.File
 		calls     []indexCall
@@ -155,6 +156,9 @@ func TestIndex(t *testing.T) {
 	}
 	for desc, test := range tests {
 		t.Run(desc, func(t *testing.T) {
+			var logbuf bytes.Buffer
+			SetTestLogger(log.NewJSONLogger(slog.LevelInfo, &logbuf), t)
+
 			testFS := errfs.New()
 			for _, f := range test.files {
 				errfs.Add(testFS, f)
@@ -172,8 +176,9 @@ func TestIndex(t *testing.T) {
 				t.Errorf("Specs() after calls: %s", diff)
 			}
 
-			if t.Failed() {
-				t.Log("files after failure:\n", testFS)
+			if t.Failed() || testing.Verbose() {
+				t.Log("files:\n", testFS)
+				t.Log("log:\n", logbuf.String())
 			}
 		})
 	}
