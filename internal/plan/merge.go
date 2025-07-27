@@ -22,13 +22,13 @@ func (me *MergeError) Unwrap() error {
 	return me.Err
 }
 
-func NewMerger(pkgFinder PkgFinder, analyzer Analyst) merger {
-	return merger{pkgFinder, analyzer}
+func NewMerger(pkgFinder PkgFinder, analyst analyst) merger {
+	return merger{pkgFinder, analyst}
 }
 
 type merger struct {
 	pkgFinder PkgFinder
-	analyst   Analyst
+	analyst   analyst
 }
 
 func (m merger) Merge(name, target string) error {

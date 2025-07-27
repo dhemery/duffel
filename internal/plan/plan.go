@@ -3,6 +3,7 @@ package plan
 import (
 	"cmp"
 	"io/fs"
+	"iter"
 	"path"
 	"slices"
 )
@@ -12,6 +13,10 @@ import (
 type Plan struct {
 	Target string `json:"target"`
 	Tasks  []Task `json:"tasks"`
+}
+
+type Specs interface {
+	All() iter.Seq2[string, Spec]
 }
 
 func New(target string, specs Specs) Plan {

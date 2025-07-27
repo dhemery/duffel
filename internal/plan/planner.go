@@ -2,21 +2,12 @@ package plan
 
 import (
 	"io/fs"
-	"iter"
 	"path"
 )
-
-type Analyst interface {
-	Analyze(ops ...PkgOp) (Specs, error)
-}
 
 type Index interface {
 	State(name string) (*State, error)
 	SetState(item string, state *State)
-}
-
-type Specs interface {
-	All() iter.Seq2[string, Spec]
 }
 
 type PkgOp interface {
@@ -24,34 +15,24 @@ type PkgOp interface {
 	VisitFunc(target string, index Index) fs.WalkDirFunc
 }
 
-type SpecsAnalyst interface {
-	Analyst
-	Specs
-}
-
-type SpecsIndex interface {
-	Index
-	Specs
-}
-
-func NewAnalyst(fsys fs.FS, target string, specs SpecsIndex) analyst {
-	return analyst{fsys: fsys, target: target, SpecsIndex: specs}
+func NewAnalyst(fsys fs.FS, target string, index *index) analyst {
+	return analyst{fsys: fsys, target: target, index: index}
 }
 
 type analyst struct {
 	fsys   fs.FS
 	target string
-	SpecsIndex
+	index  *index
 }
 
-func (a analyst) Analyze(ops ...PkgOp) (Specs, error) {
+func (a analyst) Analyze(ops ...PkgOp) (*index, error) {
 	for _, op := range ops {
-		err := fs.WalkDir(a.fsys, op.WalkDir(), op.VisitFunc(a.target, a))
+		err := fs.WalkDir(a.fsys, op.WalkDir(), op.VisitFunc(a.target, a.index))
 		if err != nil {
 			return nil, err
 		}
 	}
-	return a.SpecsIndex, nil
+	return a.index, nil
 }
 
 type ItemOp interface {
