@@ -10,7 +10,6 @@ import (
 
 	"github.com/dhemery/duffel/internal/errfs"
 	"github.com/dhemery/duffel/internal/file"
-	"github.com/dhemery/duffel/internal/log"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -106,7 +105,7 @@ func TestMerge(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			var logbuf bytes.Buffer
-			logger := log.NewJSONLogger(slog.LevelInfo, &logbuf)
+			logger := slog.New(slog.NewJSONHandler(&logbuf, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
 			testFS := errfs.New()
 			errfs.AddDir(testFS, test.mergeDir, 0o755)

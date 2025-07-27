@@ -13,7 +13,6 @@ import (
 
 	"github.com/dhemery/duffel/internal/errfs"
 	"github.com/dhemery/duffel/internal/file"
-	"github.com/dhemery/duffel/internal/log"
 	"github.com/google/go-cmp/cmp"
 )
 
@@ -160,7 +159,7 @@ func TestIndex(t *testing.T) {
 	for desc, test := range tests {
 		t.Run(desc, func(t *testing.T) {
 			var logbuf bytes.Buffer
-			logger := log.NewJSONLogger(slog.LevelInfo, &logbuf)
+			logger := slog.New(slog.NewJSONHandler(&logbuf, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
 			testFS := errfs.New()
 			for _, f := range test.files {

@@ -10,7 +10,6 @@ import (
 
 	"github.com/dhemery/duffel/internal/exec"
 	"github.com/dhemery/duffel/internal/file"
-	"github.com/dhemery/duffel/internal/log"
 )
 
 var (
@@ -28,7 +27,7 @@ func main() {
 
 	flags.Parse(os.Args[1:])
 
-	logger = log.NewJSONLogger(logLevel, os.Stderr)
+	logger = slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: logLevel}))
 
 	root := "/"
 	fsys := file.DirFS(root)

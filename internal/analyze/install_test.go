@@ -11,7 +11,6 @@ import (
 
 	"github.com/dhemery/duffel/internal/errfs"
 	"github.com/dhemery/duffel/internal/file"
-	"github.com/dhemery/duffel/internal/log"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -285,7 +284,7 @@ func (s suite) run(t *testing.T) {
 func (test test) run(t *testing.T) {
 	t.Run(test.desc, func(t *testing.T) {
 		var logbuf bytes.Buffer
-		logger := log.NewJSONLogger(slog.LevelInfo, &logbuf)
+		logger := slog.New(slog.NewJSONHandler(&logbuf, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
 		testFS := errfs.New()
 		for _, tf := range test.files {
