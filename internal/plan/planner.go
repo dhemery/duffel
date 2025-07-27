@@ -7,7 +7,7 @@ import (
 )
 
 type Analyst interface {
-	Analyze(op PkgOp) error
+	Analyze(ops ...PkgOp) (Specs, error)
 }
 
 type Index interface {
@@ -42,13 +42,12 @@ type planner struct {
 }
 
 func (p planner) Plan(ops []PkgOp) (Plan, error) {
-	for _, op := range ops {
-		err := p.analyst.Analyze(op)
-		if err != nil {
-			return Plan{}, err
-		}
+	p.analyst.Analyze(ops...)
+	specs, err := p.analyst.Analyze(ops...)
+	if err != nil {
+		return Plan{}, err
 	}
-	return New(p.target, p.analyst), nil
+	return New(p.target, specs), nil
 }
 
 type SpecsIndex interface {
@@ -66,8 +65,14 @@ type analyst struct {
 	SpecsIndex
 }
 
-func (a analyst) Analyze(op PkgOp) error {
-	return fs.WalkDir(a.fsys, op.WalkDir(), op.VisitFunc(a.target, a))
+func (a analyst) Analyze(ops ...PkgOp) (Specs, error) {
+	for _, op := range ops {
+		err := fs.WalkDir(a.fsys, op.WalkDir(), op.VisitFunc(a.target, a))
+		if err != nil {
+			return nil, err
+		}
+	}
+	return a.SpecsIndex, nil
 }
 
 type ItemOp interface {

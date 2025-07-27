@@ -28,7 +28,7 @@ func NewMerger(pkgFinder PkgFinder, analyzer Analyst) merger {
 
 type merger struct {
 	pkgFinder PkgFinder
-	analyzer  Analyst
+	analyst   Analyst
 }
 
 func (m merger) Merge(name, target string) error {
@@ -41,5 +41,6 @@ func (m merger) Merge(name, target string) error {
 	sourcePkg := path.Join(pkgItem.Source, pkgItem.Pkg)
 	pkgOp := NewMergePkgOp(sourcePkg, pkgItem.Item, install)
 
-	return m.analyzer.Analyze(pkgOp)
+	_, err = m.analyst.Analyze(pkgOp)
+	return err
 }
