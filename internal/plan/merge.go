@@ -41,5 +41,5 @@ func (m merger) Merge(name, target string) error {
 	sourcePkg := path.Join(pkgItem.Source, pkgItem.Pkg)
 	pkgOp := NewMergePkgOp(sourcePkg, pkgItem.Item, install)
 
-	return m.analyzer.Analyze(pkgOp, target)
+	return m.analyzer.Analyze(pkgOp)
 }

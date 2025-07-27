@@ -291,7 +291,7 @@ func (test test) run(t *testing.T) {
 		pkgFinder := NewPkgFinder(testFS)
 		stater := NewStater(testFS)
 		index := NewIndex(stater)
-		analyzer := NewAnalyst(testFS, index)
+		analyzer := NewAnalyst(testFS, "target", index)
 		merger := NewMerger(pkgFinder, analyzer)
 		install := NewInstallOp(test.source, test.target, merger)
 

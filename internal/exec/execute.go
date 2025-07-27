@@ -21,7 +21,7 @@ func Execute(r *Request, dryRun bool, w io.Writer) error {
 	index := plan.NewIndex(stater)
 
 	pkgFinder := plan.NewPkgFinder(r.FS)
-	analyzer := plan.NewAnalyst(r.FS, index)
+	analyzer := plan.NewAnalyst(r.FS, r.Target, index)
 	merger := plan.NewMerger(pkgFinder, analyzer)
 	install := plan.NewInstallOp(r.Source, r.Target, merger)
 
