@@ -1,4 +1,4 @@
-package plan
+package analyze
 
 import (
 	"bytes"
@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/dhemery/duffel/internal/errfs"
+	"github.com/dhemery/duffel/internal/file"
 	"github.com/dhemery/duffel/internal/log"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -14,11 +15,11 @@ import (
 
 func TestMerge(t *testing.T) {
 	tests := map[string]struct {
-		mergeDir   string            // The name of the directory to merge.
-		target     string            // The target to merge into.
-		files      []*errfs.File     // Other files on the file system.
-		wantErr    error             // Error returned by Merge.
-		wantStates map[string]*State // States added to index during Merge.
+		mergeDir   string                 // The name of the directory to merge.
+		target     string                 // The target to merge into.
+		files      []*errfs.File          // Other files on the file system.
+		wantErr    error                  // Error returned by Merge.
+		wantStates map[string]*file.State // States added to index during Merge.
 	}{
 		"not in a package": {
 			mergeDir: "dir1/dir2/dir3/dir4/dir5/dir6",
@@ -46,7 +47,7 @@ func TestMerge(t *testing.T) {
 				errfs.NewFile("duffel/source-dir/.duffel", 0o644),
 				errfs.NewFile("duffel/source-dir/pkg-dir/item/content", 0o644),
 			},
-			wantStates: map[string]*State{
+			wantStates: map[string]*file.State{
 				"target-dir/item/content": {
 					Type: fs.ModeSymlink,
 					Dest: "../../duffel/source-dir/pkg-dir/item/content",
@@ -61,7 +62,7 @@ func TestMerge(t *testing.T) {
 				errfs.NewFile("duffel/source-dir/.duffel", 0o644),
 				errfs.NewFile("duffel/source-dir/pkg-dir/item1/item2/item3/content", 0o644),
 			},
-			wantStates: map[string]*State{
+			wantStates: map[string]*file.State{
 				"target-dir/item1/item2/item3/content": {
 					Type: fs.ModeSymlink,
 					Dest: "../../../../duffel/source-dir/pkg-dir/item1/item2/item3/content",
@@ -78,7 +79,7 @@ func TestMerge(t *testing.T) {
 				errfs.NewFile("duffel/source-dir/pkg-dir/item/file", 0o644),
 				errfs.NewLink("duffel/source-dir/pkg-dir/item/link", "some/dest"),
 			},
-			wantStates: map[string]*State{
+			wantStates: map[string]*file.State{
 				"target-dir/item/dir": {
 					Type:     fs.ModeSymlink,
 					Dest:     "../../duffel/source-dir/pkg-dir/item/dir",
@@ -110,7 +111,7 @@ func TestMerge(t *testing.T) {
 				errfs.Add(testFS, tf)
 			}
 
-			stater := NewStater(testFS)
+			stater := file.NewStater(testFS)
 			index := NewIndex(stater)
 			analyzer := NewAnalyst(testFS, test.target, index)
 			pkgFinder := NewPkgFinder(testFS)
@@ -124,7 +125,7 @@ func TestMerge(t *testing.T) {
 					test.mergeDir, test.target, diff)
 			}
 
-			gotStates := map[string]*State{}
+			gotStates := map[string]*file.State{}
 			for n, spec := range index.All() {
 				gotStates[n] = spec.Planned
 			}

@@ -1,15 +1,17 @@
-package plan
+package analyze
 
 import (
 	"fmt"
 	"io/fs"
+
+	"github.com/dhemery/duffel/internal/file"
 )
 
 type InstallError struct {
 	Item        string
 	ItemType    fs.FileMode
 	Target      string
-	TargetState *State
+	TargetState *file.State
 }
 
 func (e *InstallError) Error() string {
@@ -30,7 +32,7 @@ func typeString(m fs.FileMode) string {
 	}
 }
 
-func stateString(s *State) string {
+func stateString(s *file.State) string {
 	if s == nil {
 		return "<nil>"
 	}

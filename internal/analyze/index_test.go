@@ -1,4 +1,4 @@
-package plan
+package analyze
 
 import (
 	"bytes"
@@ -10,13 +10,14 @@ import (
 	"testing"
 
 	"github.com/dhemery/duffel/internal/errfs"
+	"github.com/dhemery/duffel/internal/file"
 	"github.com/dhemery/duffel/internal/log"
 	"github.com/google/go-cmp/cmp"
 )
 
 type indexCall func(i *index, t *testing.T)
 
-func get(name string, wantState *State, wantErr error) indexCall {
+func get(name string, wantState *file.State, wantErr error) indexCall {
 	return func(i *index, t *testing.T) {
 		t.Helper()
 		state, err := i.State(name)
@@ -31,7 +32,7 @@ func get(name string, wantState *State, wantErr error) indexCall {
 	}
 }
 
-func set(name string, state *State) indexCall {
+func set(name string, state *file.State) indexCall {
 	return func(i *index, t *testing.T) {
 		i.SetState(name, state)
 	}
@@ -48,7 +49,7 @@ type oneTimeStater struct {
 	calls map[string]int
 }
 
-func (ots oneTimeStater) State(name string) (*State, error) {
+func (ots oneTimeStater) State(name string) (*file.State, error) {
 	called := ots.calls[name]
 	called++
 	ots.calls[name] = called
@@ -163,7 +164,7 @@ func TestIndex(t *testing.T) {
 			for _, f := range test.files {
 				errfs.Add(testFS, f)
 			}
-			testStater := newOneTimeStater(NewStater(testFS))
+			testStater := newOneTimeStater(file.NewStater(testFS))
 
 			index := NewIndex(testStater)
 

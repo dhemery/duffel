@@ -6,7 +6,8 @@ import (
 	"io/fs"
 	"path"
 
-	"github.com/dhemery/duffel/internal/plan"
+	"github.com/dhemery/duffel/internal/analyze"
+	"github.com/dhemery/duffel/internal/file"
 )
 
 type Request struct {
@@ -17,18 +18,18 @@ type Request struct {
 }
 
 func Execute(r *Request, dryRun bool, w io.Writer) error {
-	stater := plan.NewStater(r.FS)
-	index := plan.NewIndex(stater)
+	stater := file.NewStater(r.FS)
+	index := analyze.NewIndex(stater)
 
-	pkgFinder := plan.NewPkgFinder(r.FS)
-	analyst := plan.NewAnalyst(r.FS, r.Target, index)
-	merger := plan.NewMerger(pkgFinder, analyst)
-	install := plan.NewInstallOp(r.Source, r.Target, merger)
+	pkgFinder := analyze.NewPkgFinder(r.FS)
+	analyst := analyze.NewAnalyst(r.FS, r.Target, index)
+	merger := analyze.NewMerger(pkgFinder, analyst)
+	install := analyze.NewInstallOp(r.Source, r.Target, merger)
 
-	var pkgOps []plan.PkgOp
+	var pkgOps []analyze.PkgOp
 	for _, pkg := range r.Pkgs {
 		sourcePkg := path.Join(r.Source, pkg)
-		pkgOp := plan.NewPkgOp(sourcePkg, install)
+		pkgOp := analyze.NewPkgOp(sourcePkg, install)
 		pkgOps = append(pkgOps, pkgOp)
 	}
 
@@ -37,7 +38,7 @@ func Execute(r *Request, dryRun bool, w io.Writer) error {
 		return err
 	}
 
-	p := plan.New(r.Target, specs)
+	p := New(r.Target, specs)
 	if dryRun {
 		enc := json.NewEncoder(w)
 		return enc.Encode(p)

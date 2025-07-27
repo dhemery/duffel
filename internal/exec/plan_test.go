@@ -1,4 +1,4 @@
-package plan
+package exec
 
 import (
 	"io/fs"
@@ -6,13 +6,15 @@ import (
 	"maps"
 	"testing"
 
+	"github.com/dhemery/duffel/internal/analyze"
+	"github.com/dhemery/duffel/internal/file"
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
-type specMap map[string]Spec
+type specMap map[string]analyze.Spec
 
-func (sm specMap) All() iter.Seq2[string, Spec] {
+func (sm specMap) All() iter.Seq2[string, analyze.Spec] {
 	return maps.All(sm)
 }
 
@@ -25,34 +27,34 @@ func TestNewPlan(t *testing.T) {
 			specs: specMap{
 				// Each spec's planned state is the same as the current state,
 				// so the target tree is already at the planned state.
-				"target/dir": Spec{
-					Current: dirState(),
-					Planned: dirState(),
+				"target/dir": analyze.Spec{
+					Current: file.DirState(),
+					Planned: file.DirState(),
 				},
-				"target/file": Spec{
-					Current: fileState(),
-					Planned: fileState(),
+				"target/file": analyze.Spec{
+					Current: file.FileState(),
+					Planned: file.FileState(),
 				},
-				"target/link": Spec{
-					Current: linkState("some/dest", 0),
-					Planned: linkState("some/dest", 0),
+				"target/link": analyze.Spec{
+					Current: file.LinkState("some/dest", 0),
+					Planned: file.LinkState("some/dest", 0),
 				},
 			},
 			wantTasks: []Task{},
 		},
 		"several tasks": {
 			specs: specMap{
-				"target/new-dir": Spec{
+				"target/new-dir": analyze.Spec{
 					Current: nil,
-					Planned: dirState(),
+					Planned: file.DirState(),
 				},
-				"target/new-link": Spec{
+				"target/new-link": analyze.Spec{
 					Current: nil,
-					Planned: linkState("some/dest", 0),
+					Planned: file.LinkState("some/dest", 0),
 				},
-				"target/link-to-dir": Spec{
-					Current: linkState("some/dest", 0),
-					Planned: dirState(),
+				"target/link-to-dir": analyze.Spec{
+					Current: file.LinkState("some/dest", 0),
+					Planned: file.DirState(),
 				},
 			},
 			wantTasks: []Task{ // Note: Sorted by item.
@@ -95,50 +97,50 @@ func TestNewPlan(t *testing.T) {
 
 func TestNewTask(t *testing.T) {
 	tests := map[string]struct {
-		current *State
-		planned *State
+		current *file.State
+		planned *file.State
 		wantOps []FileOp
 	}{
 		"no change from nil to nil": {
 			wantOps: []FileOp{},
 		},
 		"no change from link to link, same dest file": {
-			current: linkState("../some/dest", 0),
-			planned: linkState("../some/dest", 0),
+			current: file.LinkState("../some/dest", 0),
+			planned: file.LinkState("../some/dest", 0),
 			wantOps: []FileOp{},
 		},
 		"no change from link to link, same dest dir": {
-			current: linkState("../some/dest", fs.ModeDir),
-			planned: linkState("../some/dest", fs.ModeDir),
+			current: file.LinkState("../some/dest", fs.ModeDir),
+			planned: file.LinkState("../some/dest", fs.ModeDir),
 			wantOps: []FileOp{},
 		},
 		"no change from link to link, same dest link": {
-			current: linkState("../some/dest", fs.ModeSymlink),
-			planned: linkState("../some/dest", fs.ModeSymlink),
+			current: file.LinkState("../some/dest", fs.ModeSymlink),
+			planned: file.LinkState("../some/dest", fs.ModeSymlink),
 			wantOps: []FileOp{},
 		},
 		"no change from dir to dir": {
-			current: dirState(),
-			planned: dirState(),
+			current: file.DirState(),
+			planned: file.DirState(),
 			wantOps: []FileOp{},
 		},
 		"from nil to symlink": {
 			current: nil,
-			planned: linkState("../planned/dest", 0),
+			planned: file.LinkState("../planned/dest", 0),
 			wantOps: []FileOp{
 				NewSymlinkOp("../planned/dest"),
 			},
 		},
 		"from nil to dir": {
 			current: nil,
-			planned: dirState(),
+			planned: file.DirState(),
 			wantOps: []FileOp{
 				MkDirOp,
 			},
 		},
 		"from symlink to dir": {
-			current: linkState("some/dest", 0),
-			planned: dirState(),
+			current: file.LinkState("some/dest", 0),
+			planned: file.DirState(),
 			wantOps: []FileOp{
 				RemoveOp,
 				MkDirOp,
@@ -149,7 +151,7 @@ func TestNewTask(t *testing.T) {
 	for desc, test := range tests {
 		t.Run(desc, func(t *testing.T) {
 			item := "item"
-			spec := Spec{test.current, test.planned}
+			spec := analyze.Spec{Current: test.current, Planned: test.planned}
 
 			gotTask := NewTask(item, spec)
 

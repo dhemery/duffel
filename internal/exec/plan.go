@@ -1,4 +1,4 @@
-package plan
+package exec
 
 import (
 	"cmp"
@@ -6,6 +6,8 @@ import (
 	"iter"
 	"path"
 	"slices"
+
+	"github.com/dhemery/duffel/internal/analyze"
 )
 
 // A Plan is the sequence of tasks
@@ -16,7 +18,7 @@ type Plan struct {
 }
 
 type Specs interface {
-	All() iter.Seq2[string, Spec]
+	All() iter.Seq2[string, analyze.Spec]
 }
 
 func New(target string, specs Specs) Plan {
@@ -48,7 +50,7 @@ type FileOp interface {
 	Execute(fsys fs.FS, target string) error
 }
 
-func NewTask(item string, spec Spec) Task {
+func NewTask(item string, spec analyze.Spec) Task {
 	t := Task{Item: item}
 	current, planned := spec.Current, spec.Planned
 	if current.Equal(planned) {

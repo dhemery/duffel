@@ -1,4 +1,4 @@
-package plan
+package file
 
 import (
 	"errors"
@@ -60,4 +60,16 @@ func (s stater) State(name string) (*State, error) {
 		state.DestType = destInfo.Mode().Type()
 	}
 	return state, nil
+}
+
+func DirState() *State {
+	return &State{Type: fs.ModeDir}
+}
+
+func FileState() *State {
+	return &State{Type: 0}
+}
+
+func LinkState(dest string, destType fs.FileMode) *State {
+	return &State{Type: fs.ModeSymlink, Dest: dest, DestType: destType}
 }
