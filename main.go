@@ -16,6 +16,7 @@ import (
 var (
 	ErrLogLevel = errors.New("unknown log level")
 	logLevel    = slog.LevelError
+	logger      *slog.Logger
 )
 
 func main() {
@@ -27,7 +28,7 @@ func main() {
 
 	flags.Parse(os.Args[1:])
 
-	slog.SetDefault(log.NewJSONLogger(logLevel, os.Stderr))
+	logger = log.NewJSONLogger(logLevel, os.Stderr)
 
 	root := "/"
 	fsys := file.DirFS(root)
@@ -51,14 +52,14 @@ func main() {
 		Pkgs:   flags.Args(),
 	}
 
-	err = exec.Execute(req, *dryRunOpt, os.Stdout)
+	err = exec.Execute(req, *dryRunOpt, os.Stdout, logger)
 	if err != nil {
 		fatal(err)
 	}
 }
 
 func fatal(err error) {
-	slog.Error(err.Error())
+	logger.Error(err.Error())
 	os.Exit(1)
 }
 

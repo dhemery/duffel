@@ -10,7 +10,7 @@ import (
 )
 
 func TestExecuteEmptyTargetNoConflictingPackageItems(t *testing.T) {
-	slog.SetDefault(log.NewJSONLogger(slog.LevelError+4, t.Output()))
+	logger := log.NewJSONLogger(slog.LevelError+4, t.Output())
 	specs := []struct {
 		sourceFile *errfs.File // A file in the source tree.
 		targetFile *errfs.File // A desired symlink in the target tree.
@@ -54,7 +54,7 @@ func TestExecuteEmptyTargetNoConflictingPackageItems(t *testing.T) {
 		Pkgs:   []string{"pkg1", "pkg2"},
 	}
 
-	err := Execute(req, false, nil)
+	err := Execute(req, false, nil, logger)
 	if err != nil {
 		t.Fatal(err)
 	}

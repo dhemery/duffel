@@ -103,7 +103,7 @@ func TestMerge(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			var logbuf bytes.Buffer
-			SetTestLogger(log.NewJSONLogger(slog.LevelInfo, &logbuf), t)
+			logger := log.NewJSONLogger(slog.LevelInfo, &logbuf)
 
 			testFS := errfs.New()
 			errfs.AddDir(testFS, test.mergeDir, 0o755)
@@ -112,7 +112,7 @@ func TestMerge(t *testing.T) {
 			}
 
 			stater := file.NewStater(testFS)
-			index := NewIndex(stater)
+			index := NewIndex(stater, logger)
 			analyzer := NewAnalyst(testFS, test.target, index)
 			pkgFinder := NewPkgFinder(testFS)
 

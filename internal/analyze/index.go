@@ -1,7 +1,6 @@
 package analyze
 
 import (
-	"fmt"
 	"iter"
 	"log/slog"
 	"maps"
@@ -22,11 +21,11 @@ type Spec struct {
 
 // NewIndex returns a new, empty index that retrieves current file
 // states by calling files.State.
-func NewIndex(files Stater) *index {
+func NewIndex(s Stater, l *slog.Logger) *index {
 	return &index{
 		specs: map[string]Spec{},
-		files: files,
-		log:   *slog.Default().WithGroup("index"),
+		files: s,
+		log:   *l.WithGroup("states"),
 	}
 }
 
@@ -48,7 +47,7 @@ func (i *index) State(name string) (*file.State, error) {
 		if err != nil {
 			return nil, err
 		}
-		i.log.Info("record file state", "name", name, "state", state)
+		i.log.Info("current", "name", name, "state", state)
 		spec = Spec{state, state}
 		i.specs[name] = spec
 	}
@@ -57,12 +56,8 @@ func (i *index) State(name string) (*file.State, error) {
 
 // SetState sets the planned state of the named file.
 func (i *index) SetState(name string, state *file.State) {
-	spec, ok := i.specs[name]
-	if !ok {
-		panic(fmt.Errorf("index.SetState(%q,_): no such spec", name))
-	}
-	i.log.Info("set planned state", "name", name, "state", state)
-
+	spec := i.specs[name]
+	i.log.Info("planned", "name", name, "state", state)
 	spec.Planned = state
 	i.specs[name] = spec
 }

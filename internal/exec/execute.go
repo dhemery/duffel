@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"io"
 	"io/fs"
+	"log/slog"
 	"path"
 
 	"github.com/dhemery/duffel/internal/analyze"
@@ -17,9 +18,9 @@ type Request struct {
 	Pkgs   []string
 }
 
-func Execute(r *Request, dryRun bool, w io.Writer) error {
+func Execute(r *Request, dryRun bool, w io.Writer, logger *slog.Logger) error {
 	stater := file.NewStater(r.FS)
-	index := analyze.NewIndex(stater)
+	index := analyze.NewIndex(stater, logger)
 
 	pkgFinder := analyze.NewPkgFinder(r.FS)
 	analyst := analyze.NewAnalyst(r.FS, r.Target, index)

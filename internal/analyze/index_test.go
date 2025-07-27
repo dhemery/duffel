@@ -158,7 +158,7 @@ func TestIndex(t *testing.T) {
 	for desc, test := range tests {
 		t.Run(desc, func(t *testing.T) {
 			var logbuf bytes.Buffer
-			SetTestLogger(log.NewJSONLogger(slog.LevelInfo, &logbuf), t)
+			logger := log.NewJSONLogger(slog.LevelInfo, &logbuf)
 
 			testFS := errfs.New()
 			for _, f := range test.files {
@@ -166,7 +166,7 @@ func TestIndex(t *testing.T) {
 			}
 			testStater := newOneTimeStater(file.NewStater(testFS))
 
-			index := NewIndex(testStater)
+			index := NewIndex(testStater, logger)
 
 			for _, call := range test.calls {
 				call(index, t)

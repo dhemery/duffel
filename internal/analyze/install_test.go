@@ -283,7 +283,7 @@ func (s suite) run(t *testing.T) {
 func (test test) run(t *testing.T) {
 	t.Run(test.desc, func(t *testing.T) {
 		var logbuf bytes.Buffer
-		SetTestLogger(log.NewJSONLogger(slog.LevelInfo, &logbuf), t)
+		logger := log.NewJSONLogger(slog.LevelInfo, &logbuf)
 
 		testFS := errfs.New()
 		for _, tf := range test.files {
@@ -291,7 +291,7 @@ func (test test) run(t *testing.T) {
 		}
 		pkgFinder := NewPkgFinder(testFS)
 		stater := file.NewStater(testFS)
-		index := NewIndex(stater)
+		index := NewIndex(stater, logger)
 		analyzer := NewAnalyst(testFS, "target", index)
 		merger := NewMerger(pkgFinder, analyzer)
 		install := NewInstallOp(test.source, test.target, merger)
