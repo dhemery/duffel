@@ -1,10 +1,12 @@
-package analyze
+package analyze_test
 
 import (
 	"errors"
 	"io/fs"
 	"path"
 	"testing"
+
+	. "github.com/dhemery/duffel/internal/analyze"
 
 	"github.com/dhemery/duffel/internal/file"
 	"github.com/google/go-cmp/cmp"

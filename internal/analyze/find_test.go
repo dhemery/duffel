@@ -1,8 +1,10 @@
-package analyze
+package analyze_test
 
 import (
 	"errors"
 	"testing"
+
+	. "github.com/dhemery/duffel/internal/analyze"
 
 	"github.com/dhemery/duffel/internal/errfs"
 )

@@ -1,4 +1,4 @@
-package analyze
+package analyze_test
 
 import (
 	"bytes"
@@ -6,6 +6,8 @@ import (
 	"io/fs"
 	"log/slog"
 	"testing"
+
+	. "github.com/dhemery/duffel/internal/analyze"
 
 	"github.com/dhemery/duffel/internal/errfs"
 	"github.com/dhemery/duffel/internal/file"

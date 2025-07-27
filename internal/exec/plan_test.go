@@ -1,10 +1,12 @@
-package exec
+package exec_test
 
 import (
 	"io/fs"
 	"iter"
 	"maps"
 	"testing"
+
+	. "github.com/dhemery/duffel/internal/exec"
 
 	"github.com/dhemery/duffel/internal/analyze"
 	"github.com/dhemery/duffel/internal/file"

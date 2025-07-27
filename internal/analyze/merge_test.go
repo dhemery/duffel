@@ -1,4 +1,4 @@
-package analyze
+package analyze_test
 
 import (
 	"bytes"
@@ -6,9 +6,12 @@ import (
 	"log/slog"
 	"testing"
 
+	. "github.com/dhemery/duffel/internal/analyze"
+
 	"github.com/dhemery/duffel/internal/errfs"
 	"github.com/dhemery/duffel/internal/file"
 	"github.com/dhemery/duffel/internal/log"
+
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
 )

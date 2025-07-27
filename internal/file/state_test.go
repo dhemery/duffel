@@ -1,9 +1,11 @@
-package file
+package file_test
 
 import (
 	"errors"
 	"io/fs"
 	"testing"
+
+	. "github.com/dhemery/duffel/internal/file"
 
 	"github.com/dhemery/duffel/internal/errfs"
 )

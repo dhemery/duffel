@@ -1,4 +1,4 @@
-package file
+package file_test
 
 import (
 	"errors"
@@ -7,6 +7,8 @@ import (
 	"path"
 	"path/filepath"
 	"testing"
+
+	. "github.com/dhemery/duffel/internal/file"
 
 	"github.com/dhemery/duffel/internal/duftest"
 )

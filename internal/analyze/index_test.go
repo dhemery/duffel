@@ -1,4 +1,4 @@
-package analyze
+package analyze_test
 
 import (
 	"bytes"
@@ -9,16 +9,18 @@ import (
 	"maps"
 	"testing"
 
+	. "github.com/dhemery/duffel/internal/analyze"
+
 	"github.com/dhemery/duffel/internal/errfs"
 	"github.com/dhemery/duffel/internal/file"
 	"github.com/dhemery/duffel/internal/log"
 	"github.com/google/go-cmp/cmp"
 )
 
-type indexCall func(i *index, t *testing.T)
+type indexCall func(i Index, t *testing.T)
 
 func get(name string, wantState *file.State, wantErr error) indexCall {
-	return func(i *index, t *testing.T) {
+	return func(i Index, t *testing.T) {
 		t.Helper()
 		state, err := i.State(name)
 		if !cmp.Equal(state, wantState) {
@@ -33,7 +35,7 @@ func get(name string, wantState *file.State, wantErr error) indexCall {
 }
 
 func set(name string, state *file.State) indexCall {
-	return func(i *index, t *testing.T) {
+	return func(i Index, t *testing.T) {
 		i.SetState(name, state)
 	}
 }

@@ -1,8 +1,10 @@
-package exec
+package exec_test
 
 import (
 	"log/slog"
 	"testing"
+
+	. "github.com/dhemery/duffel/internal/exec"
 
 	"github.com/dhemery/duffel/internal/errfs"
 	"github.com/dhemery/duffel/internal/log"
