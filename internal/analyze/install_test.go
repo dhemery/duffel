@@ -211,7 +211,7 @@ var conflictSuite = suite{
 			target:      "target",
 			itemFile:    errfs.NewDir("source/pkg/item", 0o755),
 			targetState: file.FileState(),
-			wantErr: &InstallError{
+			wantErr: &ConflictError{
 				Item:        "source/pkg/item",
 				ItemType:    fs.ModeDir,
 				Target:      "target/item",
@@ -224,7 +224,7 @@ var conflictSuite = suite{
 			target:      "target",
 			itemFile:    errfs.NewDir("source/pkg/item", 0o755),
 			targetState: &file.State{Type: fs.ModeDevice},
-			wantErr: &InstallError{
+			wantErr: &ConflictError{
 				Item:        "source/pkg/item",
 				ItemType:    fs.ModeDir,
 				Target:      "target/item",
@@ -237,7 +237,7 @@ var conflictSuite = suite{
 			target:      "target",
 			itemFile:    errfs.NewDir("source/pkg/item", 0o755),
 			targetState: file.LinkState("link/to/file", 0o644),
-			wantErr: &InstallError{
+			wantErr: &ConflictError{
 				Item:        "source/pkg/item",
 				ItemType:    fs.ModeDir,
 				Target:      "target/item",
@@ -250,7 +250,7 @@ var conflictSuite = suite{
 			target:      "target",
 			itemFile:    errfs.NewFile("source/pkg/item", 0o644),
 			targetState: file.DirState(),
-			wantErr: &InstallError{
+			wantErr: &ConflictError{
 				Item:        "source/pkg/item",
 				ItemType:    0, // regular file
 				Target:      "target/item",
@@ -263,7 +263,7 @@ var conflictSuite = suite{
 			target:      "target",
 			itemFile:    errfs.NewFile("source/pkg/item", 0o644),
 			targetState: file.LinkState("target/some/dest", fs.ModeDir),
-			wantErr: &InstallError{
+			wantErr: &ConflictError{
 				Item:        "source/pkg/item",
 				ItemType:    0,
 				Target:      "target/item",
@@ -310,7 +310,7 @@ func (test test) run(t *testing.T) {
 		}
 
 		switch want := test.wantErr.(type) {
-		case *InstallError:
+		case *ConflictError:
 			if diff := cmp.Diff(want, gotErr, equateErrFields()); diff != "" {
 				t.Errorf("Apply(%q) error:\n%s",
 					itemName, diff)
