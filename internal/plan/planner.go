@@ -29,27 +29,6 @@ type SpecsAnalyst interface {
 	Specs
 }
 
-func NewPlanner(target string, analyzer SpecsAnalyst) planner {
-	return planner{
-		target:  target,
-		analyst: analyzer,
-	}
-}
-
-type planner struct {
-	target  string
-	analyst SpecsAnalyst
-}
-
-func (p planner) Plan(ops []PkgOp) (Plan, error) {
-	p.analyst.Analyze(ops...)
-	specs, err := p.analyst.Analyze(ops...)
-	if err != nil {
-		return Plan{}, err
-	}
-	return New(p.target, specs), nil
-}
-
 type SpecsIndex interface {
 	Index
 	Specs

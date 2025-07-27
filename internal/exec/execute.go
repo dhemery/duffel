@@ -21,8 +21,8 @@ func Execute(r *Request, dryRun bool, w io.Writer) error {
 	index := plan.NewIndex(stater)
 
 	pkgFinder := plan.NewPkgFinder(r.FS)
-	analyzer := plan.NewAnalyst(r.FS, r.Target, index)
-	merger := plan.NewMerger(pkgFinder, analyzer)
+	analyst := plan.NewAnalyst(r.FS, r.Target, index)
+	merger := plan.NewMerger(pkgFinder, analyst)
 	install := plan.NewInstallOp(r.Source, r.Target, merger)
 
 	var pkgOps []plan.PkgOp
@@ -32,17 +32,16 @@ func Execute(r *Request, dryRun bool, w io.Writer) error {
 		pkgOps = append(pkgOps, pkgOp)
 	}
 
-	planner := plan.NewPlanner(r.Target, analyzer)
-
-	plan, err := planner.Plan(pkgOps)
+	specs, err := analyst.Analyze(pkgOps...)
 	if err != nil {
 		return err
 	}
 
+	p := plan.New(r.Target, specs)
 	if dryRun {
 		enc := json.NewEncoder(w)
-		return enc.Encode(plan)
+		return enc.Encode(p)
 	}
 
-	return plan.Execute(r.FS)
+	return p.Execute(r.FS)
 }
