@@ -5,7 +5,6 @@ import (
 	"io"
 	"io/fs"
 	"log/slog"
-	"path"
 
 	"github.com/dhemery/duffel/internal/analyze"
 	"github.com/dhemery/duffel/internal/file"
@@ -22,12 +21,11 @@ func Execute(r *Request, dryRun bool, w io.Writer, logger *slog.Logger) error {
 	stater := file.NewStater(r.FS)
 	index := analyze.NewIndex(stater, logger)
 
-	analyst := analyze.NewAnalyst(r.FS, r.Source, r.Target, index, logger)
+	analyst := analyze.NewAnalyst(r.FS, r.Target, index, logger)
 
 	var pkgOps []*analyze.PkgOp
 	for _, pkg := range r.Pkgs {
-		sourcePkg := path.Join(r.Source, pkg)
-		pkgOp := analyze.NewPkgOp(sourcePkg, analyze.OpInstall, logger)
+		pkgOp := analyze.NewPkgOp(r.Source, pkg, analyze.OpInstall)
 		pkgOps = append(pkgOps, pkgOp)
 	}
 

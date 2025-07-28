@@ -12,22 +12,16 @@ type Index interface {
 	SetState(item string, state *file.State)
 }
 
-type ItemOp int
-
-const (
-	OpInstall = ItemOp(1 << iota)
-	OpRemove
-)
-
-func NewAnalyst(fsys fs.FS, source, target string, index *index, logger *slog.Logger) *Analyst {
+func NewAnalyst(fsys fs.FS, target string, index *index, logger *slog.Logger) *Analyst {
 	a := &Analyst{
 		fsys:   fsys,
 		target: target,
 		index:  index,
+		logger: logger,
 	}
-	itemizer := Itemizer(fsys)
+	itemizer := NewItemizer(fsys)
 	merger := NewMerger(itemizer, a, logger)
-	a.install = NewInstallOp(source, target, merger, logger)
+	a.install = NewInstallOp(target, merger, logger)
 	return a
 }
 
@@ -36,11 +30,12 @@ type Analyst struct {
 	target  string
 	index   *index
 	install *installOp
+	logger  *slog.Logger
 }
 
 func (a *Analyst) Analyze(pops ...*PkgOp) (*index, error) {
 	for _, pop := range pops {
-		err := fs.WalkDir(a.fsys, pop.walkDir, pop.VisitFunc(a.target, a.index, a.install.Apply))
+		err := fs.WalkDir(a.fsys, pop.root.String(), pop.VisitFunc(a.target, a.index, a.install.Apply, a.logger))
 		if err != nil {
 			return nil, err
 		}

@@ -13,45 +13,38 @@ var (
 	ErrNotInPackage = errors.New("not in a duffel package")
 )
 
-// PkgItem describes an item in a duffel package.
-type PkgItem struct {
-	Source string // The item's duffel source directory.
-	Pkg    string // The name of the item's package.
-	Item   string // The name of the item relative to the package directory.
+func NewItemizer(fsys fs.FS) itemizer {
+	return itemizer{fsys}
 }
 
-func Itemizer(fsys fs.FS) pkgFinder {
-	return pkgFinder{fsys}
-}
-
-type pkgFinder struct {
+type itemizer struct {
 	fsys fs.FS
 }
 
-// FindPkg returns a [PkgItem] describing the named file.
+// Itemize returns a [PackageItem] describing the named file.
 // The file must be an item in a package in a duffel source.
 // A duffel source is a directory that has an entry named .duffel.
 // A package is a directory child of a duffel source.
-func (pf pkgFinder) FindPkg(name string) (PkgItem, error) {
+func (pf itemizer) Itemize(name string) (PackageItem, error) {
 	source, err := pf.findSource(name)
 	if err != nil {
-		return PkgItem{}, err
+		return PackageItem{}, err
 	}
 
 	if name == source {
-		return PkgItem{}, ErrIsSource
+		return PackageItem{}, ErrIsSource
 	}
 
 	pkgItem := name[len(source)+1:]
 	pkg, item, found := strings.Cut(pkgItem, "/")
 	if !found {
-		return PkgItem{}, ErrIsPackage
+		return PackageItem{}, ErrIsPackage
 	}
 
-	return PkgItem{source, pkg, item}, nil
+	return PackageItem{source, pkg, item}, nil
 }
 
-func (pf pkgFinder) findSource(name string) (string, error) {
+func (pf itemizer) findSource(name string) (string, error) {
 	if name == "." {
 		return "", ErrNotInPackage
 	}

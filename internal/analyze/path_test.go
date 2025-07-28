@@ -9,17 +9,17 @@ import (
 
 func TestSourceItem(t *testing.T) {
 	tests := map[string]struct {
-		si             SourceItem
+		si             PackageItem
 		wantString     string
 		wantPackageDir string
 	}{
 		"non-empty item field": {
-			si:             SourceItem{Source: "s1/s2/s3", Package: "pkg", Item: "i1/i2/i3"},
+			si:             PackageItem{Source: "s1/s2/s3", Package: "pkg", Item: "i1/i2/i3"},
 			wantString:     "s1/s2/s3/pkg/i1/i2/i3",
 			wantPackageDir: "s1/s2/s3/pkg",
 		},
 		"empty item field": {
-			si:             SourceItem{Source: "s1/s2/s3", Package: "pkg", Item: ""},
+			si:             PackageItem{Source: "s1/s2/s3", Package: "pkg", Item: ""},
 			wantString:     "s1/s2/s3/pkg",
 			wantPackageDir: "s1/s2/s3/pkg",
 		},
@@ -43,21 +43,9 @@ func TestSourceItem(t *testing.T) {
 					test.wantString, otherItem, got, otherItemFullPath)
 			}
 
-			if got, _ := test.si.WithItemFrom(otherItemFullPath); got.String() != otherItemFullPath {
+			if got := test.si.WithItemFrom(otherItemFullPath); got.String() != otherItemFullPath {
 				t.Errorf("%q.WithItemFrom(%q)=%q, want %q",
 					test.wantString, otherItemFullPath, got, otherItem)
-			}
-
-			nameNotInSameSource := path.Join("other/source", test.si.PackageDir())
-			if got, err := test.si.WithItemFrom(nameNotInSameSource); err == nil {
-				t.Errorf("%q.WithItemFrom(%q)=%q,nil, want error",
-					test.wantString, nameNotInSameSource, got)
-			}
-
-			nameNotInSamePackage := path.Join( test.si.PackageDir(), "../some/path")
-			if got, err := test.si.WithItemFrom(nameNotInSamePackage); err == nil {
-				t.Errorf("%q.WithItemFrom(%q)=%q,nil, want error",
-					test.wantString, nameNotInSamePackage, got)
 			}
 		})
 	}

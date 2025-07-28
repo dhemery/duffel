@@ -8,52 +8,54 @@ import (
 	"github.com/dhemery/duffel/internal/file"
 )
 
-func NewPkgOp(pkgDir string, itemOp ItemOp, logger *slog.Logger) *PkgOp {
+// ItemOp identifies a operation to apply to the items in a package.
+type ItemOp int
+
+const (
+	OpInstall = ItemOp(1 << iota)
+	OpRemove  // Currently unimplemented and ignored.
+)
+
+func NewPkgOp(source, pkg string, itemOp ItemOp) *PkgOp {
 	return &PkgOp{
-		walkDir: pkgDir,
-		pkgDir:  pkgDir,
-		itemOp:  itemOp,
-		log:     logger,
+		root:   PackageItem{Source: source, Package: pkg},
+		itemOp: itemOp,
 	}
 }
 
-func NewMergePkgOp(pkgDir, mergeItem string, itemOp ItemOp, logger *slog.Logger) *PkgOp {
+func NewMergeOp(mergeRoot PackageItem, itemOp ItemOp) *PkgOp {
 	return &PkgOp{
-		pkgDir:  pkgDir,
-		walkDir: path.Join(pkgDir, mergeItem),
-		itemOp:  itemOp,
-		log:     logger,
+		root:   mergeRoot,
+		itemOp: itemOp,
 	}
 }
 
-type ItemFunc func(name string, entry fs.DirEntry, state *file.State) (*file.State, error)
+type ItemFunc func(item PackageItem, entry fs.DirEntry, state *file.State) (*file.State, error)
 
 type PkgOp struct {
-	pkgDir  string
-	walkDir string
-	itemOp  ItemOp
-	log     *slog.Logger
+	root   PackageItem
+	itemOp ItemOp
 }
 
-func (po *PkgOp) VisitFunc(target string, index Index, itemFunc ItemFunc) fs.WalkDirFunc {
+func (po *PkgOp) VisitFunc(target string, index Index, itemFunc ItemFunc, logger *slog.Logger) fs.WalkDirFunc {
 	return func(name string, entry fs.DirEntry, err error) error {
-		po.log.Info("analyze", "name", name, "entry", entry, "err", err)
+		logger.Info("analyze", "name", name, "entry", entry, "err", err)
 		if err != nil {
 			return err
 		}
-		if name == po.walkDir {
+		if name == po.root.String() {
 			// Skip the dir being walked.
 			return nil
 		}
 
-		item := name[len(po.pkgDir)+1:]
-		targetItem := path.Join(target, item)
+		item := po.root.WithItemFrom(name)
+		targetItem := path.Join(target, item.Item)
 		oldState, err := index.State(targetItem)
 		if err != nil {
 			return err
 		}
 
-		newState, err := itemFunc(name, entry, oldState)
+		newState, err := itemFunc(item, entry, oldState)
 
 		if err == nil || err == fs.SkipDir {
 			index.SetState(targetItem, newState)

@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"path"
 	"path/filepath"
-	"strings"
 
 	"github.com/dhemery/duffel/internal/file"
 )
@@ -15,10 +14,9 @@ type Merger interface {
 	Merge(name, target string) error
 }
 
-func NewInstallOp(source, target string, merger Merger, logger *slog.Logger) *installOp {
+func NewInstallOp(target string, merger Merger, logger *slog.Logger) *installOp {
 	return &installOp{
 		target: target,
-		source: source,
 		merger: merger,
 		log:    logger,
 	}
@@ -27,7 +25,6 @@ func NewInstallOp(source, target string, merger Merger, logger *slog.Logger) *in
 // installOp is an [ItemOp] that describes the installed states
 // of the target files that correspond to the given pkg items.
 type installOp struct {
-	source string
 	target string
 	merger Merger
 	log    *slog.Logger
@@ -39,16 +36,11 @@ type installOp struct {
 // Entry describes the state of the file in the source tree.
 // TargetState describes the planned state of the target file
 // as planned by earlier analysis.
-func (op installOp) Apply(name string, entry fs.DirEntry, targetState *file.State) (*file.State, error) {
-	pkgItem := name[len(op.source)+1:]
-	pkg, item, _ := strings.Cut(pkgItem, "/")
-	targetItem := path.Join(op.target, item)
-	itemAsDest, _ := filepath.Rel(path.Dir(targetItem), name)
-	sg := slog.Group("source",
-		"root", op.source,
-		"name", name,
-		"pkg", pkg,
-		"item", item,
+func (op installOp) Apply(item PackageItem, entry fs.DirEntry, targetState *file.State) (*file.State, error) {
+	targetItem := path.Join(op.target, item.Item)
+	itemAsDest, _ := filepath.Rel(path.Dir(targetItem), item.String())
+	sg := slog.Group("item",
+		"path", item,
 		"entry", entry,
 	)
 	tg := slog.Group("target",
@@ -56,7 +48,7 @@ func (op installOp) Apply(name string, entry fs.DirEntry, targetState *file.Stat
 		"item", targetItem,
 		"old-state", targetState,
 	)
-	op.log.Info("install", "link-path", itemAsDest, sg, tg)
+	op.log.Info("install", sg, tg, "link-path", itemAsDest)
 
 	if targetState == nil {
 		// There is no target item, so we're free to create a link to the pkg item.
@@ -78,7 +70,7 @@ func (op installOp) Apply(name string, entry fs.DirEntry, targetState *file.Stat
 
 	if targetState.Type.IsRegular() {
 		// Cannot modify an existing regular file.
-		return nil, conflictError(name, entry, targetItem, targetState)
+		return nil, conflictError(item, entry, targetItem, targetState)
 	}
 
 	if targetState.Type.IsDir() {
@@ -91,12 +83,12 @@ func (op installOp) Apply(name string, entry fs.DirEntry, targetState *file.Stat
 
 		// The target is a dir, but the pkg item is not.
 		// Cannot merge the target dir with a non-dir pkg item.
-		return nil, conflictError(name, entry, targetItem, targetState)
+		return nil, conflictError(item, entry, targetItem, targetState)
 	}
 
 	if targetState.Type.Type() != fs.ModeSymlink {
 		// Target item is not file, dir, or link.
-		return nil, conflictError(name, entry, targetItem, targetState)
+		return nil, conflictError(item, entry, targetItem, targetState)
 	}
 
 	// At this point, we know that the existing target is a symlink.
@@ -114,12 +106,12 @@ func (op installOp) Apply(name string, entry fs.DirEntry, targetState *file.Stat
 
 	if !targetState.DestType.IsDir() {
 		// The target's link destination is not a dir. Cannot merge.
-		return nil, conflictError(name, entry, targetItem, targetState)
+		return nil, conflictError(item, entry, targetItem, targetState)
 	}
 
 	if !entry.IsDir() {
 		// Tne entry is not a dir. Cannot merge.
-		return nil, conflictError(name, entry, targetItem, targetState)
+		return nil, conflictError(item, entry, targetItem, targetState)
 	}
 
 	// The package item is a dir and the target is a link to a dir.
@@ -137,7 +129,7 @@ func (op installOp) Apply(name string, entry fs.DirEntry, targetState *file.Stat
 	return dirState, nil
 }
 
-func conflictError(item string, entry fs.DirEntry, target string, state *file.State) error {
+func conflictError(item PackageItem, entry fs.DirEntry, target string, state *file.State) error {
 	return &ConflictError{
 		Item:        item,
 		ItemType:    entry.Type(),
@@ -147,7 +139,7 @@ func conflictError(item string, entry fs.DirEntry, target string, state *file.St
 }
 
 type ConflictError struct {
-	Item        string
+	Item        PackageItem
 	ItemType    fs.FileMode
 	Target      string
 	TargetState *file.State
