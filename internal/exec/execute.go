@@ -7,7 +7,6 @@ import (
 	"log/slog"
 
 	"github.com/dhemery/duffel/internal/analyze"
-	"github.com/dhemery/duffel/internal/file"
 )
 
 type Request struct {
@@ -18,18 +17,13 @@ type Request struct {
 }
 
 func Execute(r *Request, dryRun bool, w io.Writer, logger *slog.Logger) error {
-	stater := file.NewStater(r.FS)
-	index := analyze.NewIndex(stater, logger)
-
-	analyst := analyze.NewAnalyst(r.FS, r.Target, index, logger)
-
 	var pkgOps []*analyze.PkgOp
 	for _, pkg := range r.Pkgs {
 		pkgOp := analyze.NewPkgOp(r.Source, pkg, analyze.OpInstall)
 		pkgOps = append(pkgOps, pkgOp)
 	}
 
-	specs, err := analyst.Analyze(pkgOps...)
+	specs, err := analyze.Analyze(r.FS, r.Target, pkgOps, logger)
 	if err != nil {
 		return err
 	}

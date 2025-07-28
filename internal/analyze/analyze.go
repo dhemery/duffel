@@ -7,6 +7,13 @@ import (
 	"github.com/dhemery/duffel/internal/file"
 )
 
+func Analyze(fsys fs.FS, target string, packageOps []*PkgOp, logger *slog.Logger) (*index, error) {
+	stater := file.NewStater(fsys)
+	index := NewIndex(stater, logger)
+	analyst := NewAnalyst(fsys, target, index, logger)
+	return analyst.Analyze(packageOps...)
+}
+
 type Index interface {
 	State(name string) (*file.State, error)
 	SetState(item string, state *file.State)
