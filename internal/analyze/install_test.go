@@ -290,7 +290,7 @@ func (test test) run(t *testing.T) {
 		for _, tf := range test.files {
 			errfs.Add(testFS, tf)
 		}
-		pkgFinder := NewPkgFinder(testFS)
+		pkgFinder := Itemizer(testFS)
 		stater := file.NewStater(testFS)
 		index := NewIndex(stater, logger)
 		analyst := NewAnalyst(testFS, test.source, test.target, index, logger)

@@ -23,7 +23,7 @@ func (me *MergeError) Unwrap() error {
 	return me.Err
 }
 
-func NewMerger(pkgFinder PkgFinder, analyst *analyst, logger *slog.Logger) *merger {
+func NewMerger(pkgFinder PkgFinder, analyst *Analyst, logger *slog.Logger) *merger {
 	return &merger{
 		pkgFinder: pkgFinder,
 		analyst:   analyst,
@@ -33,7 +33,7 @@ func NewMerger(pkgFinder PkgFinder, analyst *analyst, logger *slog.Logger) *merg
 
 type merger struct {
 	pkgFinder PkgFinder
-	analyst   *analyst
+	analyst   *Analyst
 	log       *slog.Logger
 }
 

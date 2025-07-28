@@ -20,7 +20,7 @@ type PkgItem struct {
 	Item   string // The name of the item relative to the package directory.
 }
 
-func NewPkgFinder(fsys fs.FS) pkgFinder {
+func Itemizer(fsys fs.FS) pkgFinder {
 	return pkgFinder{fsys}
 }
 

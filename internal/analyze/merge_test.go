@@ -116,7 +116,7 @@ func TestMerge(t *testing.T) {
 			stater := file.NewStater(testFS)
 			index := NewIndex(stater, logger)
 			analyzer := NewAnalyst(testFS, "original/analyst/source", test.target, index, logger)
-			pkgFinder := NewPkgFinder(testFS)
+			pkgFinder := Itemizer(testFS)
 
 			merger := NewMerger(pkgFinder, analyzer, logger)
 

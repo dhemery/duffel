@@ -60,7 +60,7 @@ func TestPkgFinder(t *testing.T) {
 				errfs.AddFile(testFS, test.duffelFile, 0o644)
 			}
 
-			finder := NewPkgFinder(testFS)
+			finder := Itemizer(testFS)
 
 			gotPkgItem, gotErr := finder.FindPkg(test.findName)
 
