@@ -18,22 +18,22 @@ const (
 
 func NewPkgOp(source, pkg string, itemOp ItemOp) *PkgOp {
 	return &PkgOp{
-		root:   PackageItem{Source: source, Package: pkg},
+		root:   SourceItem{Source: source, Package: pkg},
 		itemOp: itemOp,
 	}
 }
 
-func NewMergeOp(mergeRoot PackageItem, itemOp ItemOp) *PkgOp {
+func NewMergeOp(mergeRoot SourceItem, itemOp ItemOp) *PkgOp {
 	return &PkgOp{
 		root:   mergeRoot,
 		itemOp: itemOp,
 	}
 }
 
-type ItemFunc func(item PackageItem, entry fs.DirEntry, state *file.State) (*file.State, error)
+type ItemFunc func(si SourceItem, entry fs.DirEntry, target string, state *file.State) (*file.State, error)
 
 type PkgOp struct {
-	root   PackageItem
+	root   SourceItem
 	itemOp ItemOp
 }
 
@@ -55,7 +55,7 @@ func (po *PkgOp) VisitFunc(target string, index Index, itemFunc ItemFunc, logger
 			return err
 		}
 
-		newState, err := itemFunc(item, entry, oldState)
+		newState, err := itemFunc(item, entry, target, oldState)
 
 		if err == nil || err == fs.SkipDir {
 			index.SetState(targetItem, newState)

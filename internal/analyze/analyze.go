@@ -28,7 +28,7 @@ func NewAnalyst(fsys fs.FS, target string, index *index, logger *slog.Logger) *A
 	}
 	itemizer := NewItemizer(fsys)
 	merger := NewMerger(itemizer, a, logger)
-	a.install = NewInstallOp(target, merger, logger)
+	a.install = NewInstall(target, merger, logger)
 	return a
 }
 
@@ -36,7 +36,7 @@ type Analyst struct {
 	fsys    fs.FS
 	target  string
 	index   *index
-	install *installOp
+	install *Install
 	logger  *slog.Logger
 }
 

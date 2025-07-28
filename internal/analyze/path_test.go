@@ -9,17 +9,17 @@ import (
 
 func TestSourceItem(t *testing.T) {
 	tests := map[string]struct {
-		si             PackageItem
+		si             SourceItem
 		wantString     string
 		wantPackageDir string
 	}{
 		"non-empty item field": {
-			si:             PackageItem{Source: "s1/s2/s3", Package: "pkg", Item: "i1/i2/i3"},
+			si:             SourceItem{Source: "s1/s2/s3", Package: "pkg", Item: "i1/i2/i3"},
 			wantString:     "s1/s2/s3/pkg/i1/i2/i3",
 			wantPackageDir: "s1/s2/s3/pkg",
 		},
 		"empty item field": {
-			si:             PackageItem{Source: "s1/s2/s3", Package: "pkg", Item: ""},
+			si:             SourceItem{Source: "s1/s2/s3", Package: "pkg", Item: ""},
 			wantString:     "s1/s2/s3/pkg",
 			wantPackageDir: "s1/s2/s3/pkg",
 		},

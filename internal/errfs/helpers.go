@@ -37,6 +37,10 @@ func FileDirEntry(f *File) fs.DirEntry {
 	return f.entry()
 }
 
+func DirEntry(name string, mode fs.FileMode) fs.DirEntry {
+	return fs.FileInfoToDirEntry(info{name, mode})
+}
+
 // Add adds f to fsys,
 // along with any missing ancestor directories.
 func Add(fsys *FS, f *File) error {

@@ -14,17 +14,17 @@ type Merger interface {
 	Merge(name, target string) error
 }
 
-func NewInstallOp(target string, merger Merger, logger *slog.Logger) *installOp {
-	return &installOp{
+func NewInstall(target string, merger Merger, logger *slog.Logger) *Install {
+	return &Install{
 		target: target,
 		merger: merger,
 		log:    logger,
 	}
 }
 
-// installOp is an [ItemOp] that describes the installed states
-// of the target files that correspond to the given pkg items.
-type installOp struct {
+// Install describes the installed states
+// of the target files that correspond to the given package items.
+type Install struct {
 	target string
 	merger Merger
 	log    *slog.Logger
@@ -32,11 +32,12 @@ type installOp struct {
 
 // Apply describes the installed state
 // of the target file that corresponds to the given package item.
-// Name identifies the  packageitem to be installed.
-// Entry describes the state of the file in the source tree.
-// TargetState describes the planned state of the target file
+// Item identifies the  package item to install.
+// Entry describes the state of the item file in the source tree.
+// Target is the root of the target tree to install items into.
+// TargetState describes the planned state of the corresponding target file
 // as planned by earlier analysis.
-func (op installOp) Apply(item PackageItem, entry fs.DirEntry, targetState *file.State) (*file.State, error) {
+func (op Install) Apply(item SourceItem, entry fs.DirEntry, target string, targetState *file.State) (*file.State, error) {
 	targetItem := path.Join(op.target, item.Item)
 	itemAsDest, _ := filepath.Rel(path.Dir(targetItem), item.String())
 	sg := slog.Group("item",
@@ -129,7 +130,7 @@ func (op installOp) Apply(item PackageItem, entry fs.DirEntry, targetState *file
 	return dirState, nil
 }
 
-func conflictError(item PackageItem, entry fs.DirEntry, target string, state *file.State) error {
+func conflictError(item SourceItem, entry fs.DirEntry, target string, state *file.State) error {
 	return &ConflictError{
 		Item:        item,
 		ItemType:    entry.Type(),
@@ -139,7 +140,7 @@ func conflictError(item PackageItem, entry fs.DirEntry, target string, state *fi
 }
 
 type ConflictError struct {
-	Item        PackageItem
+	Item        SourceItem
 	ItemType    fs.FileMode
 	Target      string
 	TargetState *file.State

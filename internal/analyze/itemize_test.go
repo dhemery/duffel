@@ -11,10 +11,10 @@ import (
 
 func TestItemizer(t *testing.T) {
 	tests := map[string]struct {
-		findName        string      // The name of the directory whose path to itemize.
-		duffelFile      string      // The path to the duffel file.
-		wantPackageItem PackageItem // The the package item desired from Itemize.
-		wantErr         error       // The error desired from Itemize.
+		findName        string     // The name of the directory whose path to itemize.
+		duffelFile      string     // The path to the duffel file.
+		wantPackageItem SourceItem // The the package item desired from Itemize.
+		wantErr         error      // The error desired from Itemize.
 	}{
 		"not in a package": {
 			findName:   "dir1/dir2/dir3/dir4",
@@ -34,7 +34,7 @@ func TestItemizer(t *testing.T) {
 		"in a duffel dir": {
 			duffelFile: "user/home/source/.duffel",
 			findName:   "user/home/source/pkg/item",
-			wantPackageItem: PackageItem{
+			wantPackageItem: SourceItem{
 				Source:  "user/home/source",
 				Package: "pkg",
 				Item:    "item",
@@ -44,7 +44,7 @@ func TestItemizer(t *testing.T) {
 		"deep in a duffel dir": {
 			findName:   "user/home/source/pkg/item1/item2/item3",
 			duffelFile: "user/home/source/.duffel",
-			wantPackageItem: PackageItem{
+			wantPackageItem: SourceItem{
 				Source:  "user/home/source",
 				Package: "pkg",
 				Item:    "item1/item2/item3",
