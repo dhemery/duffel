@@ -3,6 +3,7 @@ package analyze
 import (
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"path"
 	"path/filepath"
 	"strings"
@@ -14,11 +15,12 @@ type Merger interface {
 	Merge(name, target string) error
 }
 
-func NewInstallOp(source, target string, merger Merger) installOp {
-	return installOp{
+func NewInstallOp(source, target string, merger Merger, logger *slog.Logger) *installOp {
+	return &installOp{
 		target: target,
 		source: source,
 		merger: merger,
+		log:    logger,
 	}
 }
 
@@ -28,6 +30,7 @@ type installOp struct {
 	source string
 	target string
 	merger Merger
+	log    *slog.Logger
 }
 
 // Apply describes the installed state
@@ -38,9 +41,22 @@ type installOp struct {
 // as planned by earlier analysis.
 func (op installOp) Apply(name string, entry fs.DirEntry, targetState *file.State) (*file.State, error) {
 	pkgItem := name[len(op.source)+1:]
-	_, item, _ := strings.Cut(pkgItem, "/")
+	pkg, item, _ := strings.Cut(pkgItem, "/")
 	targetItem := path.Join(op.target, item)
 	itemAsDest, _ := filepath.Rel(path.Dir(targetItem), name)
+	sg := slog.Group("source",
+		"root", op.source,
+		"name", name,
+		"pkg", pkg,
+		"item", item,
+		"entry", entry,
+	)
+	tg := slog.Group("target",
+		"root", op.target,
+		"item", targetItem,
+		"old-state", targetState,
+	)
+	op.log.Info("install", "link-path", itemAsDest, sg, tg)
 
 	if targetState == nil {
 		// There is no target item, so we're free to create a link to the pkg item.

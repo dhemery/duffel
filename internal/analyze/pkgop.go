@@ -2,43 +2,42 @@ package analyze
 
 import (
 	"io/fs"
+	"log/slog"
 	"path"
 
 	"github.com/dhemery/duffel/internal/file"
 )
 
-type ItemOp interface {
-	Apply(name string, entry fs.DirEntry, indexState *file.State) (*file.State, error)
-}
-
-func NewPkgOp(pkgDir string, itemOp ItemOp) pkgOp {
-	return pkgOp{
+func NewPkgOp(pkgDir string, itemOp ItemOp, logger *slog.Logger) *PkgOp {
+	return &PkgOp{
 		walkDir: pkgDir,
 		pkgDir:  pkgDir,
 		itemOp:  itemOp,
+		log:     logger,
 	}
 }
 
-func NewMergePkgOp(pkgDir, mergeItem string, itemOp ItemOp) pkgOp {
-	return pkgOp{
+func NewMergePkgOp(pkgDir, mergeItem string, itemOp ItemOp, logger *slog.Logger) *PkgOp {
+	return &PkgOp{
 		pkgDir:  pkgDir,
 		walkDir: path.Join(pkgDir, mergeItem),
 		itemOp:  itemOp,
+		log:     logger,
 	}
 }
 
-type pkgOp struct {
+type ItemFunc func(name string, entry fs.DirEntry, state *file.State) (*file.State, error)
+
+type PkgOp struct {
 	pkgDir  string
 	walkDir string
 	itemOp  ItemOp
+	log     *slog.Logger
 }
 
-func (po pkgOp) WalkDir() string {
-	return po.walkDir
-}
-
-func (po pkgOp) VisitFunc(target string, index Index) fs.WalkDirFunc {
+func (po *PkgOp) VisitFunc(target string, index Index, itemFunc ItemFunc) fs.WalkDirFunc {
 	return func(name string, entry fs.DirEntry, err error) error {
+		po.log.Info("analyze", "name", name, "entry", entry, "err", err)
 		if err != nil {
 			return err
 		}
@@ -54,7 +53,7 @@ func (po pkgOp) VisitFunc(target string, index Index) fs.WalkDirFunc {
 			return err
 		}
 
-		newState, err := po.itemOp.Apply(name, entry, oldState)
+		newState, err := itemFunc(name, entry, oldState)
 
 		if err == nil || err == fs.SkipDir {
 			index.SetState(targetItem, newState)

@@ -22,15 +22,12 @@ func Execute(r *Request, dryRun bool, w io.Writer, logger *slog.Logger) error {
 	stater := file.NewStater(r.FS)
 	index := analyze.NewIndex(stater, logger)
 
-	pkgFinder := analyze.NewPkgFinder(r.FS)
-	analyst := analyze.NewAnalyst(r.FS, r.Target, index)
-	merger := analyze.NewMerger(pkgFinder, analyst)
-	install := analyze.NewInstallOp(r.Source, r.Target, merger)
+	analyst := analyze.NewAnalyst(r.FS, r.Source, r.Target, index, logger)
 
-	var pkgOps []analyze.PkgOp
+	var pkgOps []*analyze.PkgOp
 	for _, pkg := range r.Pkgs {
 		sourcePkg := path.Join(r.Source, pkg)
-		pkgOp := analyze.NewPkgOp(sourcePkg, install)
+		pkgOp := analyze.NewPkgOp(sourcePkg, analyze.OpInstall, logger)
 		pkgOps = append(pkgOps, pkgOp)
 	}
 

@@ -2,6 +2,7 @@ package analyze
 
 import (
 	"io/fs"
+	"log/slog"
 
 	"github.com/dhemery/duffel/internal/file"
 )
@@ -11,24 +12,35 @@ type Index interface {
 	SetState(item string, state *file.State)
 }
 
-type PkgOp interface {
-	WalkDir() string
-	VisitFunc(target string, index Index) fs.WalkDirFunc
-}
+type ItemOp int
 
-func NewAnalyst(fsys fs.FS, target string, index *index) analyst {
-	return analyst{fsys: fsys, target: target, index: index}
+const (
+	OpInstall = ItemOp(iota)
+	OpRemove  = iota
+)
+
+func NewAnalyst(fsys fs.FS, source, target string, index *index, logger *slog.Logger) *analyst {
+	a := &analyst{
+		fsys:   fsys,
+		target: target,
+		index:  index,
+	}
+	finder := NewPkgFinder(fsys)
+	merger := NewMerger(finder, a, logger)
+	a.install = NewInstallOp(source, target, merger, logger)
+	return a
 }
 
 type analyst struct {
-	fsys   fs.FS
-	target string
-	index  *index
+	fsys    fs.FS
+	target  string
+	index   *index
+	install *installOp
 }
 
-func (a analyst) Analyze(ops ...PkgOp) (*index, error) {
-	for _, op := range ops {
-		err := fs.WalkDir(a.fsys, op.WalkDir(), op.VisitFunc(a.target, a.index))
+func (a *analyst) Analyze(pops ...*PkgOp) (*index, error) {
+	for _, pop := range pops {
+		err := fs.WalkDir(a.fsys, pop.walkDir, pop.VisitFunc(a.target, a.index, a.install.Apply))
 		if err != nil {
 			return nil, err
 		}

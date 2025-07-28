@@ -293,9 +293,9 @@ func (test test) run(t *testing.T) {
 		pkgFinder := NewPkgFinder(testFS)
 		stater := file.NewStater(testFS)
 		index := NewIndex(stater, logger)
-		analyzer := NewAnalyst(testFS, "target", index)
-		merger := NewMerger(pkgFinder, analyzer)
-		install := NewInstallOp(test.source, test.target, merger)
+		analyst := NewAnalyst(testFS, test.source, test.target, index, logger)
+		merger := NewMerger(pkgFinder, analyst, logger)
+		install := NewInstallOp(test.source, test.target, merger, logger)
 
 		itemFile := test.itemFile
 		itemName := errfs.FileName(itemFile)
