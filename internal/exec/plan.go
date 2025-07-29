@@ -46,10 +46,6 @@ func (p Plan) Execute(fsys fs.FS) error {
 	return nil
 }
 
-type FileOp interface {
-	Execute(fsys fs.FS, target string) error
-}
-
 func NewTask(item string, spec analyze.Spec) Task {
 	t := Task{Item: item}
 	current, planned := spec.Current, spec.Planned
@@ -60,14 +56,14 @@ func NewTask(item string, spec analyze.Spec) Task {
 	switch {
 	case current == nil:
 	case current.Type == fs.ModeSymlink:
-		t.Ops = append(t.Ops, RemoveOp)
+		t.Ops = append(t.Ops, FileOp{Op: OpRemove})
 	}
 
 	switch planned.Type {
 	case fs.ModeDir:
-		t.Ops = append(t.Ops, MkDirOp)
+		t.Ops = append(t.Ops, FileOp{Op: OpMkdir})
 	case fs.ModeSymlink:
-		t.Ops = append(t.Ops, NewSymlinkOp(planned.Dest))
+		t.Ops = append(t.Ops, FileOp{Op: "symlink", Dest: planned.Dest})
 	default:
 		panic("unknown planned mode: " + planned.Type.String())
 	}

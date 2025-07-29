@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"testing"
 
+	. "github.com/dhemery/duffel/internal/exec"
+
 	"github.com/dhemery/duffel/internal/duftest"
 	"github.com/google/go-cmp/cmp"
 )
@@ -141,28 +143,14 @@ func TestDryRun(t *testing.T) {
 		t.Error("created target item:", fs.FormatFileInfo(info))
 	}
 
-	type Itemop struct {
-		Op   string `json:"op"`
-		Dest string `json:"dest"`
-	}
-	type Task struct {
-		Item string   `json:"item"`
-		Ops  []Itemop `json:"ops"`
-	}
-	type Plan struct {
-		Target string `json:"target"`
-		Tasks  []Task `json:"tasks"`
-	}
-
 	var gotPlan Plan
-	outBytes := td.stdout.Bytes()
-	if err = json.Unmarshal(outBytes, &gotPlan); err != nil {
+	if err = json.Unmarshal(td.stdout.Bytes(), &gotPlan); err != nil {
 		t.Fatal(err)
 	}
 
 	wantDest, _ := filepath.Rel(absTarget, absSourcePkgItem)
-	wantOp := Itemop{Op: "symlink", Dest: wantDest}
-	wantTask := Task{Item: "item", Ops: []Itemop{wantOp}}
+	wantOp := FileOp{Op: "symlink", Dest: wantDest}
+	wantTask := Task{Item: "item", Ops: []FileOp{wantOp}}
 	wantPlan := Plan{Target: absTarget[1:], Tasks: []Task{wantTask}}
 
 	if diff := cmp.Diff(wantPlan, gotPlan); diff != "" {

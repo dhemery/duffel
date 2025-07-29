@@ -63,20 +63,20 @@ func TestNewPlan(t *testing.T) {
 				{
 					Item: "link-to-dir",
 					Ops: []FileOp{
-						RemoveOp,
-						MkDirOp,
+						{Op: OpRemove},
+						{Op: OpMkdir},
 					},
 				},
 				{
 					Item: "new-dir",
 					Ops: []FileOp{
-						MkDirOp,
+						{Op: OpMkdir},
 					},
 				},
 				{
 					Item: "new-link",
 					Ops: []FileOp{
-						NewSymlinkOp("some/dest"),
+						{Op: "symlink", Dest: "some/dest"},
 					},
 				},
 			},
@@ -130,22 +130,22 @@ func TestNewTask(t *testing.T) {
 			current: nil,
 			planned: file.LinkState("../planned/dest", 0),
 			wantOps: []FileOp{
-				NewSymlinkOp("../planned/dest"),
+				{Op: "symlink", Dest: "../planned/dest"},
 			},
 		},
 		"from nil to dir": {
 			current: nil,
 			planned: file.DirState(),
 			wantOps: []FileOp{
-				MkDirOp,
+				{Op: OpMkdir},
 			},
 		},
 		"from symlink to dir": {
 			current: file.LinkState("some/dest", 0),
 			planned: file.DirState(),
 			wantOps: []FileOp{
-				RemoveOp,
-				MkDirOp,
+				{Op: OpRemove},
+				{Op: OpMkdir},
 			},
 		},
 	}
