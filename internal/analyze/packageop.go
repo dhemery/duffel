@@ -18,7 +18,7 @@ const (
 // NewPackageOp returns a new package op that applies itemOp to itens in the package.
 func NewPackageOp(source, pkg string, itemOp ItemOp) *PackageOp {
 	return &PackageOp{
-		walkRoot: SourcePath{s: source, p: pkg},
+		walkRoot: NewSourcePath(source, pkg, ""),
 		itemOp:   itemOp,
 	}
 }
@@ -56,7 +56,7 @@ func (po *PackageOp) VisitFunc(target string, index Index, itemFunc ItemFunc, lo
 		}
 
 		sourceItem := po.walkRoot.WithItemFrom(name)
-		targetItem := TargetPath{target, sourceItem.i}
+		targetItem := NewTargetPath(target, sourceItem.Item())
 		oldState, err := index.State(targetItem.String())
 		if err != nil {
 			return err

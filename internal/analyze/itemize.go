@@ -22,9 +22,8 @@ type itemizer struct {
 }
 
 // Itemize returns a [SourcePath] describing the named file.
-// The file must be an item in a package in a duffel source.
-// A duffel source is a directory that has an entry named .duffel.
-// A package is a directory child of a duffel source.
+// If the file is not in a duffel source directory,
+// the method returns an error.
 func (pf itemizer) Itemize(name string) (SourcePath, error) {
 	source, err := pf.findSource(name)
 	if err != nil {
@@ -41,7 +40,7 @@ func (pf itemizer) Itemize(name string) (SourcePath, error) {
 		return SourcePath{}, ErrIsPackage
 	}
 
-	return SourcePath{source, pkg, item}, nil
+	return NewSourcePath(source, pkg, item), nil
 }
 
 func (pf itemizer) findSource(name string) (string, error) {

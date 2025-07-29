@@ -10,6 +10,7 @@ import (
 // Source is the full path to the source directory.
 // Pkg is the name of the package directory.
 // Item is the path from the package directory to the item.
+// If item is empty, the SourcePath represents a package.
 func NewSourcePath(source, pkg, item string) SourcePath {
 	return SourcePath{source, pkg, item}
 }
