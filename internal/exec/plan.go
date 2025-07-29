@@ -1,9 +1,9 @@
 package exec
 
 import (
-	"cmp"
 	"io/fs"
 	"iter"
+	"maps"
 	"path"
 	"slices"
 
@@ -13,8 +13,8 @@ import (
 // A Plan is the sequence of tasks
 // to bring the file tree rooted at Target to the desired state.
 type Plan struct {
-	Target string `json:"target"`
-	Tasks  []Task `json:"tasks"`
+	Target string          `json:"target"`
+	Tasks  map[string]Task `json:"tasks"`
 }
 
 type Specs interface {
@@ -22,32 +22,32 @@ type Specs interface {
 }
 
 func New(target string, specs Specs) Plan {
-	p := Plan{Target: target, Tasks: []Task{}}
-	for item, spec := range specs.All() {
-		item := item[len(target)+1:]
-		task := NewTask(item, spec)
-		if len(task.Ops) == 0 {
+	targetLen := len(target) + 1
+	p := Plan{Target: target, Tasks: map[string]Task{}}
+	for name, spec := range specs.All() {
+		item := name[targetLen:]
+		task := NewTask(spec)
+		if len(task) == 0 {
 			continue
 		}
-		p.Tasks = append(p.Tasks, task)
+		p.Tasks[item] = task
 	}
-	slices.SortFunc(p.Tasks, func(l, r Task) int {
-		return cmp.Compare(l.Item, r.Item)
-	})
 	return p
 }
 
 func (p Plan) Execute(fsys fs.FS) error {
-	for _, task := range p.Tasks {
-		if err := task.Execute(fsys, p.Target); err != nil {
+	for _, item := range slices.Sorted(maps.Keys(p.Tasks)) {
+		task := p.Tasks[item]
+		name := path.Join(p.Target, item)
+		if err := task.Execute(fsys, name); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-func NewTask(item string, spec analyze.Spec) Task {
-	t := Task{Item: item}
+func NewTask(spec analyze.Spec) Task {
+	t := Task{}
 	current, planned := spec.Current, spec.Planned
 	if current.Equal(planned) {
 		return t
@@ -56,14 +56,14 @@ func NewTask(item string, spec analyze.Spec) Task {
 	switch {
 	case current == nil:
 	case current.Type == fs.ModeSymlink:
-		t.Ops = append(t.Ops, FileOp{Op: OpRemove})
+		t = append(t, FileOp{Op: OpRemove})
 	}
 
 	switch planned.Type {
 	case fs.ModeDir:
-		t.Ops = append(t.Ops, FileOp{Op: OpMkdir})
+		t = append(t, FileOp{Op: OpMkdir})
 	case fs.ModeSymlink:
-		t.Ops = append(t.Ops, FileOp{Op: "symlink", Dest: planned.Dest})
+		t = append(t, FileOp{Op: "symlink", Dest: planned.Dest})
 	default:
 		panic("unknown planned mode: " + planned.Type.String())
 	}
@@ -72,14 +72,10 @@ func NewTask(item string, spec analyze.Spec) Task {
 }
 
 // A Task describes the work to bring a file in the target tree to a desired state.
-type Task struct {
-	Item string   `json:"item"` // Item is the path of the file relative to target.
-	Ops  []FileOp `json:"ops"`  // The file operations to bring the item to the desired state.
-}
+type Task []FileOp
 
-func (t Task) Execute(fsys fs.FS, target string) error {
-	name := path.Join(target, t.Item)
-	for _, op := range t.Ops {
+func (t Task) Execute(fsys fs.FS, name string) error {
+	for _, op := range t {
 		if err := op.Execute(fsys, name); err != nil {
 			return err
 		}

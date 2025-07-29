@@ -23,7 +23,7 @@ func (sm specMap) All() iter.Seq2[string, analyze.Spec] {
 func TestNewPlan(t *testing.T) {
 	tests := map[string]struct {
 		specs     specMap
-		wantTasks []Task
+		wantTasks map[string]Task
 	}{
 		"omit do nothing tasks": {
 			specs: specMap{
@@ -42,7 +42,7 @@ func TestNewPlan(t *testing.T) {
 					Planned: file.LinkState("some/dest", 0),
 				},
 			},
-			wantTasks: []Task{},
+			wantTasks: map[string]Task{},
 		},
 		"several tasks": {
 			specs: specMap{
@@ -59,26 +59,10 @@ func TestNewPlan(t *testing.T) {
 					Planned: file.DirState(),
 				},
 			},
-			wantTasks: []Task{ // Note: Sorted by item.
-				{
-					Item: "link-to-dir",
-					Ops: []FileOp{
-						{Op: OpRemove},
-						{Op: OpMkdir},
-					},
-				},
-				{
-					Item: "new-dir",
-					Ops: []FileOp{
-						{Op: OpMkdir},
-					},
-				},
-				{
-					Item: "new-link",
-					Ops: []FileOp{
-						{Op: "symlink", Dest: "some/dest"},
-					},
-				},
+			wantTasks: map[string]Task{
+				"link-to-dir": {{Op: OpRemove}, {Op: OpMkdir}},
+				"new-dir":     {{Op: OpMkdir}},
+				"new-link":    {{Op: "symlink", Dest: "some/dest"}},
 			},
 		},
 	}
@@ -99,65 +83,57 @@ func TestNewPlan(t *testing.T) {
 
 func TestNewTask(t *testing.T) {
 	tests := map[string]struct {
-		current *file.State
-		planned *file.State
-		wantOps []FileOp
+		current  *file.State
+		planned  *file.State
+		wantTask Task
 	}{
 		"no change from nil to nil": {
-			wantOps: []FileOp{},
+			wantTask: []FileOp{},
 		},
 		"no change from link to link, same dest file": {
-			current: file.LinkState("../some/dest", 0),
-			planned: file.LinkState("../some/dest", 0),
-			wantOps: []FileOp{},
+			current:  file.LinkState("../some/dest", 0),
+			planned:  file.LinkState("../some/dest", 0),
+			wantTask: Task{},
 		},
 		"no change from link to link, same dest dir": {
-			current: file.LinkState("../some/dest", fs.ModeDir),
-			planned: file.LinkState("../some/dest", fs.ModeDir),
-			wantOps: []FileOp{},
+			current:  file.LinkState("../some/dest", fs.ModeDir),
+			planned:  file.LinkState("../some/dest", fs.ModeDir),
+			wantTask: Task{},
 		},
 		"no change from link to link, same dest link": {
-			current: file.LinkState("../some/dest", fs.ModeSymlink),
-			planned: file.LinkState("../some/dest", fs.ModeSymlink),
-			wantOps: []FileOp{},
+			current:  file.LinkState("../some/dest", fs.ModeSymlink),
+			planned:  file.LinkState("../some/dest", fs.ModeSymlink),
+			wantTask: Task{},
 		},
 		"no change from dir to dir": {
-			current: file.DirState(),
-			planned: file.DirState(),
-			wantOps: []FileOp{},
+			current:  file.DirState(),
+			planned:  file.DirState(),
+			wantTask: Task{},
 		},
 		"from nil to symlink": {
-			current: nil,
-			planned: file.LinkState("../planned/dest", 0),
-			wantOps: []FileOp{
-				{Op: "symlink", Dest: "../planned/dest"},
-			},
+			current:  nil,
+			planned:  file.LinkState("../planned/dest", 0),
+			wantTask: Task{{Op: "symlink", Dest: "../planned/dest"}},
 		},
 		"from nil to dir": {
-			current: nil,
-			planned: file.DirState(),
-			wantOps: []FileOp{
-				{Op: OpMkdir},
-			},
+			current:  nil,
+			planned:  file.DirState(),
+			wantTask: Task{{Op: OpMkdir}},
 		},
 		"from symlink to dir": {
-			current: file.LinkState("some/dest", 0),
-			planned: file.DirState(),
-			wantOps: []FileOp{
-				{Op: OpRemove},
-				{Op: OpMkdir},
-			},
+			current:  file.LinkState("some/dest", 0),
+			planned:  file.DirState(),
+			wantTask: Task{{Op: OpRemove}, {Op: OpMkdir}},
 		},
 	}
 
 	for desc, test := range tests {
 		t.Run(desc, func(t *testing.T) {
-			item := "item"
 			spec := analyze.Spec{Current: test.current, Planned: test.planned}
 
-			gotTask := NewTask(item, spec)
+			gotTask := NewTask(spec)
 
-			wantTask := Task{Item: item, Ops: test.wantOps}
+			wantTask := test.wantTask
 
 			if diff := cmp.Diff(wantTask, gotTask, cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("NewTask():\n%s", diff)

@@ -18,14 +18,14 @@ type FileOp struct {
 	Dest string `json:"dest,omitempty"`
 }
 
-func (op FileOp) Execute(fsys fs.FS, target string) error {
+func (op FileOp) Execute(fsys fs.FS, name string) error {
 	switch op.Op {
 	case OpMkdir:
-		return file.Mkdir(fsys, target, fs.ModeDir|0o755)
+		return file.Mkdir(fsys, name, fs.ModeDir|0o755)
 	case OpRemove:
-		return file.Remove(fsys, target)
+		return file.Remove(fsys, name)
 	case OpSymlink:
-		return file.Symlink(fsys, op.Dest, target)
+		return file.Symlink(fsys, op.Dest, name)
 	}
 	return fmt.Errorf("unknown file op %q", op.Op)
 }

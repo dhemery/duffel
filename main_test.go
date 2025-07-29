@@ -150,8 +150,9 @@ func TestDryRun(t *testing.T) {
 
 	wantDest, _ := filepath.Rel(absTarget, absSourcePkgItem)
 	wantOp := FileOp{Op: "symlink", Dest: wantDest}
-	wantTask := Task{Item: "item", Ops: []FileOp{wantOp}}
-	wantPlan := Plan{Target: absTarget[1:], Tasks: []Task{wantTask}}
+	wantTask := Task{wantOp}
+	wantTasks := map[string]Task{"item": wantTask}
+	wantPlan := Plan{Target: absTarget[1:], Tasks: wantTasks}
 
 	if diff := cmp.Diff(wantPlan, gotPlan); diff != "" {
 		t.Error("plan:", diff)
