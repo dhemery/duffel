@@ -17,9 +17,9 @@ type Request struct {
 }
 
 func Execute(r *Request, dryRun bool, w io.Writer, logger *slog.Logger) error {
-	var pkgOps []*analyze.PkgOp
+	var pkgOps []*analyze.PackageOp
 	for _, pkg := range r.Pkgs {
-		pkgOp := analyze.NewPkgOp(r.Source, pkg, analyze.OpInstall)
+		pkgOp := analyze.NewPackageOp(r.Source, pkg, analyze.OpInstall)
 		pkgOps = append(pkgOps, pkgOp)
 	}
 

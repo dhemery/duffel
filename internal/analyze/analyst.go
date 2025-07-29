@@ -7,16 +7,11 @@ import (
 	"github.com/dhemery/duffel/internal/file"
 )
 
-func Analyze(fsys fs.FS, target string, packageOps []*PkgOp, logger *slog.Logger) (*index, error) {
+func Analyze(fsys fs.FS, target string, packageOps []*PackageOp, logger *slog.Logger) (*index, error) {
 	stater := file.NewStater(fsys)
 	index := NewIndex(stater, logger)
 	analyst := NewAnalyst(fsys, target, index, logger)
 	return analyst.Analyze(packageOps...)
-}
-
-type Index interface {
-	State(name string) (*file.State, error)
-	SetState(item string, state *file.State)
 }
 
 func NewAnalyst(fsys fs.FS, target string, index *index, logger *slog.Logger) *Analyst {
@@ -40,9 +35,9 @@ type Analyst struct {
 	logger  *slog.Logger
 }
 
-func (a *Analyst) Analyze(pops ...*PkgOp) (*index, error) {
+func (a *Analyst) Analyze(pops ...*PackageOp) (*index, error) {
 	for _, pop := range pops {
-		err := fs.WalkDir(a.fsys, pop.root.String(), pop.VisitFunc(a.target, a.index, a.install.Apply, a.logger))
+		err := fs.WalkDir(a.fsys, pop.walkRoot.String(), pop.VisitFunc(a.target, a.index, a.install.Apply, a.logger))
 		if err != nil {
 			return nil, err
 		}

@@ -12,15 +12,13 @@ type Stater interface {
 	State(name string) (*file.State, error)
 }
 
-// Spec describes the current and planned states
-// of a file in the target tree.
+// Spec describes the current and planned states of a file in the target tree.
 type Spec struct {
 	Current *file.State
 	Planned *file.State
 }
 
-// NewIndex returns a new, empty index that retrieves current file
-// states by calling files.State.
+// NewIndex returns a new, empty index that retrieves file system states from s.
 func NewIndex(s Stater, l *slog.Logger) *index {
 	return &index{
 		specs: map[string]Spec{},
