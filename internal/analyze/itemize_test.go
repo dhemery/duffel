@@ -13,7 +13,7 @@ func TestItemizer(t *testing.T) {
 	tests := map[string]struct {
 		findName        string     // The name of the directory whose path to itemize.
 		duffelFile      string     // The path to the duffel file.
-		wantPackageItem SourceItem // The the package item desired from Itemize.
+		wantPackageItem SourcePath // The the package item desired from Itemize.
 		wantErr         error      // The error desired from Itemize.
 	}{
 		"not in a package": {
@@ -32,24 +32,16 @@ func TestItemizer(t *testing.T) {
 			wantErr:    ErrIsPackage,
 		},
 		"in a duffel dir": {
-			duffelFile: "user/home/source/.duffel",
-			findName:   "user/home/source/pkg/item",
-			wantPackageItem: SourceItem{
-				Source:  "user/home/source",
-				Package: "pkg",
-				Item:    "item",
-			},
-			wantErr: nil,
+			duffelFile:      "user/home/source/.duffel",
+			findName:        "user/home/source/pkg/item",
+			wantPackageItem: NewSourcePath("user/home/source", "pkg", "item"),
+			wantErr:         nil,
 		},
 		"deep in a duffel dir": {
-			findName:   "user/home/source/pkg/item1/item2/item3",
-			duffelFile: "user/home/source/.duffel",
-			wantPackageItem: SourceItem{
-				Source:  "user/home/source",
-				Package: "pkg",
-				Item:    "item1/item2/item3",
-			},
-			wantErr: nil,
+			findName:        "user/home/source/pkg/item1/item2/item3",
+			duffelFile:      "user/home/source/.duffel",
+			wantPackageItem: NewSourcePath("user/home/source", "pkg", "item1/item2/item3"),
+			wantErr:         nil,
 		},
 	}
 	for name, test := range tests {

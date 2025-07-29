@@ -103,10 +103,10 @@ func TestPkgOpItemFunc(t *testing.T) {
 			var logbuf bytes.Buffer
 			logger := slog.New(slog.NewJSONHandler(&logbuf, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
-			item := SourceItem{source, pkg, item}
+			item := NewSourcePath(source, pkg, item)
 
 			var gotItemFuncCall bool
-			fakeItemFunc := func(gotItem SourceItem, gotEntry fs.DirEntry, gotTarget TargetItem, gotState *file.State) (*file.State, error) {
+			fakeItemFunc := func(gotItem SourcePath, gotEntry fs.DirEntry, gotTarget TargetPath, gotState *file.State) (*file.State, error) {
 				gotItemFuncCall = true
 				if gotItem != item {
 					t.Errorf("item op: got item %q, want %q", gotItem, item)
@@ -117,7 +117,7 @@ func TestPkgOpItemFunc(t *testing.T) {
 				return test.itemFuncState, test.itemFuncError
 			}
 
-			targetItem := path.Join(target, item.Item)
+			targetItem := path.Join(target, item.Item())
 
 			testIndex := testIndex{targetItem: indexValue{state: test.indexState}}
 

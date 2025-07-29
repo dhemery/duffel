@@ -6,7 +6,7 @@ import (
 )
 
 type Itemizer interface {
-	Itemize(name string) (SourceItem, error)
+	Itemize(name string) (SourcePath, error)
 }
 
 type MergeError struct {

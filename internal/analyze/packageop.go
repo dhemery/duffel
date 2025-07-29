@@ -18,24 +18,24 @@ const (
 // NewPackageOp returns a new package op that applies itemOp to itens in the package.
 func NewPackageOp(source, pkg string, itemOp ItemOp) *PackageOp {
 	return &PackageOp{
-		walkRoot: SourceItem{Source: source, Package: pkg},
+		walkRoot: SourcePath{s: source, p: pkg},
 		itemOp:   itemOp,
 	}
 }
 
-// NewMergeOp returns a new package op that applies itemOp to items in mergeRoot.
-func NewMergeOp(mergeRoot SourceItem, itemOp ItemOp) *PackageOp {
+// NewMergeOp returns a new package op that applies itemOp to items in itemPath.
+func NewMergeOp(itemPath SourcePath, itemOp ItemOp) *PackageOp {
 	return &PackageOp{
-		walkRoot: mergeRoot,
+		walkRoot: itemPath,
 		itemOp:   itemOp,
 	}
 }
 
-type ItemFunc func(si SourceItem, entry fs.DirEntry, ti TargetItem, state *file.State) (*file.State, error)
+type ItemFunc func(sp SourcePath, entry fs.DirEntry, tp TargetPath, state *file.State) (*file.State, error)
 
 // PackageOp walks a directory and applies an item operation to the visited files.
 type PackageOp struct {
-	walkRoot SourceItem
+	walkRoot SourcePath
 	itemOp   ItemOp
 }
 
@@ -56,7 +56,7 @@ func (po *PackageOp) VisitFunc(target string, index Index, itemFunc ItemFunc, lo
 		}
 
 		sourceItem := po.walkRoot.WithItemFrom(name)
-		targetItem := TargetItem{target, sourceItem.Item}
+		targetItem := TargetPath{target, sourceItem.i}
 		oldState, err := index.State(targetItem.String())
 		if err != nil {
 			return err

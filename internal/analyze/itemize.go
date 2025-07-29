@@ -21,27 +21,27 @@ type itemizer struct {
 	fsys fs.FS
 }
 
-// Itemize returns a [SourceItem] describing the named file.
+// Itemize returns a [SourcePath] describing the named file.
 // The file must be an item in a package in a duffel source.
 // A duffel source is a directory that has an entry named .duffel.
 // A package is a directory child of a duffel source.
-func (pf itemizer) Itemize(name string) (SourceItem, error) {
+func (pf itemizer) Itemize(name string) (SourcePath, error) {
 	source, err := pf.findSource(name)
 	if err != nil {
-		return SourceItem{}, err
+		return SourcePath{}, err
 	}
 
 	if name == source {
-		return SourceItem{}, ErrIsSource
+		return SourcePath{}, ErrIsSource
 	}
 
 	pkgItem := name[len(source)+1:]
 	pkg, item, found := strings.Cut(pkgItem, "/")
 	if !found {
-		return SourceItem{}, ErrIsPackage
+		return SourcePath{}, ErrIsPackage
 	}
 
-	return SourceItem{source, pkg, item}, nil
+	return SourcePath{source, pkg, item}, nil
 }
 
 func (pf itemizer) findSource(name string) (string, error) {

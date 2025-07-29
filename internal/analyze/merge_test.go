@@ -122,7 +122,7 @@ func TestMerge(t *testing.T) {
 
 			err := merger.Merge(test.mergeDir)
 
-			if diff := cmp.Diff(test.wantErr, err, equateErrFields()); diff != "" {
+			if diff := cmp.Diff(test.wantErr, err); diff != "" {
 				t.Errorf("Merge(%q, %q) error:\n%s",
 					test.mergeDir, test.target, diff)
 			}
@@ -141,19 +141,4 @@ func TestMerge(t *testing.T) {
 			}
 		})
 	}
-}
-
-func isErrField() func(cmp.Path) bool {
-	return func(p cmp.Path) bool {
-		last := p.Last()
-		sf, ok := last.(cmp.StructField)
-		if !ok {
-			return false
-		}
-		return sf.Name() == "Err"
-	}
-}
-
-func equateErrFields() cmp.Option {
-	return cmp.FilterPath(isErrField(), cmpopts.EquateErrors())
 }

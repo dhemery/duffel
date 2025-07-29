@@ -28,14 +28,13 @@ type Install struct {
 	log    *slog.Logger
 }
 
-// Apply describes the planned state of targetItem when sourceItem is installed.
-// SourceItem identifies the package item to install.
+// Apply returns the state of the targetItem file
+// that would result from installing the sourceItem file.
 // Entry describes the state of the item file in the source tree.
-// TargetItem identifies the target file that corresponds to SourceItem.
 // TargetState describes the state of targetItem as planned by earlier analysis.
-func (op Install) Apply(sourceItem SourceItem, entry fs.DirEntry, targetItem TargetItem, targetState *file.State) (*file.State, error) {
-	sg := slog.Group("source", "item", sourceItem, "entry", entry)
-	tg := slog.Group("target", "item", targetItem, "state", targetState)
+func (op Install) Apply(sourceItem SourcePath, entry fs.DirEntry, targetItem TargetPath, targetState *file.State) (*file.State, error) {
+	sg := slog.Group("source", "path", sourceItem, "entry", entry)
+	tg := slog.Group("target", "path", targetItem, "state", targetState)
 	op.log.Info("install", sg, tg)
 	itemAsDest, _ := targetItem.Rel(sourceItem.String())
 	if targetState == nil {
@@ -116,7 +115,7 @@ func (op Install) Apply(sourceItem SourceItem, entry fs.DirEntry, targetItem Tar
 	return dirState, nil
 }
 
-func conflictError(item SourceItem, entry fs.DirEntry, target TargetItem, state *file.State) error {
+func conflictError(item SourcePath, entry fs.DirEntry, target TargetPath, state *file.State) error {
 	return &ConflictError{
 		Item:        item,
 		ItemType:    entry.Type(),
@@ -126,15 +125,15 @@ func conflictError(item SourceItem, entry fs.DirEntry, target TargetItem, state 
 }
 
 type ConflictError struct {
-	Item        SourceItem
+	Item        SourcePath
 	ItemType    fs.FileMode
-	Target      TargetItem
+	Target      TargetPath
 	TargetState *file.State
 }
 
-func (e *ConflictError) Error() string {
+func (ce *ConflictError) Error() string {
 	return fmt.Sprintf("install conflict: package item %q is %s, target %q is %s",
-		e.Item, typeString(e.ItemType), e.Target, stateString(e.TargetState))
+		ce.Item, typeString(ce.ItemType), ce.Target, stateString(ce.TargetState))
 }
 
 func typeString(m fs.FileMode) string {

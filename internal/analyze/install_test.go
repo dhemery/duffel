@@ -24,7 +24,7 @@ func TestInstallOp(t *testing.T) {
 
 type test struct {
 	desc          string                 // Description of the test.
-	item          SourceItem             // The package item to pass to Install.Apply.
+	item          SourcePath             // The package item to pass to Install.Apply.
 	entry         fs.DirEntry            // The entry to pass to Install.Apply.
 	target        string                 // The target directory to install to.
 	targetState   *file.State            // The target state passed to Apply.
@@ -46,7 +46,7 @@ var entryAndStateSuite = suite{
 	tests: []test{
 		{
 			desc:        "create new target link to file item",
-			item:        SourceItem{"source", "pkg", "item"},
+			item:        NewSourcePath("source", "pkg", "item"),
 			entry:       errfs.DirEntry("item", 0o644),
 			target:      "target",
 			targetState: nil,
@@ -55,7 +55,7 @@ var entryAndStateSuite = suite{
 		},
 		{
 			desc:        "create new target link to dir item",
-			item:        SourceItem{"source", "pkg", "item"},
+			item:        NewSourcePath("source", "pkg", "item"),
 			entry:       errfs.DirEntry("item", fs.ModeDir|0o755),
 			target:      "target",
 			targetState: nil,
@@ -64,7 +64,7 @@ var entryAndStateSuite = suite{
 		},
 		{
 			desc:        "create new target link to symlink item",
-			item:        SourceItem{"source", "pkg", "item"},
+			item:        NewSourcePath("source", "pkg", "item"),
 			entry:       errfs.DirEntry("item", fs.ModeSymlink),
 			target:      "target",
 			targetState: nil,
@@ -73,7 +73,7 @@ var entryAndStateSuite = suite{
 		},
 		{
 			desc:        "create new target link to sub-item",
-			item:        SourceItem{"source", "pkg", "dir/sub1/sub2/item"},
+			item:        NewSourcePath("source", "pkg", "dir/sub1/sub2/item"),
 			entry:       errfs.DirEntry("item", 0o644),
 			target:      "target",
 			targetState: nil,
@@ -82,7 +82,7 @@ var entryAndStateSuite = suite{
 		},
 		{
 			desc:        "install dir item contents to existing target dir",
-			item:        SourceItem{"source", "pkg", "item"},
+			item:        NewSourcePath("source", "pkg", "item"),
 			entry:       errfs.DirEntry("item", fs.ModeDir|0o755),
 			target:      "target",
 			targetState: file.DirState(),
@@ -91,7 +91,7 @@ var entryAndStateSuite = suite{
 		},
 		{
 			desc:        "target already links to current dir item",
-			item:        SourceItem{"source", "pkg", "item"},
+			item:        NewSourcePath("source", "pkg", "item"),
 			entry:       errfs.DirEntry("item", fs.ModeDir|0o755),
 			target:      "target",
 			targetState: file.LinkState("../source/pkg/item", fs.ModeDir),
@@ -100,7 +100,7 @@ var entryAndStateSuite = suite{
 		},
 		{
 			desc:        "target already links to current non-dir item",
-			item:        SourceItem{"source", "pkg", "item"},
+			item:        NewSourcePath("source", "pkg", "item"),
 			entry:       errfs.DirEntry("item", 0o644),
 			target:      "target",
 			targetState: file.LinkState("../source/pkg/item", 0),
@@ -109,7 +109,7 @@ var entryAndStateSuite = suite{
 		},
 		{
 			desc:        "target already links to current sub-item",
-			item:        SourceItem{"source", "pkg", "dir/sub1/sub2/item"},
+			item:        NewSourcePath("source", "pkg", "dir/sub1/sub2/item"),
 			entry:       errfs.DirEntry("item", 0o644),
 			target:      "target",
 			targetState: file.LinkState("../../../../source/pkg/dir/sub1/sub2/item", 0),
@@ -130,7 +130,7 @@ var mergeSuite = suite{
 	tests: []test{
 		{
 			desc:        "dest is not in a package",
-			item:        SourceItem{"source", "pkg", "item"},
+			item:        NewSourcePath("source", "pkg", "item"),
 			entry:       errfs.DirEntry("item", fs.ModeDir|0o755),
 			target:      "target",
 			targetState: file.LinkState("../dir1/dir2/item", fs.ModeDir),
@@ -140,7 +140,7 @@ var mergeSuite = suite{
 		},
 		{
 			desc:        "dest is a duffel source dir",
-			item:        SourceItem{"source", "pkg", "item"},
+			item:        NewSourcePath("source", "pkg", "item"),
 			entry:       errfs.DirEntry("item", fs.ModeDir|0o755),
 			target:      "target",
 			targetState: file.LinkState("../duffel/source-dir", fs.ModeDir),
@@ -152,7 +152,7 @@ var mergeSuite = suite{
 		},
 		{
 			desc:        "dest is duffel package",
-			item:        SourceItem{"source", "pkg", "item"},
+			item:        NewSourcePath("source", "pkg", "item"),
 			entry:       errfs.DirEntry("item", fs.ModeDir|0o755),
 			target:      "target",
 			targetState: file.LinkState("../duffel/source/pkg", fs.ModeDir),
@@ -165,7 +165,7 @@ var mergeSuite = suite{
 		},
 		{
 			desc:        "dest is a top level item in a package",
-			item:        SourceItem{"source", "pkg", "item"},
+			item:        NewSourcePath("source", "pkg", "item"),
 			entry:       errfs.DirEntry("item", fs.ModeDir|0o755),
 			target:      "target",
 			targetState: file.LinkState("../duffel/source/pkg/item", fs.ModeDir),
@@ -182,7 +182,7 @@ var mergeSuite = suite{
 		},
 		{
 			desc:        "dest is a nested item in a package",
-			item:        SourceItem{"source", "pkg", "item"},
+			item:        NewSourcePath("source", "pkg", "item"),
 			entry:       errfs.DirEntry("item", fs.ModeDir|0o755),
 			target:      "target",
 			targetState: file.LinkState("../duffel/source/pkg/item1/item2/item3", fs.ModeDir),
@@ -208,66 +208,66 @@ var conflictSuite = suite{
 	tests: []test{
 		{
 			desc:        "target is a file, source is a dir",
-			item:        SourceItem{"source", "pkg", "item"},
+			item:        NewSourcePath("source", "pkg", "item"),
 			entry:       errfs.DirEntry("item", fs.ModeDir|0o755),
 			target:      "target",
 			targetState: file.FileState(),
 			wantErr: &ConflictError{
-				Item:        SourceItem{"source", "pkg", "item"},
+				Item:        NewSourcePath("source", "pkg", "item"),
 				ItemType:    fs.ModeDir,
-				Target:      TargetItem{"target", "item"},
+				Target:      NewTargetPath("target", "item"),
 				TargetState: file.FileState(),
 			},
 		},
 		{
 			desc:        "target is unknown type, source is a dir",
-			item:        SourceItem{"source", "pkg", "item"},
+			item:        NewSourcePath("source", "pkg", "item"),
 			entry:       errfs.DirEntry("item", fs.ModeDir|0o755),
 			target:      "target",
 			targetState: &file.State{Type: fs.ModeDevice},
 			wantErr: &ConflictError{
-				Item:        SourceItem{"source", "pkg", "item"},
+				Item:        NewSourcePath("source", "pkg", "item"),
 				ItemType:    fs.ModeDir,
-				Target:      TargetItem{"target", "item"},
+				Target:      NewTargetPath("target", "item"),
 				TargetState: &file.State{Type: fs.ModeDevice},
 			},
 		},
 		{
 			desc:        "target links to a non-dir, source is a dir",
-			item:        SourceItem{"source", "pkg", "item"},
+			item:        NewSourcePath("source", "pkg", "item"),
 			entry:       errfs.DirEntry("item", fs.ModeDir|0o755),
 			target:      "target",
 			targetState: file.LinkState("link/to/file", 0o644),
 			wantErr: &ConflictError{
-				Item:        SourceItem{"source", "pkg", "item"},
+				Item:        NewSourcePath("source", "pkg", "item"),
 				ItemType:    fs.ModeDir,
-				Target:      TargetItem{"target", "item"},
+				Target:      NewTargetPath("target", "item"),
 				TargetState: file.LinkState("link/to/file", 0o644),
 			},
 		},
 		{
 			desc:        "target is a dir, source is not a dir",
-			item:        SourceItem{"source", "pkg", "item"},
+			item:        NewSourcePath("source", "pkg", "item"),
 			entry:       errfs.DirEntry("item", 0o644),
 			target:      "target",
 			targetState: file.DirState(),
 			wantErr: &ConflictError{
-				Item:        SourceItem{"source", "pkg", "item"},
+				Item:        NewSourcePath("source", "pkg", "item"),
 				ItemType:    0, // regular file
-				Target:      TargetItem{"target", "item"},
+				Target:      NewTargetPath("target", "item"),
 				TargetState: file.DirState(),
 			},
 		},
 		{
 			desc:        "target links to a dir, source is not a dir",
-			item:        SourceItem{"source", "pkg", "item"},
+			item:        NewSourcePath("source", "pkg", "item"),
 			entry:       errfs.DirEntry("item", 0o644),
 			target:      "target",
 			targetState: file.LinkState("target/some/dest", fs.ModeDir),
 			wantErr: &ConflictError{
-				Item:        SourceItem{"source", "pkg", "item"},
+				Item:        NewSourcePath("source", "pkg", "item"),
 				ItemType:    0,
-				Target:      TargetItem{"target", "item"},
+				Target:      NewTargetPath("target", "item"),
 				TargetState: file.LinkState("target/some/dest", fs.ModeDir),
 			},
 		},
@@ -300,7 +300,7 @@ func (test test) run(t *testing.T) {
 
 		state := test.targetState
 
-		targetItem := TargetItem{test.target, test.item.Item}
+		targetItem := NewTargetPath(test.target, test.item.Item())
 		gotState, gotErr := install.Apply(test.item, test.entry, targetItem, state)
 
 		if !cmp.Equal(gotState, test.wantState) {
@@ -310,7 +310,7 @@ func (test test) run(t *testing.T) {
 
 		switch want := test.wantErr.(type) {
 		case *ConflictError:
-			if diff := cmp.Diff(want, gotErr, equateErrFields()); diff != "" {
+			if diff := cmp.Diff(want, gotErr); diff != "" {
 				t.Errorf("Apply(%q) error:\n%s",
 					test.item, diff)
 			}
