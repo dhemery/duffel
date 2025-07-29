@@ -77,8 +77,8 @@ func NewTask(item string, spec analyze.Spec) Task {
 
 // A Task describes the work to bring a file in the target tree to a desired state.
 type Task struct {
-	Item string   // Item is the path of the file relative to target.
-	Ops  []FileOp // The file operations to bring the item to the desired state.
+	Item string   `json:"item"` // Item is the path of the file relative to target.
+	Ops  []FileOp `json:"ops"`  // The file operations to bring the item to the desired state.
 }
 
 func (t Task) Execute(fsys fs.FS, target string) error {

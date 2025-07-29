@@ -12,7 +12,7 @@ func NewSymlinkOp(dest string) SymlinkOp {
 
 type SymlinkOp struct {
 	Op   string `json:"op"`
-	Dest string `json:"dest,omitempty"`
+	Dest string `json:"dest"`
 }
 
 func (op SymlinkOp) Execute(fsys fs.FS, target string) error {

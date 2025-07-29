@@ -1,7 +1,7 @@
 package exec
 
 import (
-	"encoding/json"
+	"encoding/json/v2"
 	"io"
 	"io/fs"
 	"log/slog"
@@ -30,8 +30,7 @@ func Execute(r *Request, dryRun bool, w io.Writer, logger *slog.Logger) error {
 
 	p := New(r.Target, specs)
 	if dryRun {
-		enc := json.NewEncoder(w)
-		return enc.Encode(p)
+		return json.MarshalWrite(w, p)
 	}
 
 	return p.Execute(r.FS)

@@ -3,7 +3,7 @@ package main
 import (
 	"bytes"
 	. "cmp"
-	"encoding/json"
+	"encoding/json/v2"
 	"errors"
 	"io/fs"
 	"os"
@@ -141,28 +141,29 @@ func TestDryRun(t *testing.T) {
 		t.Error("created target item:", fs.FormatFileInfo(info))
 	}
 
-	type itemop struct {
-		Op   string
-		Dest string
+	type Itemop struct {
+		Op   string `json:"op"`
+		Dest string `json:"dest"`
 	}
-	type task struct {
-		Item string
-		Ops  []itemop
+	type Task struct {
+		Item string   `json:"item"`
+		Ops  []Itemop `json:"ops"`
 	}
-	type plan struct {
-		Target string
-		Tasks  []task
+	type Plan struct {
+		Target string `json:"target"`
+		Tasks  []Task `json:"tasks"`
 	}
 
-	var gotPlan plan
-	if err = json.Unmarshal(td.stdout.Bytes(), &gotPlan); err != nil {
+	var gotPlan Plan
+	outBytes := td.stdout.Bytes()
+	if err = json.Unmarshal(outBytes, &gotPlan); err != nil {
 		t.Fatal(err)
 	}
 
 	wantDest, _ := filepath.Rel(absTarget, absSourcePkgItem)
-	wantOp := itemop{Op: "symlink", Dest: wantDest}
-	wantTask := task{Item: "item", Ops: []itemop{wantOp}}
-	wantPlan := plan{Target: absTarget[1:], Tasks: []task{wantTask}}
+	wantOp := Itemop{Op: "symlink", Dest: wantDest}
+	wantTask := Task{Item: "item", Ops: []Itemop{wantOp}}
+	wantPlan := Plan{Target: absTarget[1:], Tasks: []Task{wantTask}}
 
 	if diff := cmp.Diff(wantPlan, gotPlan); diff != "" {
 		t.Error("plan:", diff)
