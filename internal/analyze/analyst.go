@@ -7,6 +7,8 @@ import (
 	"github.com/dhemery/duffel/internal/file"
 )
 
+// Analyze applies packageOps to identify the current and desired states of files in the target tree
+// that correspond to the items in the packages.
 func Analyze(fsys fs.FS, target string, packageOps []*PackageOp, logger *slog.Logger) (*index, error) {
 	stater := file.NewStater(fsys)
 	index := NewIndex(stater, logger)

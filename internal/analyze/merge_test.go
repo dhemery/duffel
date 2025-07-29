@@ -120,7 +120,7 @@ func TestMerge(t *testing.T) {
 
 			merger := NewMerger(itemizer, analyzer, logger)
 
-			err := merger.Merge(test.mergeDir, test.target)
+			err := merger.Merge(test.mergeDir)
 
 			if diff := cmp.Diff(test.wantErr, err, equateErrFields()); diff != "" {
 				t.Errorf("Merge(%q, %q) error:\n%s",

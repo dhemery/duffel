@@ -106,7 +106,7 @@ func TestPkgOpItemFunc(t *testing.T) {
 			item := SourceItem{source, pkg, item}
 
 			var gotItemFuncCall bool
-			fakeItemFunc := func(gotItem SourceItem, gotEntry fs.DirEntry, gotTarget string, gotState *file.State) (*file.State, error) {
+			fakeItemFunc := func(gotItem SourceItem, gotEntry fs.DirEntry, gotTarget TargetItem, gotState *file.State) (*file.State, error) {
 				gotItemFuncCall = true
 				if gotItem != item {
 					t.Errorf("item op: got item %q, want %q", gotItem, item)

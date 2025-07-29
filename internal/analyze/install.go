@@ -4,14 +4,12 @@ import (
 	"fmt"
 	"io/fs"
 	"log/slog"
-	"path"
-	"path/filepath"
 
 	"github.com/dhemery/duffel/internal/file"
 )
 
 type Merger interface {
-	Merge(name, target string) error
+	Merge(string) error
 }
 
 func NewInstall(target string, merger Merger, logger *slog.Logger) *Install {
@@ -30,27 +28,16 @@ type Install struct {
 	log    *slog.Logger
 }
 
-// Apply describes the installed state
-// of the target file that corresponds to the given package item.
-// Item identifies the  package item to install.
+// Apply describes the planned state of targetItem when sourceItem is installed.
+// SourceItem identifies the package item to install.
 // Entry describes the state of the item file in the source tree.
-// Target is the root of the target tree to install items into.
-// TargetState describes the planned state of the corresponding target file
-// as planned by earlier analysis.
-func (op Install) Apply(item SourceItem, entry fs.DirEntry, target string, targetState *file.State) (*file.State, error) {
-	targetItem := path.Join(op.target, item.Item)
-	itemAsDest, _ := filepath.Rel(path.Dir(targetItem), item.String())
-	sg := slog.Group("item",
-		"path", item,
-		"entry", entry,
-	)
-	tg := slog.Group("target",
-		"root", op.target,
-		"item", targetItem,
-		"old-state", targetState,
-	)
-	op.log.Info("install", sg, tg, "link-path", itemAsDest)
-
+// TargetItem identifies the target file that corresponds to SourceItem.
+// TargetState describes the state of targetItem as planned by earlier analysis.
+func (op Install) Apply(sourceItem SourceItem, entry fs.DirEntry, targetItem TargetItem, targetState *file.State) (*file.State, error) {
+	sg := slog.Group("source", "item", sourceItem, "entry", entry)
+	tg := slog.Group("target", "item", targetItem, "state", targetState)
+	op.log.Info("install", sg, tg)
+	itemAsDest, _ := targetItem.Rel(sourceItem.String())
 	if targetState == nil {
 		// There is no target item, so we're free to create a link to the pkg item.
 		var err error
@@ -71,7 +58,7 @@ func (op Install) Apply(item SourceItem, entry fs.DirEntry, target string, targe
 
 	if targetState.Type.IsRegular() {
 		// Cannot modify an existing regular file.
-		return nil, conflictError(item, entry, targetItem, targetState)
+		return nil, conflictError(sourceItem, entry, targetItem, targetState)
 	}
 
 	if targetState.Type.IsDir() {
@@ -84,12 +71,12 @@ func (op Install) Apply(item SourceItem, entry fs.DirEntry, target string, targe
 
 		// The target is a dir, but the pkg item is not.
 		// Cannot merge the target dir with a non-dir pkg item.
-		return nil, conflictError(item, entry, targetItem, targetState)
+		return nil, conflictError(sourceItem, entry, targetItem, targetState)
 	}
 
 	if targetState.Type.Type() != fs.ModeSymlink {
 		// Target item is not file, dir, or link.
-		return nil, conflictError(item, entry, targetItem, targetState)
+		return nil, conflictError(sourceItem, entry, targetItem, targetState)
 	}
 
 	// At this point, we know that the existing target is a symlink.
@@ -107,18 +94,17 @@ func (op Install) Apply(item SourceItem, entry fs.DirEntry, target string, targe
 
 	if !targetState.DestType.IsDir() {
 		// The target's link destination is not a dir. Cannot merge.
-		return nil, conflictError(item, entry, targetItem, targetState)
+		return nil, conflictError(sourceItem, entry, targetItem, targetState)
 	}
 
 	if !entry.IsDir() {
 		// Tne entry is not a dir. Cannot merge.
-		return nil, conflictError(item, entry, targetItem, targetState)
+		return nil, conflictError(sourceItem, entry, targetItem, targetState)
 	}
 
 	// The package item is a dir and the target is a link to a dir.
-	// Try to merge the target dest.
-	fullDest := path.Join(path.Dir(targetItem), targetState.Dest)
-	err := op.merger.Merge(fullDest, op.target)
+	// Try to merge the target item.
+	err := op.merger.Merge(targetItem.Full(targetState.Dest))
 	if err != nil {
 		return nil, err
 	}
@@ -130,7 +116,7 @@ func (op Install) Apply(item SourceItem, entry fs.DirEntry, target string, targe
 	return dirState, nil
 }
 
-func conflictError(item SourceItem, entry fs.DirEntry, target string, state *file.State) error {
+func conflictError(item SourceItem, entry fs.DirEntry, target TargetItem, state *file.State) error {
 	return &ConflictError{
 		Item:        item,
 		ItemType:    entry.Type(),
@@ -142,7 +128,7 @@ func conflictError(item SourceItem, entry fs.DirEntry, target string, state *fil
 type ConflictError struct {
 	Item        SourceItem
 	ItemType    fs.FileMode
-	Target      string
+	Target      TargetItem
 	TargetState *file.State
 }
 

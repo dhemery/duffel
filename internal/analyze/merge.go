@@ -36,13 +36,13 @@ type merger struct {
 	log      *slog.Logger
 }
 
-func (m merger) Merge(dir, target string) error {
-	mergeItem, err := m.itemizer.Itemize(dir)
+func (m merger) Merge(name string) error {
+	mergeItem, err := m.itemizer.Itemize(name)
 	if err != nil {
-		return &MergeError{Name: dir, Err: err}
+		return &MergeError{Name: name, Err: err}
 	}
 
-	m.log.Info("merge", "foreign-item", mergeItem)
+	m.log.Info("merge", "item", mergeItem)
 	pkgOp := NewMergeOp(mergeItem, OpInstall)
 	_, err = m.analyst.Analyze(pkgOp)
 	return err

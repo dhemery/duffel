@@ -21,16 +21,16 @@ type Spec struct {
 // NewIndex returns a new, empty index that retrieves file system states from s.
 func NewIndex(s Stater, l *slog.Logger) *index {
 	return &index{
-		specs: map[string]Spec{},
-		files: s,
-		log:   *l.WithGroup("states"),
+		specs:  map[string]Spec{},
+		stater: s,
+		log:    *l.WithGroup("states"),
 	}
 }
 
 type index struct {
-	specs map[string]Spec
-	files Stater
-	log   slog.Logger
+	specs  map[string]Spec
+	stater Stater
+	log    slog.Logger
 }
 
 // State returns the planned state of the named file.
@@ -41,7 +41,7 @@ type index struct {
 func (i *index) State(name string) (*file.State, error) {
 	spec, ok := i.specs[name]
 	if !ok {
-		state, err := i.files.State(name)
+		state, err := i.stater.State(name)
 		if err != nil {
 			return nil, err
 		}

@@ -3,7 +3,6 @@ package analyze
 import (
 	"io/fs"
 	"log/slog"
-	"path"
 
 	"github.com/dhemery/duffel/internal/file"
 )
@@ -32,8 +31,9 @@ func NewMergeOp(mergeRoot SourceItem, itemOp ItemOp) *PackageOp {
 	}
 }
 
-type ItemFunc func(si SourceItem, entry fs.DirEntry, target string, state *file.State) (*file.State, error)
+type ItemFunc func(si SourceItem, entry fs.DirEntry, ti TargetItem, state *file.State) (*file.State, error)
 
+// PackageOp walks a directory and applies an item operation to the visited files.
 type PackageOp struct {
 	walkRoot SourceItem
 	itemOp   ItemOp
@@ -55,17 +55,17 @@ func (po *PackageOp) VisitFunc(target string, index Index, itemFunc ItemFunc, lo
 			return nil
 		}
 
-		item := po.walkRoot.WithItemFrom(name)
-		targetItem := path.Join(target, item.Item)
-		oldState, err := index.State(targetItem)
+		sourceItem := po.walkRoot.WithItemFrom(name)
+		targetItem := TargetItem{target, sourceItem.Item}
+		oldState, err := index.State(targetItem.String())
 		if err != nil {
 			return err
 		}
 
-		newState, err := itemFunc(item, entry, target, oldState)
+		newState, err := itemFunc(sourceItem, entry, targetItem, oldState)
 
 		if err == nil || err == fs.SkipDir {
-			index.SetState(targetItem, newState)
+			index.SetState(targetItem.String(), newState)
 		}
 
 		return err
