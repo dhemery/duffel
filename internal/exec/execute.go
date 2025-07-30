@@ -30,7 +30,7 @@ func Execute(r *Request, dryRun bool, w io.Writer, logger *slog.Logger) error {
 
 	p := New(r.Target, specs)
 	if dryRun {
-		return json.MarshalWrite(w, p)
+		return json.MarshalWrite(w, p, json.Deterministic(true))
 	}
 
 	return p.Execute(r.FS)
