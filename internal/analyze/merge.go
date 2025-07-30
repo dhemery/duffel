@@ -35,13 +35,13 @@ type merger struct {
 }
 
 func (m merger) Merge(name string, logger *slog.Logger) error {
-	mergeLogger := logger.WithGroup("merging").With("name", name)
 	mergeItem, err := m.itemizer.Itemize(name)
 	if err != nil {
 		return &MergeError{Name: name, Err: err}
 	}
 
-	pkgOp := NewMergeOp(mergeItem, OpInstall)
-	_, err = m.analyst.Analyze(mergeLogger, pkgOp)
+	mergeOp := NewMergeOp(mergeItem)
+	mergeLogger := logger.WithGroup("merge").With("root", mergeItem)
+	_, err = m.analyst.Analyze(mergeLogger, mergeOp)
 	return err
 }

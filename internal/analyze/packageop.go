@@ -8,46 +8,46 @@ import (
 	"github.com/dhemery/duffel/internal/file"
 )
 
-// ItemOp identifies a operation to apply to the items in a package.
-type ItemOp int
+// Goal identifies the goal for a PackageOp to plan for the items in a package.
+type Goal int
 
-func (op ItemOp) String() string {
+func (op Goal) String() string {
 	switch op {
-	case OpInstall:
+	case GoalInstall:
 		return "install"
-	case OpRemove:
-		return "remove"
+	case GoalMerge:
+		return "merge"
 	}
 	return fmt.Sprintf("unknown goal: %d", op)
 }
 
 const (
-	OpInstall = ItemOp(1 << iota) // Installs items to the target tree.
-	OpRemove                      // Currently unimplemented and ignored.
+	GoalInstall Goal = 1 // Install a package into the target tree.
+	GoalMerge   Goal = 2 // Merge a foreign package into the target tree.
 )
 
-// NewPackageOp returns a new package op that applies itemOp to itens in the package.
-func NewPackageOp(source, pkg string, itemOp ItemOp) *PackageOp {
+// NewPackageOp creates a [PackageOp] to achieve the goal for the package.
+func NewPackageOp(source, pkg string, goal Goal) *PackageOp {
 	return &PackageOp{
 		walkRoot: NewSourcePath(source, pkg, ""),
-		itemOp:   itemOp,
+		goal:     goal,
 	}
 }
 
-// NewMergeOp returns a new package op that applies itemOp to items in itemPath.
-func NewMergeOp(itemPath SourcePath, itemOp ItemOp) *PackageOp {
+// NewMergeOp creates a [PackageOp] to merge a package.
+func NewMergeOp(itemPath SourcePath) *PackageOp {
 	return &PackageOp{
 		walkRoot: itemPath,
-		itemOp:   itemOp,
+		goal:     GoalMerge,
 	}
 }
 
 type ItemFunc func(SourcePath, fs.DirEntry, TargetPath, *file.State, *slog.Logger) (*file.State, error)
 
-// PackageOp walks a directory and applies an item operation to the visited files.
+// PackageOp plans how to achieve a goal for a package.
 type PackageOp struct {
 	walkRoot SourcePath
-	itemOp   ItemOp
+	goal     Goal
 }
 
 type Index interface {
@@ -68,11 +68,11 @@ func (po *PackageOp) VisitFunc(target string, index Index, itemFunc ItemFunc, lo
 		sourcePath := po.walkRoot.WithItemFrom(name)
 		targetPath := NewTargetPath(target, sourcePath.Item)
 
-		goalAttr := slog.String("goal", po.itemOp.String())
+		goalAttr := slog.String("goal", po.goal.String())
 		sGroup := slog.Group("source", "path", sourcePath, "entry", entry)
 		tpAttr := slog.Any("path", targetPath)
 		indexLogger := logger.With(goalAttr, sGroup, slog.Group("target", tpAttr))
-		indexLogger.Info("analyzing")
+		indexLogger.Info("start analyzing")
 
 		targetState, err := index.State(targetPath.String(), indexLogger)
 		if err != nil {
@@ -80,8 +80,8 @@ func (po *PackageOp) VisitFunc(target string, index Index, itemFunc ItemFunc, lo
 		}
 
 		tGroup := slog.Group("target", tpAttr, "state", targetState)
-		itemOpLogger := indexLogger.With(tGroup)
-		newState, err := itemFunc(sourcePath, entry, targetPath, targetState, itemOpLogger)
+		itemFuncLogger := indexLogger.With(tGroup)
+		newState, err := itemFunc(sourcePath, entry, targetPath, targetState, itemFuncLogger)
 
 		if err == nil || err == fs.SkipDir {
 			index.SetState(targetPath.String(), newState, indexLogger)

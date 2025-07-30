@@ -41,7 +41,7 @@ func TestPackageOpItemFunc(t *testing.T) {
 		pkg            = "pkg"
 		item           = "item"
 	)
-	anItemOpError := errors.New("error returned from item op")
+	anItemFuncError := errors.New("error returned from item op")
 
 	tests := map[string]struct {
 		indexState    *file.State // Initial state of the item in the index.
@@ -64,8 +64,8 @@ func TestPackageOpItemFunc(t *testing.T) {
 		},
 		"no index state, item op reports error": {
 			indexState:    nil,
-			itemFuncError: anItemOpError,
-			wantErr:       anItemOpError,
+			itemFuncError: anItemFuncError,
+			wantErr:       anItemFuncError,
 			wantState:     nil,
 		},
 		"index state is dir, item op returns state": {
@@ -80,21 +80,21 @@ func TestPackageOpItemFunc(t *testing.T) {
 		},
 		"index state is file, item op reports error": {
 			indexState:    &file.State{Type: 0},
-			itemFuncError: anItemOpError,
-			wantErr:       anItemOpError,
+			itemFuncError: anItemFuncError,
+			wantErr:       anItemFuncError,
 			wantState:     &file.State{Type: 0},
 		},
 		"index state is dir, item op reports error": {
 			indexState:    &file.State{Type: fs.ModeDir},
-			itemFuncError: anItemOpError,
-			wantErr:       anItemOpError,
+			itemFuncError: anItemFuncError,
+			wantErr:       anItemFuncError,
 			wantState:     &file.State{Type: fs.ModeDir},
 		},
 		"index state is link, item op reports error": {
 			indexState:    &file.State{Type: fs.ModeSymlink, Dest: "dest/from/index"},
 			itemFuncState: nil,
-			itemFuncError: anItemOpError,
-			wantErr:       anItemOpError,
+			itemFuncError: anItemFuncError,
+			wantErr:       anItemFuncError,
 			wantState:     &file.State{Type: fs.ModeSymlink, Dest: "dest/from/index"},
 		},
 	}
@@ -123,7 +123,7 @@ func TestPackageOpItemFunc(t *testing.T) {
 
 			testIndex := testIndex{targetItem: indexValue{state: test.indexState}}
 
-			pkgOp := NewPackageOp(source, pkg, OpInstall)
+			pkgOp := NewPackageOp(source, pkg, GoalInstall)
 
 			visit := pkgOp.VisitFunc(target, testIndex, fakeItemFunc, logger)
 
@@ -205,7 +205,7 @@ func TestPackageOpWalkFuncError(t *testing.T) {
 
 			testIndex := testIndex{targetItem: indexValue{err: test.indexErr}}
 
-			pkgOp := NewPackageOp(source, pkg, OpInstall)
+			pkgOp := NewPackageOp(source, pkg, GoalInstall)
 
 			visit := pkgOp.VisitFunc(target, testIndex, nil, logger)
 
