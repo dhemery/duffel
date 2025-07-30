@@ -46,7 +46,6 @@ type Index interface {
 
 func (po *PackageOp) VisitFunc(target string, index Index, itemFunc ItemFunc, logger *slog.Logger) fs.WalkDirFunc {
 	return func(name string, entry fs.DirEntry, err error) error {
-		logger.Info("analyze", "name", name, "entry", entry, "err", err)
 		if err != nil {
 			return err
 		}

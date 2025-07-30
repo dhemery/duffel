@@ -29,6 +29,9 @@ func (s *State) Equal(o *State) bool {
 }
 
 func (s *State) LogValue() slog.Value {
+	if s == nil {
+		return slog.AnyValue(nil)
+	}
 	return slog.GroupValue(
 		slog.String("type", s.Type.String()[:1]),
 		slog.String("dest", s.Dest),

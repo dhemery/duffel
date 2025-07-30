@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	. "github.com/dhemery/duffel/internal/analyze"
+	"github.com/dhemery/duffel/internal/errfs"
 
 	"github.com/dhemery/duffel/internal/file"
 	"github.com/google/go-cmp/cmp"
@@ -32,7 +33,7 @@ func (i testIndex) SetState(name string, state *file.State) {
 	i[name] = indexValue{state: state}
 }
 
-func TestPkgOpItemFunc(t *testing.T) {
+func TestPackageOpItemFunc(t *testing.T) {
 	const (
 		target         = "path/to/target"
 		source         = "path/to/source"
@@ -104,6 +105,7 @@ func TestPkgOpItemFunc(t *testing.T) {
 			logger := slog.New(slog.NewJSONHandler(&logbuf, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
 			itemPath := NewSourcePath(source, pkg, item)
+			entry := errfs.DirEntry("test-entry", 0o644)
 
 			var gotItemFuncCall bool
 			fakeItemFunc := func(gotItem SourcePath, gotEntry fs.DirEntry, gotTarget TargetPath, gotState *file.State) (*file.State, error) {
@@ -125,7 +127,7 @@ func TestPkgOpItemFunc(t *testing.T) {
 
 			visit := pkgOp.VisitFunc(target, testIndex, fakeItemFunc, logger)
 
-			gotErr := visit(itemPath.String(), nil, nil)
+			gotErr := visit(itemPath.String(), entry, nil)
 
 			if !gotItemFuncCall {
 				t.Errorf("no call to item op")
@@ -152,7 +154,7 @@ func TestPkgOpItemFunc(t *testing.T) {
 
 // Tests of situations that produce errors
 // and preclude setting the desired state or calling the item op.
-func TestPkgOpWalkFuncError(t *testing.T) {
+func TestPackageOpWalkFuncError(t *testing.T) {
 	var (
 		anIndexError = errors.New("error returned from index.Desired")
 		aWalkError   = errors.New("error passed to visit func")
@@ -207,7 +209,7 @@ func TestPkgOpWalkFuncError(t *testing.T) {
 
 			visit := pkgOp.VisitFunc(target, testIndex, nil, logger)
 
-			gotErr := visit(sourcePkgItem, nil, test.walkErr)
+			gotErr := visit(sourcePkgItem, errfs.DirEntry("test-entry", 0o644), test.walkErr)
 
 			if !errors.Is(gotErr, test.wantError) {
 				t.Errorf("error:\n got: %v\nwant: %v", gotErr, test.wantError)
