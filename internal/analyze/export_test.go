@@ -4,17 +4,6 @@ import (
 	"errors"
 )
 
-func (s SourcePath) Equal(o SourcePath) bool {
-	return s.s == o.s &&
-		s.p == o.p &&
-		s.i == o.i
-}
-
-func (t TargetPath) Equal(o TargetPath) bool {
-	return t.t == o.t &&
-		t.i == o.i
-}
-
 func (me *MergeError) Equal(o *MergeError) bool {
 	if !sameNullity(me, o) {
 		return false
@@ -34,8 +23,8 @@ func (ce *ConflictError) Equal(o *ConflictError) bool {
 		return true
 	}
 	return ce.ItemType == o.ItemType &&
-		ce.Item.Equal(o.Item) &&
-		ce.Target.Equal(o.Target) &&
+		ce.Item == o.Item &&
+		ce.Target == o.Target &&
 		ce.TargetState.Equal(o.TargetState)
 }
 

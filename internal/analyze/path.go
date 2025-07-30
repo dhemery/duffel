@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 )
 
-// NewSourcePath returns a new SourcePath that represents
-// a package or item in a duffel source tree.
+// NewSourcePath returns a [SourcePath]
+// for the specified package or item.
 // Source is the full path to the source directory.
 // Pkg is the name of the package directory.
 // Item is the path from the package directory to the item.
@@ -15,30 +15,26 @@ func NewSourcePath(source, pkg, item string) SourcePath {
 	return SourcePath{source, pkg, item}
 }
 
-// SourcePath reresents the path to a package or item in a duffel source tree.
+// SourcePath is the path to a package or item in duffel source tree.
 type SourcePath struct {
-	s string // The full path to the source directory.
-	p string // The name of the package.
-	i string // The path from the package directory to the item.
+	Source  string // The full path to the source directory.
+	Package string // The name of the package.
+	Item    string // The path from the package directory to the item.
 }
 
 // String returns the full path to s.
 func (s SourcePath) String() string {
-	return path.Join(s.s, s.p, s.i)
+	return path.Join(s.Source, s.Package, s.Item)
 }
 
 // PackageDir returns the full path to s;s package directory.
 func (s SourcePath) PackageDir() string {
-	return path.Join(s.s, s.p)
-}
-
-func (s SourcePath) Item() string {
-	return s.i
+	return path.Join(s.Source, s.Package)
 }
 
 // WithItem returns a copy of s with its item replaced by item.
 func (s SourcePath) WithItem(item string) SourcePath {
-	return SourcePath{s.s, s.p, item}
+	return SourcePath{s.Source, s.Package, item}
 }
 
 // WithItemFrom returns a copy of s with its item replaced by the item in name.
@@ -48,32 +44,34 @@ func (s SourcePath) WithItemFrom(name string) SourcePath {
 	return s.WithItem(item)
 }
 
+// NewTargetPath returns a [TargetPath]
+// for the specified item in the target tree.
 func NewTargetPath(target, item string) TargetPath {
 	return TargetPath{target, item}
 }
 
-// TargetPath represents the path to a file in the target tree
-// that corresponds to a item in the source tree.
+// TargetPath is the path to an existing or planned file in the target tree.
 type TargetPath struct {
-	t string // The full path to the target directory.
-	i string // The path to the item from target.
+	Target string // The full path to the target directory.
+	Item   string // The path from t to the file.
 }
 
 // String returns the full path to the item.
 func (t TargetPath) String() string {
-	return path.Join(t.t, t.i)
+	return path.Join(t.Target, t.Item)
 }
 
-// Rel returns the relative path to follow to reach full from t.
-func (t TargetPath) Rel(full string) (string, error) {
-	return filepath.Rel(path.Dir(t.String()), full)
+// PathTo returns the relative path to full from t's parent directory.
+func (t TargetPath) PathTo(full string) string {
+	p, _ := filepath.Rel(t.parent(), full)
+	return p
 }
 
-// Full returns the full path reached by following rel from t.
-func (t TargetPath) Full(rel string) string {
+// Resolve resolves rel with respect to t's parent directory.
+func (t TargetPath) Resolve(rel string) string {
 	return path.Join(t.parent(), rel)
 }
 
 func (t TargetPath) parent() string {
-	return path.Join(t.t, path.Dir(t.i))
+	return path.Dir(t.String())
 }

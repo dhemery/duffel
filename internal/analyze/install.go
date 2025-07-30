@@ -36,7 +36,7 @@ func (op Install) Apply(sourceItem SourcePath, entry fs.DirEntry, targetItem Tar
 	sg := slog.Group("source", "path", sourceItem, "entry", entry)
 	tg := slog.Group("target", "path", targetItem, "state", targetState)
 	op.log.Info("install", sg, tg)
-	itemAsDest, _ := targetItem.Rel(sourceItem.String())
+	itemAsDest := targetItem.PathTo(sourceItem.String())
 	if targetState == nil {
 		// There is no target item, so we're free to create a link to the pkg item.
 		var err error
@@ -103,7 +103,7 @@ func (op Install) Apply(sourceItem SourcePath, entry fs.DirEntry, targetItem Tar
 
 	// The package item is a dir and the target is a link to a dir.
 	// Try to merge the target item.
-	err := op.merger.Merge(targetItem.Full(targetState.Dest))
+	err := op.merger.Merge(targetItem.Resolve(targetState.Dest))
 	if err != nil {
 		return nil, err
 	}

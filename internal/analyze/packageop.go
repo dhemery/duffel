@@ -56,7 +56,7 @@ func (po *PackageOp) VisitFunc(target string, index Index, itemFunc ItemFunc, lo
 		}
 
 		sourceItem := po.walkRoot.WithItemFrom(name)
-		targetItem := NewTargetPath(target, sourceItem.Item())
+		targetItem := NewTargetPath(target, sourceItem.Item)
 		oldState, err := index.State(targetItem.String())
 		if err != nil {
 			return err
