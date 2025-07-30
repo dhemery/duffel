@@ -16,12 +16,12 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-type indexCall func(i Index, t *testing.T)
+type indexCall func(i Index, t *testing.T, l *slog.Logger)
 
 func get(name string, wantState *file.State, wantErr error) indexCall {
-	return func(i Index, t *testing.T) {
+	return func(i Index, t *testing.T, l *slog.Logger) {
 		t.Helper()
-		state, err := i.State(name)
+		state, err := i.State(name, l)
 		if !cmp.Equal(state, wantState) {
 			t.Errorf("State(%q) state:\n got: %v\nwant: %v",
 				name, state, wantState)
@@ -34,8 +34,8 @@ func get(name string, wantState *file.State, wantErr error) indexCall {
 }
 
 func set(name string, state *file.State) indexCall {
-	return func(i Index, t *testing.T) {
-		i.SetState(name, state)
+	return func(i Index, t *testing.T, l *slog.Logger) {
+		i.SetState(name, state, l)
 	}
 }
 
@@ -170,7 +170,7 @@ func TestIndex(t *testing.T) {
 			index := NewIndex(testStater, logger)
 
 			for _, call := range test.calls {
-				call(index, t)
+				call(index, t, logger)
 			}
 
 			specs := maps.Collect(index.All())

@@ -9,14 +9,13 @@ import (
 )
 
 type Merger interface {
-	Merge(string) error
+	Merge(string, *slog.Logger) error
 }
 
-func NewInstall(target string, merger Merger, logger *slog.Logger) *Install {
+func NewInstall(target string, merger Merger) *Install {
 	return &Install{
 		target: target,
 		merger: merger,
-		logger: logger,
 	}
 }
 
@@ -25,17 +24,13 @@ func NewInstall(target string, merger Merger, logger *slog.Logger) *Install {
 type Install struct {
 	target string
 	merger Merger
-	logger *slog.Logger
 }
 
 // Apply returns the state of the targetItem file
 // that would result from installing the sourceItem file.
 // Entry describes the state of the item file in the source tree.
 // TargetState describes the state of targetItem as planned by earlier analysis.
-func (op Install) Apply(sourceItem SourcePath, entry fs.DirEntry, targetItem TargetPath, targetState *file.State) (*file.State, error) {
-	sg := slog.Group("source", "path", sourceItem, "entry", entry)
-	tg := slog.Group("target", "path", targetItem, "state", targetState)
-	op.logger.Info("install", sg, tg)
+func (op Install) Apply(sourceItem SourcePath, entry fs.DirEntry, targetItem TargetPath, targetState *file.State, logger *slog.Logger) (*file.State, error) {
 	itemAsDest := targetItem.PathTo(sourceItem.String())
 	if targetState == nil {
 		// There is no target item, so we're free to create a link to the pkg item.
@@ -103,7 +98,7 @@ func (op Install) Apply(sourceItem SourcePath, entry fs.DirEntry, targetItem Tar
 
 	// The package item is a dir and the target is a link to a dir.
 	// Try to merge the target item.
-	err := op.merger.Merge(targetItem.Resolve(targetState.Dest))
+	err := op.merger.Merge(targetItem.Resolve(targetState.Dest), logger)
 	if err != nil {
 		return nil, err
 	}

@@ -115,12 +115,12 @@ func TestMerge(t *testing.T) {
 
 			stater := file.NewStater(testFS)
 			index := NewIndex(stater, logger)
-			analyzer := NewAnalyst(testFS, test.target, index, logger)
+			analyzer := NewAnalyst(testFS, test.target, index)
 			itemizer := NewItemizer(testFS)
 
-			merger := NewMerger(itemizer, analyzer, logger)
+			merger := NewMerger(itemizer, analyzer)
 
-			err := merger.Merge(test.mergeDir)
+			err := merger.Merge(test.mergeDir, logger)
 
 			if diff := cmp.Diff(test.wantErr, err); diff != "" {
 				t.Errorf("Merge(%q, %q) error:\n%s",

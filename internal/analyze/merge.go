@@ -22,28 +22,26 @@ func (me *MergeError) Unwrap() error {
 	return me.Err
 }
 
-func NewMerger(itemizer Itemizer, analyst *Analyst, logger *slog.Logger) *merger {
+func NewMerger(itemizer Itemizer, analyst *Analyst) *merger {
 	return &merger{
 		itemizer: itemizer,
 		analyst:  analyst,
-		logger:   logger,
 	}
 }
 
 type merger struct {
 	itemizer Itemizer
 	analyst  *Analyst
-	logger   *slog.Logger
 }
 
-func (m merger) Merge(name string) error {
+func (m merger) Merge(name string, logger *slog.Logger) error {
+	mergeLogger := logger.WithGroup("merging").With("name", name)
 	mergeItem, err := m.itemizer.Itemize(name)
 	if err != nil {
 		return &MergeError{Name: name, Err: err}
 	}
 
-	m.logger.Info("merge", "item", mergeItem)
 	pkgOp := NewMergeOp(mergeItem, OpInstall)
-	_, err = m.analyst.Analyze(pkgOp)
+	_, err = m.analyst.Analyze(mergeLogger, pkgOp)
 	return err
 }

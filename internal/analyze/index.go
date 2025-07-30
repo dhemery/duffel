@@ -23,14 +23,12 @@ func NewIndex(s Stater, l *slog.Logger) *index {
 	return &index{
 		specs:  map[string]Spec{},
 		stater: s,
-		logger: l.WithGroup("file"),
 	}
 }
 
 type index struct {
 	specs  map[string]Spec
 	stater Stater
-	logger *slog.Logger
 }
 
 // State returns the planned state of the named file.
@@ -38,14 +36,14 @@ type index struct {
 // this method reads the current state of the file,
 // stores it as both the current and planned states,
 // and returns the state.
-func (i *index) State(name string) (*file.State, error) {
+func (i *index) State(name string, logger *slog.Logger) (*file.State, error) {
 	spec, ok := i.specs[name]
 	if !ok {
 		state, err := i.stater.State(name)
 		if err != nil {
 			return nil, err
 		}
-		i.logger.Info("loaded target file state", "name", name, "state", state)
+		logger.Info("read target file state", "file_state", state)
 		spec = Spec{state, state}
 		i.specs[name] = spec
 	}
@@ -53,9 +51,9 @@ func (i *index) State(name string) (*file.State, error) {
 }
 
 // SetState sets the planned state of the named file.
-func (i *index) SetState(name string, state *file.State) {
+func (i *index) SetState(name string, state *file.State, logger *slog.Logger) {
 	spec := i.specs[name]
-	i.logger.Info("updated planned state", "name", name, "state", state)
+	logger.Info("updated goal state", "goal_state", state)
 	spec.Planned = state
 	i.specs[name] = spec
 }

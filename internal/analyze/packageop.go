@@ -1,6 +1,7 @@
 package analyze
 
 import (
+	"fmt"
 	"io/fs"
 	"log/slog"
 
@@ -9,6 +10,16 @@ import (
 
 // ItemOp identifies a operation to apply to the items in a package.
 type ItemOp int
+
+func (op ItemOp) String() string {
+	switch op {
+	case OpInstall:
+		return "install"
+	case OpRemove:
+		return "remove"
+	}
+	return fmt.Sprintf("unknown goal: %d", op)
+}
 
 const (
 	OpInstall = ItemOp(1 << iota) // Installs items to the target tree.
@@ -31,7 +42,7 @@ func NewMergeOp(itemPath SourcePath, itemOp ItemOp) *PackageOp {
 	}
 }
 
-type ItemFunc func(sp SourcePath, entry fs.DirEntry, tp TargetPath, state *file.State) (*file.State, error)
+type ItemFunc func(SourcePath, fs.DirEntry, TargetPath, *file.State, *slog.Logger) (*file.State, error)
 
 // PackageOp walks a directory and applies an item operation to the visited files.
 type PackageOp struct {
@@ -40,8 +51,8 @@ type PackageOp struct {
 }
 
 type Index interface {
-	State(string) (*file.State, error)
-	SetState(string, *file.State)
+	State(string, *slog.Logger) (*file.State, error)
+	SetState(string, *file.State, *slog.Logger)
 }
 
 func (po *PackageOp) VisitFunc(target string, index Index, itemFunc ItemFunc, logger *slog.Logger) fs.WalkDirFunc {
@@ -54,17 +65,26 @@ func (po *PackageOp) VisitFunc(target string, index Index, itemFunc ItemFunc, lo
 			return nil
 		}
 
-		sourceItem := po.walkRoot.WithItemFrom(name)
-		targetItem := NewTargetPath(target, sourceItem.Item)
-		oldState, err := index.State(targetItem.String())
+		sourcePath := po.walkRoot.WithItemFrom(name)
+		targetPath := NewTargetPath(target, sourcePath.Item)
+
+		goalAttr := slog.String("goal", po.itemOp.String())
+		sGroup := slog.Group("source", "path", sourcePath, "entry", entry)
+		tpAttr := slog.Any("path", targetPath)
+		indexLogger := logger.With(goalAttr, sGroup, slog.Group("target", tpAttr))
+		indexLogger.Info("analyzing")
+
+		targetState, err := index.State(targetPath.String(), indexLogger)
 		if err != nil {
 			return err
 		}
 
-		newState, err := itemFunc(sourceItem, entry, targetItem, oldState)
+		tGroup := slog.Group("target", tpAttr, "state", targetState)
+		itemOpLogger := indexLogger.With(tGroup)
+		newState, err := itemFunc(sourcePath, entry, targetPath, targetState, itemOpLogger)
 
 		if err == nil || err == fs.SkipDir {
-			index.SetState(targetItem.String(), newState)
+			index.SetState(targetPath.String(), newState, indexLogger)
 		}
 
 		return err

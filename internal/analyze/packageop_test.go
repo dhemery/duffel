@@ -21,7 +21,7 @@ type indexValue struct {
 }
 type testIndex map[string]indexValue
 
-func (i testIndex) State(name string) (*file.State, error) {
+func (i testIndex) State(name string, l *slog.Logger) (*file.State, error) {
 	v, ok := i[name]
 	if !ok {
 		return nil, fs.ErrInvalid
@@ -29,7 +29,7 @@ func (i testIndex) State(name string) (*file.State, error) {
 	return v.state, v.err
 }
 
-func (i testIndex) SetState(name string, state *file.State) {
+func (i testIndex) SetState(name string, state *file.State, l *slog.Logger) {
 	i[name] = indexValue{state: state}
 }
 
@@ -108,7 +108,7 @@ func TestPackageOpItemFunc(t *testing.T) {
 			entry := errfs.DirEntry("test-entry", 0o644)
 
 			var gotItemFuncCall bool
-			fakeItemFunc := func(gotItem SourcePath, gotEntry fs.DirEntry, gotTarget TargetPath, gotState *file.State) (*file.State, error) {
+			fakeItemFunc := func(gotItem SourcePath, gotEntry fs.DirEntry, gotTarget TargetPath, gotState *file.State, l *slog.Logger) (*file.State, error) {
 				gotItemFuncCall = true
 				if gotItem != itemPath {
 					t.Errorf("item op: got item %q, want %q", gotItem, itemPath)

@@ -12,20 +12,19 @@ import (
 func Analyze(fsys fs.FS, target string, packageOps []*PackageOp, logger *slog.Logger) (*index, error) {
 	stater := file.NewStater(fsys)
 	index := NewIndex(stater, logger)
-	analyst := NewAnalyst(fsys, target, index, logger)
-	return analyst.Analyze(packageOps...)
+	analyst := NewAnalyst(fsys, target, index)
+	return analyst.Analyze(logger, packageOps...)
 }
 
-func NewAnalyst(fsys fs.FS, target string, index *index, logger *slog.Logger) *Analyst {
+func NewAnalyst(fsys fs.FS, target string, index *index) *Analyst {
 	a := &Analyst{
 		fsys:   fsys,
 		target: target,
 		index:  index,
-		logger: logger,
 	}
 	itemizer := NewItemizer(fsys)
-	merger := NewMerger(itemizer, a, logger)
-	a.install = NewInstall(target, merger, logger)
+	merger := NewMerger(itemizer, a)
+	a.install = NewInstall(target, merger)
 	return a
 }
 
@@ -34,12 +33,11 @@ type Analyst struct {
 	target  string
 	index   *index
 	install *Install
-	logger  *slog.Logger
 }
 
-func (a *Analyst) Analyze(pops ...*PackageOp) (*index, error) {
+func (a *Analyst) Analyze(l *slog.Logger, pops ...*PackageOp) (*index, error) {
 	for _, pop := range pops {
-		err := fs.WalkDir(a.fsys, pop.walkRoot.String(), pop.VisitFunc(a.target, a.index, a.install.Apply, a.logger))
+		err := fs.WalkDir(a.fsys, pop.walkRoot.String(), pop.VisitFunc(a.target, a.index, a.install.Apply, l))
 		if err != nil {
 			return nil, err
 		}

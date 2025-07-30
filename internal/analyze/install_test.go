@@ -293,15 +293,15 @@ func (test test) run(t *testing.T) {
 		}
 		stater := file.NewStater(testFS)
 		index := NewIndex(stater, logger)
-		analyst := NewAnalyst(testFS, test.target, index, logger)
+		analyst := NewAnalyst(testFS, test.target, index)
 		itemizer := NewItemizer(testFS)
-		merger := NewMerger(itemizer, analyst, logger)
-		install := NewInstall(test.target, merger, logger)
+		merger := NewMerger(itemizer, analyst)
+		install := NewInstall(test.target, merger)
 
 		state := test.targetState
 
 		targetItem := NewTargetPath(test.target, test.itemPath.Item)
-		gotState, gotErr := install.Apply(test.itemPath, test.entry, targetItem, state)
+		gotState, gotErr := install.Apply(test.itemPath, test.entry, targetItem, state, logger)
 
 		if !cmp.Equal(gotState, test.wantState) {
 			t.Errorf("Apply(%q) state result:\n got %v\nwant %v",
