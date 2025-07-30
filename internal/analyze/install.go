@@ -16,7 +16,7 @@ func NewInstall(target string, merger Merger, logger *slog.Logger) *Install {
 	return &Install{
 		target: target,
 		merger: merger,
-		log:    logger,
+		logger: logger,
 	}
 }
 
@@ -25,7 +25,7 @@ func NewInstall(target string, merger Merger, logger *slog.Logger) *Install {
 type Install struct {
 	target string
 	merger Merger
-	log    *slog.Logger
+	logger *slog.Logger
 }
 
 // Apply returns the state of the targetItem file
@@ -35,7 +35,7 @@ type Install struct {
 func (op Install) Apply(sourceItem SourcePath, entry fs.DirEntry, targetItem TargetPath, targetState *file.State) (*file.State, error) {
 	sg := slog.Group("source", "path", sourceItem, "entry", entry)
 	tg := slog.Group("target", "path", targetItem, "state", targetState)
-	op.log.Info("install", sg, tg)
+	op.logger.Info("install", sg, tg)
 	itemAsDest := targetItem.PathTo(sourceItem.String())
 	if targetState == nil {
 		// There is no target item, so we're free to create a link to the pkg item.

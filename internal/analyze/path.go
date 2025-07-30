@@ -17,9 +17,9 @@ func NewSourcePath(source, pkg, item string) SourcePath {
 
 // SourcePath is the path to a package or item in duffel source tree.
 type SourcePath struct {
-	Source  string // The full path to the source directory.
-	Package string // The name of the package.
-	Item    string // The path from the package directory to the item.
+	Source  string `json:"source"`  // The full path to the source directory.
+	Package string `json:"package"` // The name of the package.
+	Item    string `json:"item"`    // The path from the package directory to the item.
 }
 
 // String returns the full path to s.
@@ -52,8 +52,8 @@ func NewTargetPath(target, item string) TargetPath {
 
 // TargetPath is the path to an existing or planned file in the target tree.
 type TargetPath struct {
-	Target string // The full path to the target directory.
-	Item   string // The path from t to the file.
+	Target string `json:"target"` // The full path to the target directory.
+	Item   string `json:"item"`   // The path from t to the file.
 }
 
 // String returns the full path to the item.

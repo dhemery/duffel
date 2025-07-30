@@ -3,14 +3,15 @@ package file
 import (
 	"errors"
 	"io/fs"
+	"log/slog"
 	"path"
 )
 
 // A State describes the state of an existing or planned file.
 type State struct {
-	Type     fs.FileMode
-	Dest     string
-	DestType fs.FileMode
+	Type     fs.FileMode `json:"type"`
+	Dest     string      `json:"dest"`
+	DestType fs.FileMode `json:"desttype"`
 }
 
 func (s *State) Equal(o *State) bool {
@@ -25,6 +26,14 @@ func (s *State) Equal(o *State) bool {
 	return s.Type == o.Type &&
 		s.Dest == o.Dest &&
 		s.DestType == o.DestType
+}
+
+func (s *State) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.String("type", s.Type.String()[:1]),
+		slog.String("dest", s.Dest),
+		slog.String("desttype", s.DestType.String()[:1]),
+	)
 }
 
 func NewStater(fsys fs.FS) stater {

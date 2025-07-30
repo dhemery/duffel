@@ -26,14 +26,14 @@ func NewMerger(itemizer Itemizer, analyst *Analyst, logger *slog.Logger) *merger
 	return &merger{
 		itemizer: itemizer,
 		analyst:  analyst,
-		log:      logger,
+		logger:   logger,
 	}
 }
 
 type merger struct {
 	itemizer Itemizer
 	analyst  *Analyst
-	log      *slog.Logger
+	logger   *slog.Logger
 }
 
 func (m merger) Merge(name string) error {
@@ -42,7 +42,7 @@ func (m merger) Merge(name string) error {
 		return &MergeError{Name: name, Err: err}
 	}
 
-	m.log.Info("merge", "item", mergeItem)
+	m.logger.Info("merge", "item", mergeItem)
 	pkgOp := NewMergeOp(mergeItem, OpInstall)
 	_, err = m.analyst.Analyze(pkgOp)
 	return err
