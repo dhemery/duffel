@@ -1,8 +1,12 @@
 package analyze
 
 import (
+	"io/fs"
+	"log/slog"
 	"path"
 	"path/filepath"
+
+	"github.com/dhemery/duffel/internal/file"
 )
 
 // NewSourcePath returns a [SourcePath]
@@ -44,6 +48,21 @@ func (s SourcePath) WithItemFrom(name string) SourcePath {
 	return s.WithItem(item)
 }
 
+type SourceItem struct {
+	Path  SourcePath  `json:"path"`
+	Entry fs.DirEntry `json:"entry"`
+}
+
+func (s SourceItem) Equal(o SourceItem) bool {
+	return s.Path == o.Path &&
+		s.Entry.Type() == o.Entry.Type()
+}
+
+func (s SourceItem) LogValue() slog.Value {
+	return slog.GroupValue(slog.Any("path", s.Path),
+		slog.String("entry", fs.FormatDirEntry(s.Entry)))
+}
+
 // NewTargetPath returns a [TargetPath]
 // for the specified item in the target tree.
 func NewTargetPath(target, item string) TargetPath {
@@ -74,4 +93,19 @@ func (t TargetPath) Resolve(rel string) string {
 
 func (t TargetPath) parent() string {
 	return path.Dir(t.String())
+}
+
+type TargetItem struct {
+	Path  TargetPath  `json:"path"`
+	State *file.State `json:"state"`
+}
+
+func (t TargetItem) Equal(o TargetItem) bool {
+	return t.Path == o.Path &&
+		t.State.Equal(o.State)
+}
+
+func (t TargetItem) LogValue() slog.Value {
+	return slog.GroupValue(slog.Any("path", t.Path),
+		slog.Any("state", t.State))
 }

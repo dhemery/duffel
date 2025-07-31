@@ -28,14 +28,12 @@ type Install struct {
 
 // Apply returns the state of the targetItem file
 // that would result from installing the sourceItem file.
-// Entry describes the state of the item file in the source tree.
-// TargetState describes the state of targetItem as planned by earlier analysis.
-func (op Install) Apply(sourceItem SourcePath, entry fs.DirEntry, targetItem TargetPath, targetState *file.State, logger *slog.Logger) (*file.State, error) {
-	itemAsDest := targetItem.PathTo(sourceItem.String())
-	if targetState == nil {
+func (op Install) Apply(s SourceItem, t TargetItem, l *slog.Logger) (*file.State, error) {
+	itemAsDest := t.Path.PathTo(s.Path.String())
+	if t.State == nil {
 		// There is no target item, so we're free to create a link to the pkg item.
 		var err error
-		if entry.IsDir() {
+		if s.Entry.IsDir() {
 			// Linking to the dir installs the dir and its contents.
 			// There's no need to walk its contents.
 			err = fs.SkipDir
@@ -43,62 +41,62 @@ func (op Install) Apply(sourceItem SourcePath, entry fs.DirEntry, targetItem Tar
 		return &file.State{
 			Type:     fs.ModeSymlink,
 			Dest:     itemAsDest,
-			DestType: entry.Type(),
+			DestType: s.Entry.Type(),
 		}, err
 	}
 
 	// At this point, we know that the target exists,
 	// either on the file system or as planned by a previous operation.
 
-	if targetState.Type.IsRegular() {
+	if t.State.Type.IsRegular() {
 		// Cannot modify an existing regular file.
-		return nil, conflictError(sourceItem, entry, targetItem, targetState)
+		return nil, conflictError(s, t)
 	}
 
-	if targetState.Type.IsDir() {
-		if entry.IsDir() {
+	if t.State.Type.IsDir() {
+		if s.Entry.IsDir() {
 			// The target and pkg item are both dirs.
 			// Return the target state unchanged,
 			// and a nil error to walk the pkg item's contents.
-			return targetState, nil
+			return t.State, nil
 		}
 
 		// The target is a dir, but the pkg item is not.
 		// Cannot merge the target dir with a non-dir pkg item.
-		return nil, conflictError(sourceItem, entry, targetItem, targetState)
+		return nil, conflictError(s, t)
 	}
 
-	if targetState.Type.Type() != fs.ModeSymlink {
+	if t.State.Type.Type() != fs.ModeSymlink {
 		// Target item is not file, dir, or link.
-		return nil, conflictError(sourceItem, entry, targetItem, targetState)
+		return nil, conflictError(s, t)
 	}
 
 	// At this point, we know that the existing target is a symlink.
 
-	if targetState.Dest == itemAsDest {
+	if t.State.Dest == itemAsDest {
 		// The target already links to this pkg item.
 		// There's nothing more to do.
 		var err error
-		if entry.IsDir() {
+		if s.Entry.IsDir() {
 			// We're done with this item. Do not walk its contents.
 			err = fs.SkipDir
 		}
-		return targetState, err
+		return t.State, err
 	}
 
-	if !targetState.DestType.IsDir() {
+	if !t.State.DestType.IsDir() {
 		// The target's link destination is not a dir. Cannot merge.
-		return nil, conflictError(sourceItem, entry, targetItem, targetState)
+		return nil, conflictError(s, t)
 	}
 
-	if !entry.IsDir() {
+	if !s.Entry.IsDir() {
 		// Tne entry is not a dir. Cannot merge.
-		return nil, conflictError(sourceItem, entry, targetItem, targetState)
+		return nil, conflictError(s, t)
 	}
 
 	// The package item is a dir and the target is a link to a dir.
 	// Try to merge the target item.
-	err := op.merger.Merge(targetItem.Resolve(targetState.Dest), logger)
+	err := op.merger.Merge(t.Path.Resolve(t.State.Dest), l)
 	if err != nil {
 		return nil, err
 	}
@@ -110,12 +108,12 @@ func (op Install) Apply(sourceItem SourcePath, entry fs.DirEntry, targetItem Tar
 	return dirState, nil
 }
 
-func conflictError(item SourcePath, entry fs.DirEntry, target TargetPath, state *file.State) error {
+func conflictError(s SourceItem, t TargetItem) error {
 	return &ConflictError{
-		Item:        item,
-		ItemType:    entry.Type(),
-		Target:      target,
-		TargetState: state,
+		Item:        s.Path,
+		ItemType:    s.Entry.Type(),
+		Target:      t.Path,
+		TargetState: t.State,
 	}
 }
 

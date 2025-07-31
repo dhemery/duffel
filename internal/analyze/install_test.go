@@ -298,10 +298,12 @@ func (test test) run(t *testing.T) {
 		merger := NewMerger(itemizer, analyst)
 		install := NewInstall(test.target, merger)
 
-		state := test.targetState
-
-		targetItem := NewTargetPath(test.target, test.itemPath.Item)
-		gotState, gotErr := install.Apply(test.itemPath, test.entry, targetItem, state, logger)
+		sourceItem := SourceItem{test.itemPath, test.entry}
+		targetItem := TargetItem{
+			NewTargetPath(test.target, test.itemPath.Item),
+			test.targetState,
+		}
+		gotState, gotErr := install.Apply(sourceItem, targetItem, logger)
 
 		if !cmp.Equal(gotState, test.wantState) {
 			t.Errorf("Apply(%q) state result:\n got %v\nwant %v",

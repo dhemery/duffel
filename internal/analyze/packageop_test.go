@@ -104,30 +104,31 @@ func TestPackageOpItemFunc(t *testing.T) {
 			var logbuf bytes.Buffer
 			logger := slog.New(slog.NewJSONHandler(&logbuf, &slog.HandlerOptions{Level: slog.LevelInfo}))
 
-			itemPath := NewSourcePath(source, pkg, item)
-			entry := errfs.DirEntry("test-entry", 0o644)
+			sourcePath := NewSourcePath(source, pkg, item)
+			targetPath := NewTargetPath(target, item)
+
+			sourceItem := SourceItem{sourcePath, errfs.DirEntry("test-entry", 0o644)}
+			targetItem := TargetItem{targetPath, test.indexState}
 
 			var gotItemFuncCall bool
-			fakeItemFunc := func(gotItem SourcePath, gotEntry fs.DirEntry, gotTarget TargetPath, gotState *file.State, l *slog.Logger) (*file.State, error) {
+			fakeItemFunc := func(gotSourceItem SourceItem, gotTargetItem TargetItem, l *slog.Logger) (*file.State, error) {
 				gotItemFuncCall = true
-				if gotItem != itemPath {
-					t.Errorf("item op: got item %q, want %q", gotItem, itemPath)
+				if diff := cmp.Diff(gotSourceItem, sourceItem); diff != "" {
+					t.Errorf("item op: source item:\n%s", diff)
 				}
-				if !cmp.Equal(gotState, test.indexState) {
-					t.Errorf("item op: got state %v, want %v", gotState, test.indexState)
+				if diff := cmp.Diff(gotTargetItem, targetItem); diff != "" {
+					t.Errorf("item op: target item:\n%s", diff)
 				}
 				return test.itemFuncState, test.itemFuncError
 			}
 
-			targetItem := path.Join(target, itemPath.Item)
-
-			testIndex := testIndex{targetItem: indexValue{state: test.indexState}}
+			testIndex := testIndex{targetItem.Path.String(): indexValue{state: test.indexState}}
 
 			pkgOp := NewPackageOp(source, pkg, GoalInstall)
 
 			visit := pkgOp.VisitFunc(target, testIndex, fakeItemFunc, logger)
 
-			gotErr := visit(itemPath.String(), entry, nil)
+			gotErr := visit(sourceItem.Path.String(), sourceItem.Entry, nil)
 
 			if !gotItemFuncCall {
 				t.Errorf("no call to item op")
@@ -138,12 +139,12 @@ func TestPackageOpItemFunc(t *testing.T) {
 			}
 
 			var gotState *file.State
-			if v, ok := testIndex[targetItem]; ok {
+			if v, ok := testIndex[targetPath.String()]; ok {
 				gotState = v.state
 			}
 			if !cmp.Equal(gotState, test.wantState) {
 				t.Errorf("index[%q] after visit:\n got%v\nwant %v",
-					targetItem, gotState, test.wantState)
+					targetPath, gotState, test.wantState)
 			}
 			if t.Failed() || testing.Verbose() {
 				t.Log("log:\n", logbuf.String())

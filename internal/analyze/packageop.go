@@ -42,7 +42,7 @@ func NewMergeOp(itemPath SourcePath) *PackageOp {
 	}
 }
 
-type ItemFunc func(SourcePath, fs.DirEntry, TargetPath, *file.State, *slog.Logger) (*file.State, error)
+type ItemFunc func(SourceItem, TargetItem, *slog.Logger) (*file.State, error)
 
 // PackageOp plans how to achieve a goal for a package.
 type PackageOp struct {
@@ -69,9 +69,9 @@ func (po *PackageOp) VisitFunc(target string, index Index, itemFunc ItemFunc, lo
 		targetPath := NewTargetPath(target, sourcePath.Item)
 
 		goalAttr := slog.String("goal", po.goal.String())
-		sGroup := slog.Group("source", "path", sourcePath, "entry", fs.FormatDirEntry(entry))
+		sourceItem := SourceItem{sourcePath, entry}
 		tpAttr := slog.Any("path", targetPath)
-		indexLogger := logger.With(goalAttr, sGroup, slog.Group("target", tpAttr))
+		indexLogger := logger.With(goalAttr, "source", sourceItem, slog.Group("target", tpAttr))
 		indexLogger.Info("start analyzing")
 
 		targetState, err := index.State(targetPath.String(), indexLogger)
@@ -79,9 +79,10 @@ func (po *PackageOp) VisitFunc(target string, index Index, itemFunc ItemFunc, lo
 			return err
 		}
 
-		tGroup := slog.Group("target", tpAttr, "state", targetState)
-		itemFuncLogger := indexLogger.With(tGroup)
-		newState, err := itemFunc(sourcePath, entry, targetPath, targetState, itemFuncLogger)
+		targetItem := TargetItem{targetPath, targetState}
+
+		itemFuncLogger := indexLogger.With("target", targetItem)
+		newState, err := itemFunc(sourceItem, targetItem, itemFuncLogger)
 
 		if err == nil || err == fs.SkipDir {
 			index.SetState(targetPath.String(), newState, indexLogger)
