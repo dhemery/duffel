@@ -131,29 +131,6 @@ type ConflictError struct {
 }
 
 func (ce *ConflictError) Error() string {
-	return fmt.Sprintf("install conflict: package item %q is %s, target %q is %s",
-		ce.Item, typeString(ce.ItemType), ce.Target, stateString(ce.TargetState))
-}
-
-func typeString(m fs.FileMode) string {
-	switch {
-	case m.IsRegular():
-		return "a regular file"
-	case m.IsDir():
-		return "a directory"
-	case m&fs.ModeSymlink != 0:
-		return "a symlink"
-	default:
-		return fmt.Sprintf("unknown file type %s", m.String())
-	}
-}
-
-func stateString(s *file.State) string {
-	if s == nil {
-		return "<nil>"
-	}
-	if s.Type&fs.ModeSymlink != 0 {
-		return fmt.Sprintf("%s to %s (%s)", typeString(s.Type), typeString(s.DestType), s.Dest)
-	}
-	return typeString(s.Type)
+	return fmt.Sprintf("install conflict: source item %q is %s, target item %q is %s",
+		ce.Item, file.DescribeType(ce.ItemType), ce.Target, ce.TargetState)
 }

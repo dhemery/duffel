@@ -2,18 +2,20 @@ package file
 
 import (
 	"errors"
+	"fmt"
 	"io/fs"
 	"log/slog"
 	"path"
 )
 
-// A State describes the state of an existing or planned file.
+// A State represents the state of an existing or planned file.
 type State struct {
 	Type     fs.FileMode `json:"type"`
 	Dest     string      `json:"dest"`
 	DestType fs.FileMode `json:"desttype"`
 }
 
+// Equal reports whether o represents the same state as s.
 func (s *State) Equal(o *State) bool {
 	sNil := s == nil
 	oNil := o == nil
@@ -28,6 +30,7 @@ func (s *State) Equal(o *State) bool {
 		s.DestType == o.DestType
 }
 
+// LogValue implements [slog.LogValuer].
 func (s *State) LogValue() slog.Value {
 	if s == nil {
 		return slog.AnyValue(nil)
@@ -39,17 +42,18 @@ func (s *State) LogValue() slog.Value {
 	)
 }
 
-func NewStater(fsys fs.FS) stater {
-	return stater{fsys}
+// NewStater creates a [Stater] that reads file states from fsys.
+func NewStater(fsys fs.FS) Stater {
+	return Stater{fsys}
 }
 
-// A stater describes the states of files in a file system.
-type stater struct {
+// A Stater describes the states of files in a file system.
+type Stater struct {
 	FS fs.FS
 }
 
 // State returns the state of the named file.
-func (s stater) State(name string) (*State, error) {
+func (s Stater) State(name string) (*State, error) {
 	info, err := fs.Lstat(s.FS, name)
 	if errors.Is(err, fs.ErrNotExist) {
 		return nil, nil
@@ -84,4 +88,29 @@ func FileState() *State {
 
 func LinkState(dest string, destType fs.FileMode) *State {
 	return &State{Type: fs.ModeSymlink, Dest: dest, DestType: destType}
+}
+
+// String formats s as a string.
+func (s *State) String() string {
+	if s == nil {
+		return "<nil>"
+	}
+	if s.Type&fs.ModeSymlink != 0 {
+		return fmt.Sprintf("%s to %s (%q)", DescribeType(s.Type), DescribeType(s.DestType), s.Dest)
+	}
+	return DescribeType(s.Type)
+}
+
+// DescribeType m's type in English.
+func DescribeType(m fs.FileMode) string {
+	switch {
+	case m.IsRegular():
+		return "a regular file"
+	case m.IsDir():
+		return "a directory"
+	case m&fs.ModeSymlink != 0:
+		return "a symlink"
+	default:
+		return fmt.Sprintf("unknown file type %s", m.String())
+	}
 }
