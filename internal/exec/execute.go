@@ -1,3 +1,5 @@
+// Package exec builds and executes a plan
+// to accomplish the specified package goals.
 package exec
 
 import (

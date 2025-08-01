@@ -1,3 +1,7 @@
+// Package analyze identifies the current and planned states
+// of each file in the target tree
+// that will have to change in order to achieve
+// a given sequence of package goals.
 package analyze
 
 import (
@@ -7,7 +11,9 @@ import (
 	"github.com/dhemery/duffel/internal/file"
 )
 
-// Analyze applies packageOps to identify the current and desired states of files in the target tree
+// Analyze applies packageOps
+// to identify the current and desired states
+// of files in the target tree
 // that correspond to the items in the packages.
 func Analyze(fsys fs.FS, target string, packageOps []*PackageOp, logger *slog.Logger) (*index, error) {
 	stater := file.NewStater(fsys)

@@ -19,8 +19,9 @@ func NewInstall(target string, merger Merger) *Install {
 	}
 }
 
-// Install describes the installed states
-// of the target files that correspond to the given package items.
+// Install describes the installed state
+// of the target file that corresponds
+// to each given source item.
 type Install struct {
 	target string
 	merger Merger
@@ -29,11 +30,15 @@ type Install struct {
 // Apply returns the state of the targetItem file
 // that would result from installing the sourceItem file.
 func (op Install) Apply(s SourceItem, t TargetItem, l *slog.Logger) (*file.State, error) {
-	itemAsDest := t.Path.PathTo(s.Path.String())
-	if t.State == nil {
-		// There is no target item, so we're free to create a link to the pkg item.
+	targetPath := t.Path
+	targetState := t.State
+	sourceEntry := s.Entry
+	itemAsDest := targetPath.PathTo(s.Path.String())
+
+	if targetState == nil {
+		// There is no target file, so we're free to create a link to the source item.
 		var err error
-		if s.Entry.IsDir() {
+		if sourceEntry.IsDir() {
 			// Linking to the dir installs the dir and its contents.
 			// There's no need to walk its contents.
 			err = fs.SkipDir
@@ -41,68 +46,69 @@ func (op Install) Apply(s SourceItem, t TargetItem, l *slog.Logger) (*file.State
 		return &file.State{
 			Type:     fs.ModeSymlink,
 			Dest:     itemAsDest,
-			DestType: s.Entry.Type(),
+			DestType: sourceEntry.Type(),
 		}, err
 	}
 
-	// At this point, we know that the target exists,
-	// either on the file system or as planned by a previous operation.
+	// At this point, we know that earlier goals (if any)
+	// either create or preserve a file at the target path.
 
-	if t.State.Type.IsRegular() {
-		// Cannot modify an existing regular file.
+	targetType := targetState.Type
+	if targetType.IsRegular() {
+		// Cannot modify an existing regular target file.
 		return nil, conflictError(s, t)
 	}
 
-	if t.State.Type.IsDir() {
-		if s.Entry.IsDir() {
-			// The target and pkg item are both dirs.
+	if targetType.IsDir() {
+		if sourceEntry.IsDir() {
+			// The target and source item are both dirs.
 			// Return the target state unchanged,
 			// and a nil error to walk the pkg item's contents.
-			return t.State, nil
+			return targetState, nil
 		}
 
-		// The target is a dir, but the pkg item is not.
-		// Cannot merge the target dir with a non-dir pkg item.
+		// The target item is a dir, but the source item is not.
+		// Cannot merge the target dir with a non-dir source item.
 		return nil, conflictError(s, t)
 	}
 
-	if t.State.Type.Type() != fs.ModeSymlink {
+	if targetType.Type() != fs.ModeSymlink {
 		// Target item is not file, dir, or link.
 		return nil, conflictError(s, t)
 	}
 
-	// At this point, we know that the existing target is a symlink.
+	// At this point, we know that the target is a symlink.
 
-	if t.State.Dest == itemAsDest {
-		// The target already links to this pkg item.
+	if targetState.Dest == itemAsDest {
+		// The target symlink already points to the source item.
 		// There's nothing more to do.
 		var err error
-		if s.Entry.IsDir() {
+		if sourceEntry.IsDir() {
 			// We're done with this item. Do not walk its contents.
 			err = fs.SkipDir
 		}
-		return t.State, err
+		return targetState, err
 	}
 
-	if !t.State.DestType.IsDir() {
-		// The target's link destination is not a dir. Cannot merge.
+	if !targetState.DestType.IsDir() {
+		// The target item's link destination is not a dir. Cannot merge.
 		return nil, conflictError(s, t)
 	}
 
-	if !s.Entry.IsDir() {
+	if !sourceEntry.IsDir() {
 		// Tne entry is not a dir. Cannot merge.
 		return nil, conflictError(s, t)
 	}
 
 	// The package item is a dir and the target is a link to a dir.
 	// Try to merge the target item.
-	err := op.merger.Merge(t.Path.Resolve(t.State.Dest), l)
+	err := op.merger.Merge(targetPath.Resolve(targetState.Dest), l)
 	if err != nil {
 		return nil, err
 	}
 
-	// No conflicts installing the target destination's contents.
-	// Now change the target to a dir, and walk the current item
+	// No conflicts merging the target destination dir.
+	// Now change the target to a dir, and walk the source item
 	// to install its contents into the dir.
 	dirState := &file.State{Type: fs.ModeDir}
 	return dirState, nil
