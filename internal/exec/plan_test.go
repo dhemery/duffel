@@ -25,10 +25,14 @@ func TestNewPlan(t *testing.T) {
 		specs     specMap
 		wantTasks map[string]Task
 	}{
-		"omit do nothing tasks": {
+		"plans no task if current and planned are equal": {
 			specs: specMap{
 				// Each spec's planned state is the same as the current state,
 				// so the target tree is already at the planned state.
+				"target/nil": analyze.Spec{
+					Current: nil,
+					Planned: nil,
+				},
 				"target/dir": analyze.Spec{
 					Current: file.DirState(),
 					Planned: file.DirState(),
@@ -37,14 +41,22 @@ func TestNewPlan(t *testing.T) {
 					Current: file.FileState(),
 					Planned: file.FileState(),
 				},
-				"target/link": analyze.Spec{
+				"target/link/same/dest/file": analyze.Spec{
 					Current: file.LinkState("some/dest", 0),
 					Planned: file.LinkState("some/dest", 0),
+				},
+				"target/link/same/dest/dir": analyze.Spec{
+					Current: file.LinkState("some/dest", fs.ModeDir),
+					Planned: file.LinkState("some/dest", fs.ModeDir),
+				},
+				"target/link/same/dest/symlink": analyze.Spec{
+					Current: file.LinkState("some/dest", fs.ModeSymlink),
+					Planned: file.LinkState("some/dest", fs.ModeSymlink),
 				},
 			},
 			wantTasks: map[string]Task{},
 		},
-		"several tasks": {
+		"plans tasks if current and planned differ": {
 			specs: specMap{
 				"target/new-dir": analyze.Spec{
 					Current: nil,
@@ -87,29 +99,6 @@ func TestNewTask(t *testing.T) {
 		planned  *file.State
 		wantTask Task
 	}{
-		"no change from nil to nil": {
-			wantTask: []Action{},
-		},
-		"no change from link to link, same dest file": {
-			current:  file.LinkState("../some/dest", 0),
-			planned:  file.LinkState("../some/dest", 0),
-			wantTask: Task{},
-		},
-		"no change from link to link, same dest dir": {
-			current:  file.LinkState("../some/dest", fs.ModeDir),
-			planned:  file.LinkState("../some/dest", fs.ModeDir),
-			wantTask: Task{},
-		},
-		"no change from link to link, same dest link": {
-			current:  file.LinkState("../some/dest", fs.ModeSymlink),
-			planned:  file.LinkState("../some/dest", fs.ModeSymlink),
-			wantTask: Task{},
-		},
-		"no change from dir to dir": {
-			current:  file.DirState(),
-			planned:  file.DirState(),
-			wantTask: Task{},
-		},
 		"from nil to symlink": {
 			current:  nil,
 			planned:  file.LinkState("../planned/dest", 0),
@@ -129,9 +118,7 @@ func TestNewTask(t *testing.T) {
 
 	for desc, test := range tests {
 		t.Run(desc, func(t *testing.T) {
-			spec := analyze.Spec{Current: test.current, Planned: test.planned}
-
-			gotTask := NewTask(spec)
+			gotTask := NewTask(test.current, test.planned)
 
 			wantTask := test.wantTask
 

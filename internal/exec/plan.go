@@ -8,6 +8,7 @@ import (
 	"slices"
 
 	"github.com/dhemery/duffel/internal/analyze"
+	"github.com/dhemery/duffel/internal/file"
 )
 
 // A Plan is a set of tasks
@@ -31,12 +32,11 @@ func NewPlan(target string, specs Specs) Plan {
 	targetLen := len(target) + 1
 	p := Plan{Target: target, Tasks: map[string]Task{}}
 	for name, spec := range specs.All() {
-		item := name[targetLen:]
-		task := NewTask(spec)
-		if len(task) == 0 {
+		if spec.Current.Equal(spec.Planned) {
 			continue
 		}
-		p.Tasks[item] = task
+		item := name[targetLen:]
+		p.Tasks[item] = NewTask(spec.Current, spec.Planned)
 	}
 	return p
 }
@@ -53,25 +53,24 @@ func (p Plan) Execute(fsys fs.FS) error {
 	return nil
 }
 
-// NewTask returns a [Task] to bring some file to its planned state.
-// The spec describes the current and planned states of the file.
-func NewTask(spec analyze.Spec) Task {
+// NewTask creates a [Task] with the actions to bring file
+// from the current state to the planned state.
+func NewTask(current, planned *file.State) Task {
 	t := Task{}
-	current, planned := spec.Current, spec.Planned
-	if current.Equal(planned) {
-		return t
-	}
 
 	switch {
 	case current == nil:
 	case current.Type == fs.ModeSymlink:
 		t = append(t, Action{Action: ActRemove})
+	default:
+		panic("unknown current mode: " + current.Type.String())
 	}
 
-	switch planned.Type {
-	case fs.ModeDir:
+	switch {
+	case planned == nil:
+	case planned.Type == fs.ModeDir:
 		t = append(t, Action{Action: ActMkdir})
-	case fs.ModeSymlink:
+	case planned.Type == fs.ModeSymlink:
 		t = append(t, Action{Action: "symlink", Dest: planned.Dest})
 	default:
 		panic("unknown planned mode: " + planned.Type.String())
