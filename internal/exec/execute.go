@@ -28,7 +28,7 @@ func Execute(r *Request, dryRun bool, w io.Writer, logger *slog.Logger) error {
 		return err
 	}
 
-	p := New(r.Target, specs)
+	p := NewPlan(r.Target, specs)
 	if dryRun {
 		return json.MarshalWrite(w, p, json.Deterministic(true))
 	}

@@ -60,9 +60,9 @@ func TestNewPlan(t *testing.T) {
 				},
 			},
 			wantTasks: map[string]Task{
-				"link-to-dir": {{Op: OpRemove}, {Op: OpMkdir}},
-				"new-dir":     {{Op: OpMkdir}},
-				"new-link":    {{Op: "symlink", Dest: "some/dest"}},
+				"link-to-dir": {{Action: ActRemove}, {Action: ActMkdir}},
+				"new-dir":     {{Action: ActMkdir}},
+				"new-link":    {{Action: "symlink", Dest: "some/dest"}},
 			},
 		},
 	}
@@ -70,7 +70,7 @@ func TestNewPlan(t *testing.T) {
 	for desc, test := range tests {
 		const target = "target"
 		t.Run(desc, func(t *testing.T) {
-			plan := New(target, test.specs)
+			plan := NewPlan(target, test.specs)
 
 			wantPlan := Plan{Target: target, Tasks: test.wantTasks}
 
@@ -88,7 +88,7 @@ func TestNewTask(t *testing.T) {
 		wantTask Task
 	}{
 		"no change from nil to nil": {
-			wantTask: []FileOp{},
+			wantTask: []Action{},
 		},
 		"no change from link to link, same dest file": {
 			current:  file.LinkState("../some/dest", 0),
@@ -113,17 +113,17 @@ func TestNewTask(t *testing.T) {
 		"from nil to symlink": {
 			current:  nil,
 			planned:  file.LinkState("../planned/dest", 0),
-			wantTask: Task{{Op: "symlink", Dest: "../planned/dest"}},
+			wantTask: Task{{Action: "symlink", Dest: "../planned/dest"}},
 		},
 		"from nil to dir": {
 			current:  nil,
 			planned:  file.DirState(),
-			wantTask: Task{{Op: OpMkdir}},
+			wantTask: Task{{Action: ActMkdir}},
 		},
 		"from symlink to dir": {
 			current:  file.LinkState("some/dest", 0),
 			planned:  file.DirState(),
-			wantTask: Task{{Op: OpRemove}, {Op: OpMkdir}},
+			wantTask: Task{{Action: ActRemove}, {Action: ActMkdir}},
 		},
 	}
 

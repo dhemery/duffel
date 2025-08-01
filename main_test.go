@@ -149,7 +149,7 @@ func TestDryRun(t *testing.T) {
 	}
 
 	wantDest, _ := filepath.Rel(absTarget, absSourcePkgItem)
-	wantOp := FileOp{Op: "symlink", Dest: wantDest}
+	wantOp := Action{Action: "symlink", Dest: wantDest}
 	wantTask := Task{wantOp}
 	wantTasks := map[string]Task{"item": wantTask}
 	wantPlan := Plan{Target: absTarget[1:], Tasks: wantTasks}

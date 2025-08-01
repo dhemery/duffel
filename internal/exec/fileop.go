@@ -8,24 +8,24 @@ import (
 )
 
 var (
-	OpMkdir   = "mkdir"
-	OpRemove  = "remove"
-	OpSymlink = "symlink"
+	ActMkdir   = "mkdir"
+	ActRemove  = "remove"
+	ActSymlink = "symlink"
 )
 
-type FileOp struct {
-	Op   string `json:"op"`
-	Dest string `json:"dest,omitempty"`
+type Action struct {
+	Action string `json:"action"`
+	Dest   string `json:"dest,omitempty"`
 }
 
-func (op FileOp) Execute(fsys fs.FS, name string) error {
-	switch op.Op {
-	case OpMkdir:
+func (a Action) Execute(fsys fs.FS, name string) error {
+	switch a.Action {
+	case ActMkdir:
 		return file.Mkdir(fsys, name, fs.ModeDir|0o755)
-	case OpRemove:
+	case ActRemove:
 		return file.Remove(fsys, name)
-	case OpSymlink:
-		return file.Symlink(fsys, op.Dest, name)
+	case ActSymlink:
+		return file.Symlink(fsys, a.Dest, name)
 	}
-	return fmt.Errorf("unknown file op %q", op.Op)
+	return fmt.Errorf("unknown file action %q", a.Action)
 }
