@@ -105,7 +105,8 @@ func TestPackageOpItemFunc(t *testing.T) {
 
 			sourceEntry := errfs.DirEntry(item, fs.ModeDir|0o755)
 			sourcePath := NewSourcePath(source, pkg, item)
-			sourceItem := SourceItem{sourcePath, file.TypeOf(sourceEntry.Type())}
+			sourceType, _ := file.TypeOf(sourceEntry.Type())
+			sourceItem := SourceItem{sourcePath, sourceType}
 			targetPath := NewTargetPath(target, item)
 			targetItem := TargetItem{targetPath, test.indexState}
 

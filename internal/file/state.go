@@ -23,16 +23,16 @@ var (
 
 type Type int
 
-func TypeOf(m fs.FileMode) Type {
+func TypeOf(m fs.FileMode) (Type, error) {
 	switch m.Type() {
 	case 0:
-		return TypeFile
+		return TypeFile, nil
 	case fs.ModeDir:
-		return TypeDir
+		return TypeDir, nil
 	case fs.ModeSymlink:
-		return TypeSymlink
+		return TypeSymlink, nil
 	default:
-		return TypeInvalid
+		return TypeInvalid, fmt.Errorf("unknown file mode %s", m)
 	}
 }
 
@@ -124,12 +124,7 @@ func (s Stater) StatType(name string) (Type, error) {
 	if err != nil {
 		return TypeNoFile, err
 	}
-	m := info.Mode()
-	t := TypeOf(m)
-	if t == TypeInvalid {
-		return TypeInvalid, fmt.Errorf("unknown file mode %s", m)
-	}
-	return t, nil
+	return TypeOf(info.Mode())
 }
 
 func DirState() State {
