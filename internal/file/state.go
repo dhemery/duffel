@@ -7,14 +7,20 @@ import (
 	"path"
 )
 
-type Type int
-
 const (
 	TypeNoFile Type = iota
 	TypeFile
 	TypeDir
 	TypeSymlink
 )
+
+var (
+	dirState    = State{Type: TypeDir}
+	fileState   = State{Type: TypeFile}
+	noFileState = State{Type: TypeNoFile}
+)
+
+type Type int
 
 func TypeOf(m fs.FileMode) Type {
 	switch m.Type() {
@@ -129,11 +135,11 @@ func (s Stater) StatType(name string) (Type, error) {
 }
 
 func DirState() State {
-	return State{Type: TypeDir}
+	return dirState
 }
 
 func FileState() State {
-	return State{Type: TypeFile}
+	return fileState
 }
 
 func LinkState(dest string, destType Type) State {
@@ -141,5 +147,5 @@ func LinkState(dest string, destType Type) State {
 }
 
 func NoFileState() State {
-	return State{Type: TypeNoFile}
+	return noFileState
 }

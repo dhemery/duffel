@@ -170,7 +170,7 @@ var mergeSuite = suite{
 				errfs.NewFile("duffel/source/.duffel", 0o644),
 				errfs.NewFile("duffel/source/pkg/item/content", 0o644),
 			},
-			wantState: file.State{Type: file.TypeDir},
+			wantState: file.DirState(),
 			wantErr:   nil,
 			wantNewStates: map[string]file.State{
 				"target/item/content": file.LinkState(

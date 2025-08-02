@@ -24,7 +24,7 @@ type testIndex map[string]indexValue
 func (i testIndex) State(name string, l *slog.Logger) (file.State, error) {
 	v, ok := i[name]
 	if !ok {
-		return file.State{}, fs.ErrInvalid
+		return file.NoFileState(), fs.ErrInvalid
 	}
 	return v.state, v.err
 }
@@ -41,7 +41,7 @@ func TestPackageOpItemFunc(t *testing.T) {
 		pkg            = "pkg"
 		item           = "item"
 	)
-	anItemFuncError := errors.New("error returned from item op")
+	anItemFuncError := errors.New("error returned from item func")
 
 	tests := map[string]struct {
 		indexState    file.State // Initial state of the item in the index.
@@ -50,52 +50,51 @@ func TestPackageOpItemFunc(t *testing.T) {
 		wantErr       error      // Error returned by visit func.
 		wantState     file.State // Index's state for the item after visit func.
 	}{
-		"no index state, item op returns state": {
-			indexState:    file.State{},
-			itemFuncState: file.State{Type: file.TypeSymlink, Dest: "dest/from/item/op"},
-			wantState:     file.State{Type: file.TypeSymlink, Dest: "dest/from/item/op"},
+		"index has no file, item func returns state": {
+			indexState:    file.NoFileState(),
+			itemFuncState: file.LinkState("item/func/dest", file.TypeFile),
+			wantState:     file.LinkState("item/func/dest", file.TypeFile),
 		},
-		"no index state, item op returns state and SkipDir error": {
-			indexState:    file.State{},
-			itemFuncState: file.State{Type: file.TypeSymlink, Dest: "dest/from/item/op"},
+		"index has no file, item func returns state and SkipDir": {
+			indexState:    file.NoFileState(),
+			itemFuncState: file.LinkState("item/func/dest", file.TypeFile),
 			itemFuncError: fs.SkipDir,
 			wantErr:       fs.SkipDir,
-			wantState:     file.State{Type: file.TypeSymlink, Dest: "dest/from/item/op"},
+			wantState:     file.LinkState("item/func/dest", file.TypeFile),
 		},
-		"no index state, item op reports error": {
-			indexState:    file.State{},
+		"index has no file, item func reports error": {
+			indexState:    file.NoFileState(),
 			itemFuncError: anItemFuncError,
 			wantErr:       anItemFuncError,
-			wantState:     file.State{},
 		},
-		"index state is dir, item op returns state": {
-			indexState:    file.State{Type: file.TypeDir},
-			itemFuncState: file.State{Type: file.TypeSymlink, Dest: "dest/from/item/op"},
-			wantState:     file.State{Type: file.TypeSymlink, Dest: "dest/from/item/op"},
+		"index has dir, item func returns state": {
+			indexState:    file.DirState(),
+			itemFuncState: file.LinkState("item/func/dest", file.TypeFile),
+			wantState:     file.LinkState("item/func/dest", file.TypeFile),
 		},
-		"index state is link, item op returns state": {
-			indexState:    file.State{Type: file.TypeSymlink, Dest: "dest/from/index"},
-			itemFuncState: file.State{Type: file.TypeDir},
-			wantState:     file.State{Type: file.TypeDir},
+		"index state is link, item func returns state": {
+			indexState:    file.LinkState("index/dest", file.TypeFile),
+			itemFuncState: file.DirState(),
+			wantState:     file.DirState(),
 		},
-		"index state is file, item op reports error": {
-			indexState:    file.State{Type: 0},
+		"index state is file, item func reports error": {
+			indexState:    file.FileState(),
 			itemFuncError: anItemFuncError,
 			wantErr:       anItemFuncError,
-			wantState:     file.State{Type: 0},
+			wantState:     file.FileState(),
 		},
-		"index state is dir, item op reports error": {
-			indexState:    file.State{Type: file.TypeDir},
+		"index has dir, item func reports error": {
+			indexState:    file.DirState(),
 			itemFuncError: anItemFuncError,
 			wantErr:       anItemFuncError,
-			wantState:     file.State{Type: file.TypeDir},
+			wantState:     file.DirState(),
 		},
-		"index state is link, item op reports error": {
-			indexState:    file.State{Type: file.TypeSymlink, Dest: "dest/from/index"},
-			itemFuncState: file.State{},
+		"index has link, item func reports error": {
+			indexState:    file.LinkState("index/dest", file.TypeFile),
+			itemFuncState: file.NoFileState(),
 			itemFuncError: anItemFuncError,
 			wantErr:       anItemFuncError,
-			wantState:     file.State{Type: file.TypeSymlink, Dest: "dest/from/index"},
+			wantState:     file.LinkState("index/dest", file.TypeFile),
 		},
 	}
 
@@ -114,10 +113,10 @@ func TestPackageOpItemFunc(t *testing.T) {
 			fakeItemFunc := func(gotSourceItem SourceItem, gotTargetItem TargetItem, l *slog.Logger) (file.State, error) {
 				gotItemFuncCall = true
 				if diff := cmp.Diff(gotSourceItem, sourceItem); diff != "" {
-					t.Errorf("item op: source item:\n%s", diff)
+					t.Errorf("item func: source item:\n%s", diff)
 				}
 				if diff := cmp.Diff(gotTargetItem, targetItem); diff != "" {
-					t.Errorf("item op: target item:\n%s", diff)
+					t.Errorf("item func: target item:\n%s", diff)
 				}
 				return test.itemFuncState, test.itemFuncError
 			}
@@ -131,7 +130,7 @@ func TestPackageOpItemFunc(t *testing.T) {
 			gotErr := visit(sourceItem.Path.String(), sourceEntry, nil)
 
 			if !gotItemFuncCall {
-				t.Errorf("no call to item op")
+				t.Errorf("no call to item func")
 			}
 
 			if !errors.Is(gotErr, test.wantErr) {
@@ -154,7 +153,7 @@ func TestPackageOpItemFunc(t *testing.T) {
 }
 
 // Tests of situations that produce errors
-// and preclude setting the desired state or calling the item op.
+// and preclude setting the desired state or calling the item func.
 func TestPackageOpWalkFuncError(t *testing.T) {
 	var (
 		anIndexError = errors.New("error returned from index.Desired")
