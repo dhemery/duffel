@@ -8,7 +8,8 @@ import (
 )
 
 const (
-	TypeNoFile Type = iota
+	TypeInvalid Type = -1 + iota
+	TypeNoFile
 	TypeFile
 	TypeDir
 	TypeSymlink
@@ -31,7 +32,7 @@ func TypeOf(m fs.FileMode) Type {
 	case fs.ModeSymlink:
 		return TypeSymlink
 	default:
-		return Type(m)
+		return TypeInvalid
 	}
 }
 
@@ -61,6 +62,8 @@ func (t Type) String() string {
 		return "directory"
 	case TypeSymlink:
 		return "symlink"
+	case TypeInvalid:
+		return "<invalid file type>"
 	}
 	return fmt.Sprintf("<unknown file type %o>", t)
 }
@@ -121,17 +124,12 @@ func (s Stater) StatType(name string) (Type, error) {
 	if err != nil {
 		return TypeNoFile, err
 	}
-	modetype := info.Mode().Type()
-	switch modetype {
-	case 0:
-		return TypeFile, nil
-	case fs.ModeDir:
-		return TypeDir, nil
-	case fs.ModeSymlink:
-		return TypeSymlink, nil
-	default:
-		return TypeNoFile, fs.ErrInvalid
+	m := info.Mode()
+	t := TypeOf(m)
+	if t == TypeInvalid {
+		return TypeInvalid, fmt.Errorf("unknown file mode %s", m)
 	}
+	return t, nil
 }
 
 func DirState() State {

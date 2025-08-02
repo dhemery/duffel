@@ -41,8 +41,8 @@ func TestNewPlan(t *testing.T) {
 					Planned: file.FileState(),
 				},
 				"target/link/same/dest/file": analyze.Spec{
-					Current: file.LinkState("some/dest", 0),
-					Planned: file.LinkState("some/dest", 0),
+					Current: file.LinkState("some/dest", file.TypeFile),
+					Planned: file.LinkState("some/dest", file.TypeFile),
 				},
 				"target/link/same/dest/dir": analyze.Spec{
 					Current: file.LinkState("some/dest", file.TypeDir),
@@ -63,10 +63,10 @@ func TestNewPlan(t *testing.T) {
 				},
 				"target/new-link": analyze.Spec{
 					Current: file.NoFileState(),
-					Planned: file.LinkState("some/dest", 0),
+					Planned: file.LinkState("some/dest", file.TypeFile),
 				},
 				"target/link-to-dir": analyze.Spec{
-					Current: file.LinkState("some/dest", 0),
+					Current: file.LinkState("some/dest", file.TypeFile),
 					Planned: file.DirState(),
 				},
 			},
@@ -100,7 +100,7 @@ func TestNewTask(t *testing.T) {
 	}{
 		"from no file to symlink": {
 			current:  file.NoFileState(),
-			planned:  file.LinkState("../planned/dest", 0),
+			planned:  file.LinkState("../planned/dest", file.TypeFile),
 			wantTask: Task{{Action: "symlink", Dest: "../planned/dest"}},
 		},
 		"from no file to dir": {
@@ -109,7 +109,7 @@ func TestNewTask(t *testing.T) {
 			wantTask: Task{{Action: ActMkdir}},
 		},
 		"from symlink to dir": {
-			current:  file.LinkState("some/dest", 0),
+			current:  file.LinkState("some/dest", file.TypeFile),
 			planned:  file.DirState(),
 			wantTask: Task{{Action: ActRemove}, {Action: ActMkdir}},
 		},

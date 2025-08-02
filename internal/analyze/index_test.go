@@ -21,9 +21,8 @@ func get(name string, wantState file.State, wantErr error) indexCall {
 	return func(i Index, t *testing.T, l *slog.Logger) {
 		t.Helper()
 		state, err := i.State(name, l)
-		if !cmp.Equal(state, wantState) {
-			t.Errorf("State(%q) state:\n got: %v\nwant: %v",
-				name, state, wantState)
+		if diff := cmp.Diff(wantState, state); diff != "" {
+			t.Errorf("State(%q) state:\n%s", name, diff)
 		}
 		if !errors.Is(err, wantErr) {
 			t.Errorf("State(%q) error:\n got: %v\nwant: %v",
@@ -146,12 +145,12 @@ func TestIndex(t *testing.T) {
 			files: []*errfs.File{},
 			calls: []indexCall{
 				get("target/file", file.NoFileState(), nil),
-				set("target/file", file.LinkState("link/to/source/file", 0)),
+				set("target/file", file.LinkState("link/to/source/file", file.TypeFile)),
 			},
 			wantSpecs: map[string]Spec{
 				"target/file": {
 					Current: file.NoFileState(),
-					Planned: file.LinkState("link/to/source/file", 0),
+					Planned: file.LinkState("link/to/source/file", file.TypeFile),
 				},
 			},
 		},
