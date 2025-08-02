@@ -60,7 +60,7 @@ func NewTask(current, planned *file.State) Task {
 
 	switch {
 	case current == nil:
-	case current.Type == fs.ModeSymlink:
+	case current.Type == file.TypeSymlink:
 		t = append(t, Action{Action: ActRemove})
 	default:
 		panic("unknown current mode: " + current.Type.String())
@@ -68,9 +68,9 @@ func NewTask(current, planned *file.State) Task {
 
 	switch {
 	case planned == nil:
-	case planned.Type == fs.ModeDir:
+	case planned.Type == file.TypeDir:
 		t = append(t, Action{Action: ActMkdir})
-	case planned.Type == fs.ModeSymlink:
+	case planned.Type == file.TypeSymlink:
 		t = append(t, Action{Action: "symlink", Dest: planned.Dest})
 	default:
 		panic("unknown planned mode: " + planned.Type.String())

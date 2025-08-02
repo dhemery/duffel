@@ -2,7 +2,6 @@ package file_test
 
 import (
 	"errors"
-	"io/fs"
 	"testing"
 
 	. "github.com/dhemery/duffel/internal/file"
@@ -28,21 +27,21 @@ func TestStater(t *testing.T) {
 		"file": {
 			name:      "dir/file",
 			file:      errfs.NewFile("dir/file", 0o644),
-			wantState: &State{Type: 0},
+			wantState: &State{Type: TypeFile},
 		},
 		"dir": {
 			name:      "dir/dir",
 			file:      errfs.NewDir("dir/dir", 0o755),
-			wantState: &State{Type: fs.ModeDir},
+			wantState: &State{Type: TypeDir},
 		},
 		"link": {
 			name:     "dir/link",
 			file:     errfs.NewLink("dir/link", "../dest-dir/dest-file"),
 			destFile: errfs.NewFile("dest-dir/dest-file", 0o644),
 			wantState: &State{
-				Type:     fs.ModeSymlink,
+				Type:     TypeSymlink,
 				Dest:     "../dest-dir/dest-file",
-				DestType: 0,
+				DestType: TypeFile,
 			},
 		},
 		"file lstat error": {
@@ -64,7 +63,7 @@ func TestStater(t *testing.T) {
 		"no file": {
 			name:      "missing/file",
 			file:      nil,
-			wantState: nil,
+			wantState: &State{},
 			wantError: nil,
 		},
 	}

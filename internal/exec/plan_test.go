@@ -1,7 +1,6 @@
 package exec_test
 
 import (
-	"io/fs"
 	"iter"
 	"maps"
 	"testing"
@@ -46,12 +45,12 @@ func TestNewPlan(t *testing.T) {
 					Planned: file.LinkState("some/dest", 0),
 				},
 				"target/link/same/dest/dir": analyze.Spec{
-					Current: file.LinkState("some/dest", fs.ModeDir),
-					Planned: file.LinkState("some/dest", fs.ModeDir),
+					Current: file.LinkState("some/dest", file.TypeDir),
+					Planned: file.LinkState("some/dest", file.TypeDir),
 				},
 				"target/link/same/dest/symlink": analyze.Spec{
-					Current: file.LinkState("some/dest", fs.ModeSymlink),
-					Planned: file.LinkState("some/dest", fs.ModeSymlink),
+					Current: file.LinkState("some/dest", file.TypeSymlink),
+					Planned: file.LinkState("some/dest", file.TypeSymlink),
 				},
 			},
 			wantTasks: map[string]Task{},

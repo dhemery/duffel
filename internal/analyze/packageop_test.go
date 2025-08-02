@@ -52,15 +52,15 @@ func TestPackageOpItemFunc(t *testing.T) {
 	}{
 		"no index state, item op returns state": {
 			indexState:    nil,
-			itemFuncState: &file.State{Type: fs.ModeSymlink, Dest: "dest/from/item/op"},
-			wantState:     &file.State{Type: fs.ModeSymlink, Dest: "dest/from/item/op"},
+			itemFuncState: &file.State{Type: file.TypeSymlink, Dest: "dest/from/item/op"},
+			wantState:     &file.State{Type: file.TypeSymlink, Dest: "dest/from/item/op"},
 		},
 		"no index state, item op returns state and SkipDir error": {
 			indexState:    nil,
-			itemFuncState: &file.State{Type: fs.ModeSymlink, Dest: "dest/from/item/op"},
+			itemFuncState: &file.State{Type: file.TypeSymlink, Dest: "dest/from/item/op"},
 			itemFuncError: fs.SkipDir,
 			wantErr:       fs.SkipDir,
-			wantState:     &file.State{Type: fs.ModeSymlink, Dest: "dest/from/item/op"},
+			wantState:     &file.State{Type: file.TypeSymlink, Dest: "dest/from/item/op"},
 		},
 		"no index state, item op reports error": {
 			indexState:    nil,
@@ -69,14 +69,14 @@ func TestPackageOpItemFunc(t *testing.T) {
 			wantState:     nil,
 		},
 		"index state is dir, item op returns state": {
-			indexState:    &file.State{Type: fs.ModeDir},
-			itemFuncState: &file.State{Type: fs.ModeSymlink, Dest: "dest/from/item/op"},
-			wantState:     &file.State{Type: fs.ModeSymlink, Dest: "dest/from/item/op"},
+			indexState:    &file.State{Type: file.TypeDir},
+			itemFuncState: &file.State{Type: file.TypeSymlink, Dest: "dest/from/item/op"},
+			wantState:     &file.State{Type: file.TypeSymlink, Dest: "dest/from/item/op"},
 		},
 		"index state is link, item op returns state": {
-			indexState:    &file.State{Type: fs.ModeSymlink, Dest: "dest/from/index"},
-			itemFuncState: &file.State{Type: fs.ModeDir},
-			wantState:     &file.State{Type: fs.ModeDir},
+			indexState:    &file.State{Type: file.TypeSymlink, Dest: "dest/from/index"},
+			itemFuncState: &file.State{Type: file.TypeDir},
+			wantState:     &file.State{Type: file.TypeDir},
 		},
 		"index state is file, item op reports error": {
 			indexState:    &file.State{Type: 0},
@@ -85,17 +85,17 @@ func TestPackageOpItemFunc(t *testing.T) {
 			wantState:     &file.State{Type: 0},
 		},
 		"index state is dir, item op reports error": {
-			indexState:    &file.State{Type: fs.ModeDir},
+			indexState:    &file.State{Type: file.TypeDir},
 			itemFuncError: anItemFuncError,
 			wantErr:       anItemFuncError,
-			wantState:     &file.State{Type: fs.ModeDir},
+			wantState:     &file.State{Type: file.TypeDir},
 		},
 		"index state is link, item op reports error": {
-			indexState:    &file.State{Type: fs.ModeSymlink, Dest: "dest/from/index"},
+			indexState:    &file.State{Type: file.TypeSymlink, Dest: "dest/from/index"},
 			itemFuncState: nil,
 			itemFuncError: anItemFuncError,
 			wantErr:       anItemFuncError,
-			wantState:     &file.State{Type: fs.ModeSymlink, Dest: "dest/from/index"},
+			wantState:     &file.State{Type: file.TypeSymlink, Dest: "dest/from/index"},
 		},
 	}
 

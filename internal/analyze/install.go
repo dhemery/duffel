@@ -32,21 +32,21 @@ type Install struct {
 func (op Install) Apply(s SourceItem, t TargetItem, l *slog.Logger) (*file.State, error) {
 	targetPath := t.Path
 	targetState := t.State
-	sourceEntry := s.Entry
+	sourceType := file.TypeOf(s.Entry.Type())
 	itemAsDest := targetPath.PathTo(s.Path.String())
 
 	if targetState == nil {
 		// There is no target file, so we're free to create a link to the source item.
 		var err error
-		if sourceEntry.IsDir() {
+		if sourceType == file.TypeDir {
 			// Linking to the dir installs the dir and its contents.
 			// There's no need to walk its contents.
 			err = fs.SkipDir
 		}
 		return &file.State{
-			Type:     fs.ModeSymlink,
+			Type:     file.TypeSymlink,
 			Dest:     itemAsDest,
-			DestType: sourceEntry.Type(),
+			DestType: sourceType,
 		}, err
 	}
 
@@ -54,13 +54,13 @@ func (op Install) Apply(s SourceItem, t TargetItem, l *slog.Logger) (*file.State
 	// either create or preserve a file at the target path.
 
 	targetType := targetState.Type
-	if targetType.IsRegular() {
+	if targetType == file.TypeFile {
 		// Cannot modify an existing regular target file.
 		return nil, conflictError(s, t)
 	}
 
-	if targetType.IsDir() {
-		if sourceEntry.IsDir() {
+	if targetType == file.TypeDir {
+		if sourceType == file.TypeDir {
 			// The target and source item are both dirs.
 			// Return the target state unchanged,
 			// and a nil error to walk the pkg item's contents.
@@ -72,7 +72,7 @@ func (op Install) Apply(s SourceItem, t TargetItem, l *slog.Logger) (*file.State
 		return nil, conflictError(s, t)
 	}
 
-	if targetType.Type() != fs.ModeSymlink {
+	if targetType != file.TypeSymlink {
 		// Target item is not file, dir, or link.
 		return nil, conflictError(s, t)
 	}
@@ -83,19 +83,19 @@ func (op Install) Apply(s SourceItem, t TargetItem, l *slog.Logger) (*file.State
 		// The target symlink already points to the source item.
 		// There's nothing more to do.
 		var err error
-		if sourceEntry.IsDir() {
+		if sourceType == file.TypeDir {
 			// We're done with this item. Do not walk its contents.
 			err = fs.SkipDir
 		}
 		return targetState, err
 	}
 
-	if !targetState.DestType.IsDir() {
+	if targetState.DestType != file.TypeDir {
 		// The target item's link destination is not a dir. Cannot merge.
 		return nil, conflictError(s, t)
 	}
 
-	if !sourceEntry.IsDir() {
+	if sourceType != file.TypeDir {
 		// Tne entry is not a dir. Cannot merge.
 		return nil, conflictError(s, t)
 	}
@@ -110,14 +110,14 @@ func (op Install) Apply(s SourceItem, t TargetItem, l *slog.Logger) (*file.State
 	// No conflicts merging the target destination dir.
 	// Now change the target to a dir, and walk the source item
 	// to install its contents into the dir.
-	dirState := &file.State{Type: fs.ModeDir}
+	dirState := &file.State{Type: file.TypeDir}
 	return dirState, nil
 }
 
 func conflictError(s SourceItem, t TargetItem) error {
 	return &ConflictError{
 		Item:        s.Path,
-		ItemType:    s.Entry.Type(),
+		ItemType:    file.TypeOf(s.Entry.Type()),
 		Target:      t.Path,
 		TargetState: t.State,
 	}
@@ -125,12 +125,12 @@ func conflictError(s SourceItem, t TargetItem) error {
 
 type ConflictError struct {
 	Item        SourcePath
-	ItemType    fs.FileMode
+	ItemType    file.Type
 	Target      TargetPath
 	TargetState *file.State
 }
 
 func (ce *ConflictError) Error() string {
 	return fmt.Sprintf("install conflict: source item %q is %s, target item %q is %s",
-		ce.Item, file.DescribeType(ce.ItemType), ce.Target, ce.TargetState)
+		ce.Item, ce.ItemType, ce.Target, ce.TargetState)
 }
