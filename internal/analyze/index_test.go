@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"io/fs"
 	"log/slog"
 	"maps"
 	"testing"
@@ -18,7 +17,7 @@ import (
 
 type indexCall func(i Index, t *testing.T, l *slog.Logger)
 
-func get(name string, wantState *file.State, wantErr error) indexCall {
+func get(name string, wantState file.State, wantErr error) indexCall {
 	return func(i Index, t *testing.T, l *slog.Logger) {
 		t.Helper()
 		state, err := i.State(name, l)
@@ -33,7 +32,7 @@ func get(name string, wantState *file.State, wantErr error) indexCall {
 	}
 }
 
-func set(name string, state *file.State) indexCall {
+func set(name string, state file.State) indexCall {
 	return func(i Index, t *testing.T, l *slog.Logger) {
 		i.SetState(name, state, l)
 	}
@@ -50,13 +49,13 @@ type oneTimeStater struct {
 	calls map[string]int
 }
 
-func (ots oneTimeStater) State(name string) (*file.State, error) {
+func (ots oneTimeStater) State(name string) (file.State, error) {
 	called := ots.calls[name]
 	called++
 	ots.calls[name] = called
 
 	if called > 1 {
-		return nil, fmt.Errorf("oneTimeStater.State(%q) called %d times", name, called)
+		return file.State{}, fmt.Errorf("oneTimeStater.State(%q) called %d times", name, called)
 	}
 	return ots.s.State(name)
 }
@@ -71,13 +70,13 @@ func TestIndex(t *testing.T) {
 			files: []*errfs.File{}, // No files.
 			calls: []indexCall{
 				// Two get calls...
-				get("target/file", nil, nil),
+				get("target/file", file.NoFileState(), nil),
 				// The second call checks (via oneTimeStater) that the index
 				// has cached the spec and does not call the file stater again.
-				get("target/file", nil, nil),
+				get("target/file", file.NoFileState(), nil),
 			},
 			wantSpecs: map[string]Spec{
-				"target/file": {Current: nil, Planned: nil},
+				"target/file": {Current: file.NoFileState(), Planned: file.NoFileState()},
 			},
 		},
 		"get state of existing file": {
@@ -104,19 +103,33 @@ func TestIndex(t *testing.T) {
 				"target/dir": {Current: file.DirState(), Planned: file.DirState()},
 			},
 		},
-		"get state of existing link": {
+		"get state of existing link to file": {
 			files: []*errfs.File{
 				errfs.NewLink("target/link", "../some/dest/file"),
 				errfs.NewFile("some/dest/file", 0o644),
 			},
 			calls: []indexCall{
-				get("target/link", file.LinkState("../some/dest/file", 0), nil),
-				get("target/link", file.LinkState("../some/dest/file", 0), nil),
+				get("target/link", file.LinkState("../some/dest/file", file.TypeFile), nil),
+				get("target/link", file.LinkState("../some/dest/file", file.TypeFile), nil),
 			},
 			wantSpecs: map[string]Spec{
 				"target/link": {
-					Current: file.LinkState("../some/dest/file", 0),
-					Planned: file.LinkState("../some/dest/file", 0),
+					Current: file.LinkState("../some/dest/file", file.TypeFile),
+					Planned: file.LinkState("../some/dest/file", file.TypeFile),
+				},
+			},
+		},
+		"get state of existing link to non-existent file": {
+			files: []*errfs.File{
+				errfs.NewLink("target/link", "../some/dest/file"),
+			},
+			calls: []indexCall{
+				get("target/link", file.LinkState("../some/dest/file", file.TypeNoFile), nil),
+			},
+			wantSpecs: map[string]Spec{
+				"target/link": {
+					Current: file.LinkState("../some/dest/file", file.TypeNoFile),
+					Planned: file.LinkState("../some/dest/file", file.TypeNoFile),
 				},
 			},
 		},
@@ -125,19 +138,19 @@ func TestIndex(t *testing.T) {
 				errfs.NewFile("target/file", 0o644, errfs.ErrLstat),
 			},
 			calls: []indexCall{
-				get("target/file", nil, errfs.ErrLstat),
+				get("target/file", file.State{}, errfs.ErrLstat),
 			},
 			wantSpecs: map[string]Spec{},
 		},
 		"set planned state of non-existent file": {
 			files: []*errfs.File{},
 			calls: []indexCall{
-				get("target/file", nil, nil),
+				get("target/file", file.NoFileState(), nil),
 				set("target/file", file.LinkState("link/to/source/file", 0)),
 			},
 			wantSpecs: map[string]Spec{
 				"target/file": {
-					Current: nil,
+					Current: file.NoFileState(),
 					Planned: file.LinkState("link/to/source/file", 0),
 				},
 			},
@@ -145,13 +158,13 @@ func TestIndex(t *testing.T) {
 		"set planned state of non-existent dir": {
 			files: []*errfs.File{},
 			calls: []indexCall{
-				get("target/dir", nil, nil),
-				set("target/dir", file.LinkState("link/to/source/dir", fs.ModeDir)),
+				get("target/dir", file.NoFileState(), nil),
+				set("target/dir", file.LinkState("link/to/source/dir", file.TypeDir)),
 			},
 			wantSpecs: map[string]Spec{
 				"target/dir": {
-					Current: nil,
-					Planned: file.LinkState("link/to/source/dir", fs.ModeDir),
+					Current: file.NoFileState(),
+					Planned: file.LinkState("link/to/source/dir", file.TypeDir),
 				},
 			},
 		},

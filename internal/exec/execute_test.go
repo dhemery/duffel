@@ -11,7 +11,7 @@ import (
 )
 
 func TestExecuteEmptyTargetNoConflictingPackageItems(t *testing.T) {
-	logger := slog.New(slog.NewJSONHandler(t.Output(), &slog.HandlerOptions{Level: slog.LevelError + 4}))
+	logger := slog.New(slog.NewTextHandler(t.Output(), &slog.HandlerOptions{Level: slog.LevelError + 4}))
 	specs := []struct {
 		sourceFile *errfs.File // A file in the source tree.
 		targetFile *errfs.File // A desired symlink in the target tree.

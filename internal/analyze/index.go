@@ -9,13 +9,13 @@ import (
 )
 
 type Stater interface {
-	State(name string) (*file.State, error)
+	State(name string) (file.State, error)
 }
 
 // Spec describes the current and planned states of a file in the target tree.
 type Spec struct {
-	Current *file.State
-	Planned *file.State
+	Current file.State
+	Planned file.State
 }
 
 // NewIndex returns a new, empty index that reads file system states from s.
@@ -36,12 +36,12 @@ type index struct {
 // this method reads the current state of the file,
 // stores it as both the current and planned states,
 // and returns the state.
-func (i *index) State(name string, logger *slog.Logger) (*file.State, error) {
+func (i *index) State(name string, logger *slog.Logger) (file.State, error) {
 	spec, ok := i.specs[name]
 	if !ok {
 		state, err := i.stater.State(name)
 		if err != nil {
-			return nil, err
+			return state, err
 		}
 		logger.Info("read target file state", "file_state", state)
 		spec = Spec{state, state}
@@ -51,7 +51,7 @@ func (i *index) State(name string, logger *slog.Logger) (*file.State, error) {
 }
 
 // SetState sets the planned state of the named file.
-func (i *index) SetState(name string, state *file.State, logger *slog.Logger) {
+func (i *index) SetState(name string, state file.State, logger *slog.Logger) {
 	spec := i.specs[name]
 	logger.Info("updated goal state", "goal_state", state)
 	spec.Planned = state

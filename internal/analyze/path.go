@@ -1,8 +1,6 @@
 package analyze
 
 import (
-	"io/fs"
-	"log/slog"
 	"path"
 	"path/filepath"
 
@@ -49,18 +47,8 @@ func (s SourcePath) WithItemFrom(name string) SourcePath {
 }
 
 type SourceItem struct {
-	Path  SourcePath  `json:"path"`
-	Entry fs.DirEntry `json:"entry"`
-}
-
-func (s SourceItem) Equal(o SourceItem) bool {
-	return s.Path == o.Path &&
-		s.Entry.Type() == o.Entry.Type()
-}
-
-func (s SourceItem) LogValue() slog.Value {
-	return slog.GroupValue(slog.Any("path", s.Path),
-		slog.String("entry", fs.FormatDirEntry(s.Entry)))
+	Path SourcePath `json:"path"`
+	Type file.Type  `json:"type"`
 }
 
 // NewTargetPath returns a [TargetPath]
@@ -76,6 +64,7 @@ type TargetPath struct {
 }
 
 // String returns the full path to the item.
+
 func (t TargetPath) String() string {
 	return path.Join(t.Target, t.Item)
 }
@@ -96,16 +85,6 @@ func (t TargetPath) parent() string {
 }
 
 type TargetItem struct {
-	Path  TargetPath  `json:"path"`
-	State *file.State `json:"state"`
-}
-
-func (t TargetItem) Equal(o TargetItem) bool {
-	return t.Path == o.Path &&
-		t.State.Equal(o.State)
-}
-
-func (t TargetItem) LogValue() slog.Value {
-	return slog.GroupValue(slog.Any("path", t.Path),
-		slog.Any("state", t.State))
+	Path  TargetPath `json:"path"`
+	State file.State `json:"state"`
 }

@@ -2,7 +2,6 @@ package file_test
 
 import (
 	"errors"
-	"io/fs"
 	"testing"
 
 	. "github.com/dhemery/duffel/internal/file"
@@ -22,28 +21,24 @@ func TestStater(t *testing.T) {
 		name      string
 		file      *errfs.File
 		destFile  *errfs.File
-		wantState *State
+		wantState State
 		wantError error
 	}{
 		"file": {
 			name:      "dir/file",
 			file:      errfs.NewFile("dir/file", 0o644),
-			wantState: &State{Type: 0},
+			wantState: State{Type: TypeFile},
 		},
 		"dir": {
 			name:      "dir/dir",
 			file:      errfs.NewDir("dir/dir", 0o755),
-			wantState: &State{Type: fs.ModeDir},
+			wantState: State{Type: TypeDir},
 		},
 		"link": {
-			name:     "dir/link",
-			file:     errfs.NewLink("dir/link", "../dest-dir/dest-file"),
-			destFile: errfs.NewFile("dest-dir/dest-file", 0o644),
-			wantState: &State{
-				Type:     fs.ModeSymlink,
-				Dest:     "../dest-dir/dest-file",
-				DestType: 0,
-			},
+			name:      "dir/link",
+			file:      errfs.NewLink("dir/link", "../dest-dir/dest-file"),
+			destFile:  errfs.NewFile("dest-dir/dest-file", 0o644),
+			wantState: State{Type: TypeSymlink, Dest: "../dest-dir/dest-file", DestType: TypeFile},
 		},
 		"file lstat error": {
 			name:      "dir/file",
@@ -64,7 +59,7 @@ func TestStater(t *testing.T) {
 		"no file": {
 			name:      "missing/file",
 			file:      nil,
-			wantState: nil,
+			wantState: State{},
 			wantError: nil,
 		},
 	}
@@ -84,7 +79,7 @@ func TestStater(t *testing.T) {
 					test.name, err, test.wantError)
 			}
 
-			if !state.Equal(test.wantState) {
+			if state != test.wantState {
 				t.Errorf("State(%s) state:\n got %v\nwant %v",
 					test.name, state, test.wantState)
 			}

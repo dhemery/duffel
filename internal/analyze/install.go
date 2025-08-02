@@ -29,25 +29,22 @@ type Install struct {
 
 // Apply returns the state of the targetItem file
 // that would result from installing the sourceItem file.
-func (op Install) Apply(s SourceItem, t TargetItem, l *slog.Logger) (*file.State, error) {
+func (op Install) Apply(s SourceItem, t TargetItem, l *slog.Logger) (file.State, error) {
+	var state file.State
 	targetPath := t.Path
 	targetState := t.State
-	sourceEntry := s.Entry
+	sourceType := s.Type
 	itemAsDest := targetPath.PathTo(s.Path.String())
 
-	if targetState == nil {
+	if targetState.Type.IsNoFile() {
 		// There is no target file, so we're free to create a link to the source item.
 		var err error
-		if sourceEntry.IsDir() {
+		if sourceType.IsDir() {
 			// Linking to the dir installs the dir and its contents.
 			// There's no need to walk its contents.
 			err = fs.SkipDir
 		}
-		return &file.State{
-			Type:     fs.ModeSymlink,
-			Dest:     itemAsDest,
-			DestType: sourceEntry.Type(),
-		}, err
+		return file.LinkState(itemAsDest, sourceType), err
 	}
 
 	// At this point, we know that earlier goals (if any)
@@ -56,11 +53,11 @@ func (op Install) Apply(s SourceItem, t TargetItem, l *slog.Logger) (*file.State
 	targetType := targetState.Type
 	if targetType.IsRegular() {
 		// Cannot modify an existing regular target file.
-		return nil, conflictError(s, t)
+		return state, conflictError(s, t)
 	}
 
 	if targetType.IsDir() {
-		if sourceEntry.IsDir() {
+		if sourceType.IsDir() {
 			// The target and source item are both dirs.
 			// Return the target state unchanged,
 			// and a nil error to walk the pkg item's contents.
@@ -69,12 +66,12 @@ func (op Install) Apply(s SourceItem, t TargetItem, l *slog.Logger) (*file.State
 
 		// The target item is a dir, but the source item is not.
 		// Cannot merge the target dir with a non-dir source item.
-		return nil, conflictError(s, t)
+		return state, conflictError(s, t)
 	}
 
-	if targetType.Type() != fs.ModeSymlink {
+	if !targetType.IsLink() {
 		// Target item is not file, dir, or link.
-		return nil, conflictError(s, t)
+		return state, conflictError(s, t)
 	}
 
 	// At this point, we know that the target is a symlink.
@@ -83,7 +80,7 @@ func (op Install) Apply(s SourceItem, t TargetItem, l *slog.Logger) (*file.State
 		// The target symlink already points to the source item.
 		// There's nothing more to do.
 		var err error
-		if sourceEntry.IsDir() {
+		if sourceType.IsDir() {
 			// We're done with this item. Do not walk its contents.
 			err = fs.SkipDir
 		}
@@ -92,32 +89,31 @@ func (op Install) Apply(s SourceItem, t TargetItem, l *slog.Logger) (*file.State
 
 	if !targetState.DestType.IsDir() {
 		// The target item's link destination is not a dir. Cannot merge.
-		return nil, conflictError(s, t)
+		return state, conflictError(s, t)
 	}
 
-	if !sourceEntry.IsDir() {
+	if !sourceType.IsDir() {
 		// Tne entry is not a dir. Cannot merge.
-		return nil, conflictError(s, t)
+		return state, conflictError(s, t)
 	}
 
 	// The package item is a dir and the target is a link to a dir.
 	// Try to merge the target item.
 	err := op.merger.Merge(targetPath.Resolve(targetState.Dest), l)
 	if err != nil {
-		return nil, err
+		return state, err
 	}
 
 	// No conflicts merging the target destination dir.
 	// Now change the target to a dir, and walk the source item
 	// to install its contents into the dir.
-	dirState := &file.State{Type: fs.ModeDir}
-	return dirState, nil
+	return file.DirState(), nil
 }
 
 func conflictError(s SourceItem, t TargetItem) error {
 	return &ConflictError{
 		Item:        s.Path,
-		ItemType:    s.Entry.Type(),
+		ItemType:    s.Type,
 		Target:      t.Path,
 		TargetState: t.State,
 	}
@@ -125,12 +121,12 @@ func conflictError(s SourceItem, t TargetItem) error {
 
 type ConflictError struct {
 	Item        SourcePath
-	ItemType    fs.FileMode
+	ItemType    file.Type
 	Target      TargetPath
-	TargetState *file.State
+	TargetState file.State
 }
 
 func (ce *ConflictError) Error() string {
 	return fmt.Sprintf("install conflict: source item %q is %s, target item %q is %s",
-		ce.Item, file.DescribeType(ce.ItemType), ce.Target, ce.TargetState)
+		ce.Item, ce.ItemType, ce.Target, ce.TargetState)
 }

@@ -32,7 +32,7 @@ func NewPlan(target string, specs Specs) Plan {
 	targetLen := len(target) + 1
 	p := Plan{Target: target, Tasks: map[string]Task{}}
 	for name, spec := range specs.All() {
-		if spec.Current.Equal(spec.Planned) {
+		if spec.Current == spec.Planned {
 			continue
 		}
 		item := name[targetLen:]
@@ -55,25 +55,25 @@ func (p Plan) Execute(fsys fs.FS) error {
 
 // NewTask creates a [Task] with the actions to bring file
 // from the current state to the planned state.
-func NewTask(current, planned *file.State) Task {
+func NewTask(current, planned file.State) Task {
 	t := Task{}
 
 	switch {
-	case current == nil:
-	case current.Type == fs.ModeSymlink:
+	case current.Type.IsNoFile(): // No-op
+	case current.Type.IsLink():
 		t = append(t, Action{Action: ActRemove})
 	default:
-		panic("unknown current mode: " + current.Type.String())
+		panic("do not know an action to remove " + current.Type.String())
 	}
 
 	switch {
-	case planned == nil:
-	case planned.Type == fs.ModeDir:
+	case planned.Type.IsNoFile(): // No-op
+	case planned.Type.IsDir():
 		t = append(t, Action{Action: ActMkdir})
-	case planned.Type == fs.ModeSymlink:
+	case planned.Type.IsLink():
 		t = append(t, Action{Action: "symlink", Dest: planned.Dest})
 	default:
-		panic("unknown planned mode: " + planned.Type.String())
+		panic("do not know an action to create " + planned.Type.String())
 	}
 
 	return t

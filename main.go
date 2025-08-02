@@ -27,7 +27,7 @@ func main() {
 
 	flags.Parse(os.Args[1:])
 
-	logger = slog.New(slog.NewJSONHandler(os.Stderr, &slog.HandlerOptions{Level: logLevel}))
+	logger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: logLevel}))
 
 	root := "/"
 	fsys := file.DirFS(root)
