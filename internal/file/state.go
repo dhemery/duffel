@@ -8,21 +8,17 @@ import (
 )
 
 const (
-	TypeInvalid Type = -1 + iota
-	TypeNoFile
-	TypeFile
-	TypeDir
-	TypeSymlink
+	TypeInvalid Type = -1 + iota // Unknown file type.
+	TypeNoFile                   // The file does not exist.
+	TypeFile                     // The file is a regular file.
+	TypeDir                      // The file is a directory.
+	TypeSymlink                  // The file is a symbolic link.
 )
 
-var (
-	dirState    = State{Type: TypeDir}
-	fileState   = State{Type: TypeFile}
-	noFileState = State{Type: TypeNoFile}
-)
-
+// Type is the type of an existing or planned file.
 type Type int
 
+// TypeOf returns the [Type] associated with file mode m.
 func TypeOf(m fs.FileMode) (Type, error) {
 	switch m.Type() {
 	case 0:
@@ -36,22 +32,27 @@ func TypeOf(m fs.FileMode) (Type, error) {
 	}
 }
 
+// IsDir reports whether t is the type of a directory.
 func (t Type) IsDir() bool {
 	return t == TypeDir
 }
 
+// IsRegular reports whether t is the type of a regular file.
 func (t Type) IsRegular() bool {
 	return t == TypeFile
 }
 
+// IsLink reports whether t is the type of a symbolic link.
 func (t Type) IsLink() bool {
 	return t == TypeSymlink
 }
 
+// IsNoFile reports whether t is the type of a non-existent file.
 func (t Type) IsNoFile() bool {
 	return t == TypeNoFile
 }
 
+// String formats t as a string.
 func (t Type) String() string {
 	switch t {
 	case TypeNoFile:
@@ -95,7 +96,7 @@ type Stater struct {
 
 // State returns the state of the named file.
 func (s Stater) State(name string) (State, error) {
-	t, err := s.StatType(name)
+	t, err := s.statType(name)
 	if err != nil {
 		return State{}, err
 	}
@@ -106,7 +107,7 @@ func (s Stater) State(name string) (State, error) {
 			return State{}, err
 		}
 		fullDest := path.Join(path.Dir(name), dest)
-		dt, err := s.StatType(fullDest)
+		dt, err := s.statType(fullDest)
 		if err != nil {
 			return State{}, err
 		}
@@ -116,7 +117,8 @@ func (s Stater) State(name string) (State, error) {
 	return state, nil
 }
 
-func (s Stater) StatType(name string) (Type, error) {
+// statType returns the [Type] of the file.
+func (s Stater) statType(name string) (Type, error) {
 	info, err := fs.Lstat(s.FS, name)
 	if errors.Is(err, fs.ErrNotExist) {
 		return TypeNoFile, nil
@@ -127,18 +129,29 @@ func (s Stater) StatType(name string) (Type, error) {
 	return TypeOf(info.Mode())
 }
 
+var (
+	dirState    = State{Type: TypeDir}
+	fileState   = State{Type: TypeFile}
+	noFileState = State{Type: TypeNoFile}
+)
+
+// DirState returns a [Stete] with type [TypeDir].
 func DirState() State {
 	return dirState
 }
 
+// FileState returns a [Stete] with type [TypeFile].
 func FileState() State {
 	return fileState
 }
 
+// LinkState returns a [State] with type [TypeLink]
+// and the given destination and destination type.
 func LinkState(dest string, destType Type) State {
 	return State{Type: TypeSymlink, Dest: dest, DestType: destType}
 }
 
+// NoFileState returns a [Stete] with type [TypeNoFile].
 func NoFileState() State {
 	return noFileState
 }
