@@ -211,10 +211,8 @@ var conflictSuite = suite{
 			target:      "target",
 			targetState: file.FileState(),
 			wantErr: &ConflictError{
-				Item:        NewSourcePath("source", "pkg", "item"),
-				ItemType:    file.TypeDir,
-				Target:      NewTargetPath("target", "item"),
-				TargetState: file.FileState(),
+				SourceItem{NewSourcePath("source", "pkg", "item"), file.TypeDir},
+				TargetItem{NewTargetPath("target", "item"), file.FileState()},
 			},
 		},
 		{
@@ -224,10 +222,11 @@ var conflictSuite = suite{
 			target:      "target",
 			targetState: file.LinkState("link/to/file", file.TypeFile),
 			wantErr: &ConflictError{
-				Item:        NewSourcePath("source", "pkg", "item"),
-				ItemType:    file.TypeDir,
-				Target:      NewTargetPath("target", "item"),
-				TargetState: file.LinkState("link/to/file", file.TypeFile),
+				SourceItem{NewSourcePath("source", "pkg", "item"), file.TypeDir},
+				TargetItem{
+					NewTargetPath("target", "item"),
+					file.LinkState("link/to/file", file.TypeFile),
+				},
 			},
 		},
 		{
@@ -237,10 +236,8 @@ var conflictSuite = suite{
 			target:      "target",
 			targetState: file.DirState(),
 			wantErr: &ConflictError{
-				Item:        NewSourcePath("source", "pkg", "item"),
-				ItemType:    file.TypeFile,
-				Target:      NewTargetPath("target", "item"),
-				TargetState: file.DirState(),
+				SourceItem{NewSourcePath("source", "pkg", "item"), file.TypeFile},
+				TargetItem{NewTargetPath("target", "item"), file.DirState()},
 			},
 		},
 		{
@@ -250,10 +247,11 @@ var conflictSuite = suite{
 			target:      "target",
 			targetState: file.LinkState("target/some/dest", file.TypeDir),
 			wantErr: &ConflictError{
-				Item:        NewSourcePath("source", "pkg", "item"),
-				ItemType:    file.TypeFile,
-				Target:      NewTargetPath("target", "item"),
-				TargetState: file.LinkState("target/some/dest", file.TypeDir),
+				SourceItem{NewSourcePath("source", "pkg", "item"), file.TypeFile},
+				TargetItem{
+					NewTargetPath("target", "item"),
+					file.LinkState("target/some/dest", file.TypeDir),
+				},
 			},
 		},
 	},

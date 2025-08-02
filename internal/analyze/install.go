@@ -53,7 +53,7 @@ func (op Install) Apply(s SourceItem, t TargetItem, l *slog.Logger) (file.State,
 	targetType := targetState.Type
 	if targetType.IsRegular() {
 		// Cannot modify an existing regular target file.
-		return state, conflictError(s, t)
+		return state, &ConflictError{Source: s, Target: t}
 	}
 
 	if targetType.IsDir() {
@@ -66,12 +66,12 @@ func (op Install) Apply(s SourceItem, t TargetItem, l *slog.Logger) (file.State,
 
 		// The target item is a dir, but the source item is not.
 		// Cannot merge the target dir with a non-dir source item.
-		return state, conflictError(s, t)
+		return state, &ConflictError{Source: s, Target: t}
 	}
 
 	if !targetType.IsLink() {
 		// Target item is not file, dir, or link.
-		return state, conflictError(s, t)
+		return state, &ConflictError{Source: s, Target: t}
 	}
 
 	// At this point, we know that the target is a symlink.
@@ -89,12 +89,12 @@ func (op Install) Apply(s SourceItem, t TargetItem, l *slog.Logger) (file.State,
 
 	if !targetState.DestType.IsDir() {
 		// The target item's link destination is not a dir. Cannot merge.
-		return state, conflictError(s, t)
+		return state, &ConflictError{Source: s, Target: t}
 	}
 
 	if !sourceType.IsDir() {
 		// Tne entry is not a dir. Cannot merge.
-		return state, conflictError(s, t)
+		return state, &ConflictError{Source: s, Target: t}
 	}
 
 	// The package item is a dir and the target is a link to a dir.
@@ -110,23 +110,12 @@ func (op Install) Apply(s SourceItem, t TargetItem, l *slog.Logger) (file.State,
 	return file.DirState(), nil
 }
 
-func conflictError(s SourceItem, t TargetItem) error {
-	return &ConflictError{
-		Item:        s.Path,
-		ItemType:    s.Type,
-		Target:      t.Path,
-		TargetState: t.State,
-	}
-}
-
 type ConflictError struct {
-	Item        SourcePath
-	ItemType    file.Type
-	Target      TargetPath
-	TargetState file.State
+	Source SourceItem
+	Target TargetItem
 }
 
 func (ce *ConflictError) Error() string {
 	return fmt.Sprintf("install conflict: source item %q is %s, target item %q is %s",
-		ce.Item, ce.ItemType, ce.Target, ce.TargetState)
+		ce.Source.Path, ce.Source.Type, ce.Target.Path, ce.Target.State)
 }
