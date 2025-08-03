@@ -68,13 +68,14 @@ func (po *PackageOp) VisitFunc(target string, index Index, itemFunc ItemFunc, lo
 		sourcePath := po.walkRoot.WithItemFrom(name)
 		targetPath := NewTargetPath(target, sourcePath.Item)
 
-		goalAttr := slog.String("goal", po.goal.String())
 		sourceType, err := file.TypeOf(entry.Type())
 		if err != nil {
 			return fmt.Errorf("%q: %w", sourcePath, err)
 		}
 		sourceItem := SourceItem{sourcePath, sourceType}
+
 		tpAttr := slog.Any("path", targetPath)
+		goalAttr := slog.String("goal", po.goal.String())
 		indexLogger := logger.With(goalAttr, "source", sourceItem, slog.Group("target", tpAttr))
 		indexLogger.Info("start analyzing")
 

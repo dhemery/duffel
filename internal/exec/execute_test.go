@@ -7,11 +7,12 @@ import (
 	. "github.com/dhemery/duffel/internal/exec"
 
 	"github.com/dhemery/duffel/internal/errfs"
+	"github.com/dhemery/duffel/internal/log"
 	"github.com/google/go-cmp/cmp"
 )
 
 func TestExecuteEmptyTargetNoConflictingPackageItems(t *testing.T) {
-	logger := slog.New(slog.NewTextHandler(t.Output(), &slog.HandlerOptions{Level: slog.LevelError + 4}))
+	logger := log.Logger(t.Output(), slog.LevelInfo)
 	specs := []struct {
 		sourceFile *errfs.File // A file in the source tree.
 		targetFile *errfs.File // A desired symlink in the target tree.

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	. "github.com/dhemery/duffel/internal/file"
+	"github.com/google/go-cmp/cmp"
 
 	"github.com/dhemery/duffel/internal/errfs"
 )
@@ -27,18 +28,18 @@ func TestStater(t *testing.T) {
 		"file": {
 			name:      "dir/file",
 			file:      errfs.NewFile("dir/file", 0o644),
-			wantState: State{Type: TypeFile},
+			wantState: FileState(),
 		},
 		"dir": {
 			name:      "dir/dir",
 			file:      errfs.NewDir("dir/dir", 0o755),
-			wantState: State{Type: TypeDir},
+			wantState: DirState(),
 		},
 		"link": {
 			name:      "dir/link",
 			file:      errfs.NewLink("dir/link", "../dest-dir/dest-file"),
 			destFile:  errfs.NewFile("dest-dir/dest-file", 0o644),
-			wantState: State{Type: TypeSymlink, Dest: "../dest-dir/dest-file", DestType: TypeFile},
+			wantState: LinkState("../dest-dir/dest-file", TypeFile),
 		},
 		"file lstat error": {
 			name:      "dir/file",
@@ -79,9 +80,8 @@ func TestStater(t *testing.T) {
 					test.name, err, test.wantError)
 			}
 
-			if state != test.wantState {
-				t.Errorf("State(%s) state:\n got %v\nwant %v",
-					test.name, state, test.wantState)
+			if diff := cmp.Diff(test.wantState, state); diff != "" {
+				t.Errorf("State(%s) state:\n%s", test.name, diff)
 			}
 			if t.Failed() || testing.Verbose() {
 				t.Log("files after failure:\n", testFS)

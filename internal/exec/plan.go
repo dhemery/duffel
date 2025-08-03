@@ -32,7 +32,7 @@ func NewPlan(target string, specs Specs) Plan {
 	targetLen := len(target) + 1
 	p := Plan{Target: target, Tasks: map[string]Task{}}
 	for name, spec := range specs.All() {
-		if spec.Current == spec.Planned {
+		if spec.Current.Equal(spec.Planned) {
 			continue
 		}
 		item := name[targetLen:]
@@ -71,7 +71,7 @@ func NewTask(current, planned file.State) Task {
 	case planned.Type.IsDir():
 		t = append(t, Action{Action: ActMkdir})
 	case planned.Type.IsLink():
-		t = append(t, Action{Action: "symlink", Dest: planned.Dest})
+		t = append(t, Action{Action: "symlink", Dest: planned.Dest.Path})
 	default:
 		panic("do not know an action to create " + planned.Type.String())
 	}

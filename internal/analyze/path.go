@@ -1,6 +1,7 @@
 package analyze
 
 import (
+	"log/slog"
 	"path"
 	"path/filepath"
 
@@ -17,7 +18,7 @@ func NewSourcePath(source, pkg, item string) SourcePath {
 	return SourcePath{source, pkg, item}
 }
 
-// SourcePath is the path to a package or item in duffel source tree.
+// SourcePath is the path to a package or item in a duffel source tree.
 type SourcePath struct {
 	Source  string `json:"source"`  // The full path to the source directory.
 	Package string `json:"package"` // The name of the package.
@@ -46,9 +47,27 @@ func (s SourcePath) WithItemFrom(name string) SourcePath {
 	return s.WithItem(item)
 }
 
+// LogValue represents s as a [slog.Value].
+func (s SourcePath) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.String("source", s.Source),
+		slog.String("package", s.Package),
+		slog.String("item", s.Item),
+	)
+}
+
+// SourceItem describes a file in a duffel source tree.
 type SourceItem struct {
-	Path SourcePath `json:"path"`
-	Type file.Type  `json:"type"`
+	Path SourcePath `json:"path"` // The path to the file.
+	Type file.Type  `json:"type"` // The type of the file.
+}
+
+// LogValue represents s as a [slog.Value].
+func (s SourceItem) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.Any("path", s.Path),
+		slog.Any("type", s.Type),
+	)
 }
 
 // NewTargetPath returns a [TargetPath]
@@ -63,8 +82,7 @@ type TargetPath struct {
 	Item   string `json:"item"`   // The path from t to the file.
 }
 
-// String returns the full path to the item.
-
+// String returns the full path to the file.
 func (t TargetPath) String() string {
 	return path.Join(t.Target, t.Item)
 }
@@ -84,7 +102,24 @@ func (t TargetPath) parent() string {
 	return path.Dir(t.String())
 }
 
+// LogValue represents t as a [slog.Value].
+func (t TargetPath) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.String("target", t.Target),
+		slog.String("item", t.Item),
+	)
+}
+
+// TargetItem describes a planned or existing file in the target tree.
 type TargetItem struct {
-	Path  TargetPath `json:"path"`
-	State file.State `json:"state"`
+	Path  TargetPath `json:"path"`  // The path to the file.
+	State file.State `json:"state"` // The state of the file.
+}
+
+// LogValue represents t as a [slog.Value].
+func (t TargetItem) LogValue() slog.Value {
+	return slog.GroupValue(
+		slog.Any("path", t.Path),
+		slog.Any("state", t.State),
+	)
 }

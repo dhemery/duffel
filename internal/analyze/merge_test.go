@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	. "github.com/dhemery/duffel/internal/analyze"
+	"github.com/dhemery/duffel/internal/log"
 
 	"github.com/dhemery/duffel/internal/errfs"
 	"github.com/dhemery/duffel/internal/file"
@@ -49,11 +50,9 @@ func TestMerge(t *testing.T) {
 				errfs.NewFile("duffel/source-dir/pkg-dir/item/content", 0o644),
 			},
 			wantStates: map[string]file.State{
-				"target-dir/item/content": {
-					Type:     file.TypeSymlink,
-					Dest:     "../../duffel/source-dir/pkg-dir/item/content",
-					DestType: file.TypeFile,
-				},
+				"target-dir/item/content": file.LinkState(
+					"../../duffel/source-dir/pkg-dir/item/content",
+					file.TypeFile),
 			},
 			wantErr: nil,
 		},
@@ -65,11 +64,9 @@ func TestMerge(t *testing.T) {
 				errfs.NewFile("duffel/source-dir/pkg-dir/item1/item2/item3/content", 0o644),
 			},
 			wantStates: map[string]file.State{
-				"target-dir/item1/item2/item3/content": {
-					Type:     file.TypeSymlink,
-					Dest:     "../../../../duffel/source-dir/pkg-dir/item1/item2/item3/content",
-					DestType: file.TypeFile,
-				},
+				"target-dir/item1/item2/item3/content": file.LinkState(
+					"../../../../duffel/source-dir/pkg-dir/item1/item2/item3/content",
+					file.TypeFile),
 			},
 			wantErr: nil,
 		},
@@ -83,21 +80,15 @@ func TestMerge(t *testing.T) {
 				errfs.NewLink("duffel/source-dir/pkg-dir/item/link", "some/dest"),
 			},
 			wantStates: map[string]file.State{
-				"target-dir/item/dir": {
-					Type:     file.TypeSymlink,
-					Dest:     "../../duffel/source-dir/pkg-dir/item/dir",
-					DestType: file.TypeDir,
-				},
-				"target-dir/item/file": {
-					Type:     file.TypeSymlink,
-					Dest:     "../../duffel/source-dir/pkg-dir/item/file",
-					DestType: file.TypeFile,
-				},
-				"target-dir/item/link": {
-					Type:     file.TypeSymlink,
-					Dest:     "../../duffel/source-dir/pkg-dir/item/link",
-					DestType: file.TypeSymlink,
-				},
+				"target-dir/item/dir": file.LinkState(
+					"../../duffel/source-dir/pkg-dir/item/dir",
+					file.TypeDir),
+				"target-dir/item/file": file.LinkState(
+					"../../duffel/source-dir/pkg-dir/item/file",
+					file.TypeFile),
+				"target-dir/item/link": file.LinkState(
+					"../../duffel/source-dir/pkg-dir/item/link",
+					file.TypeSymlink),
 			},
 			wantErr: nil,
 		},
@@ -106,7 +97,7 @@ func TestMerge(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			var logbuf bytes.Buffer
-			logger := slog.New(slog.NewTextHandler(&logbuf, &slog.HandlerOptions{Level: slog.LevelInfo}))
+			logger := log.Logger(&logbuf, slog.LevelInfo)
 
 			testFS := errfs.New()
 			errfs.AddDir(testFS, test.mergeDir, 0o755)

@@ -10,6 +10,7 @@ import (
 
 	"github.com/dhemery/duffel/internal/exec"
 	"github.com/dhemery/duffel/internal/file"
+	"github.com/dhemery/duffel/internal/log"
 )
 
 var (
@@ -27,7 +28,7 @@ func main() {
 
 	flags.Parse(os.Args[1:])
 
-	logger = slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: logLevel}))
+	logger = log.Logger(os.Stderr, logLevel)
 
 	root := "/"
 	fsys := file.DirFS(root)
