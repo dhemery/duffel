@@ -76,9 +76,9 @@ func (op Install) Apply(s SourceItem, t TargetItem, l *slog.Logger) (file.State,
 
 	// At this point, we know that the target is a symlink.
 
-	targetLink := targetState.Dest
+	targetDest := targetState.Dest
 
-	if targetLink.Path == itemAsDest {
+	if targetDest.Path == itemAsDest {
 		// The target symlink already points to the source item.
 		// There's nothing more to do.
 		var err error
@@ -89,7 +89,18 @@ func (op Install) Apply(s SourceItem, t TargetItem, l *slog.Logger) (file.State,
 		return targetState, err
 	}
 
-	if !targetLink.Type.IsDir() {
+	if targetDest.Type.IsNoFile() {
+		// The target links to nothing, so replace it with a link to the source item.
+		var err error
+		if sourceType.IsDir() {
+			// Linking to the dir installs the dir and its contents.
+			// There's no need to walk its contents.
+			err = fs.SkipDir
+		}
+		return file.LinkState(itemAsDest, sourceType), err
+	}
+
+	if !targetDest.Type.IsDir() {
 		// The target item's link destination is not a dir. Cannot merge.
 		return state, &ConflictError{Source: s, Target: t}
 	}

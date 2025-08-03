@@ -52,7 +52,6 @@ var entryAndStateSuite = suite{
 			target:      "target",
 			targetState: file.NoFileState(),
 			wantState:   file.LinkState("../source/pkg/item", file.TypeFile),
-			wantErr:     nil,
 		},
 		{
 			desc:        "create new target link to dir item",
@@ -70,7 +69,6 @@ var entryAndStateSuite = suite{
 			target:      "target",
 			targetState: file.NoFileState(),
 			wantState:   file.LinkState("../source/pkg/item", file.TypeSymlink),
-			wantErr:     nil,
 		},
 		{
 			desc:        "create new target link to sub-item",
@@ -79,7 +77,14 @@ var entryAndStateSuite = suite{
 			target:      "target",
 			targetState: file.NoFileState(),
 			wantState:   file.LinkState("../../../../source/pkg/dir/sub1/sub2/item", file.TypeFile),
-			wantErr:     nil,
+		},
+		{
+			desc:        "existing target is link to nowhere",
+			itemPath:    NewSourcePath("source", "pkg", "item"),
+			entry:       file.TypeFile,
+			target:      "target",
+			targetState: file.LinkState("link/to/nowhere", file.TypeNoFile),
+			wantState:   file.LinkState("../source/pkg/item", file.TypeFile),
 		},
 		{
 			desc:        "install dir item contents to existing target dir",
