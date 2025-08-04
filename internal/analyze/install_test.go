@@ -294,9 +294,8 @@ func (test test) run(t *testing.T) {
 		}
 		gotState, gotErr := install.Apply(sourceItem, targetItem, logger)
 
-		if !cmp.Equal(gotState, test.wantState) {
-			t.Errorf("Apply(%q) state result:\n got %v\nwant %v",
-				test.itemPath, gotState, test.wantState)
+		if diff := cmp.Diff(test.wantState, gotState); diff != "" {
+			t.Errorf("Apply(%q) state result:\n%s", test.itemPath, diff)
 		}
 
 		switch want := test.wantErr.(type) {

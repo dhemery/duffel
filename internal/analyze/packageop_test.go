@@ -143,9 +143,8 @@ func TestPackageOpItemFunc(t *testing.T) {
 			if v, ok := testIndex[targetPath.String()]; ok {
 				gotState = v.state
 			}
-			if !cmp.Equal(gotState, test.wantState) {
-				t.Errorf("index[%q] after visit:\n got%v\nwant %v",
-					targetPath, gotState, test.wantState)
+			if diff := cmp.Diff(test.wantState, gotState); diff != "" {
+				t.Errorf("index[%q] after visit:\n%s", targetPath, gotState)
 			}
 			if t.Failed() || testing.Verbose() {
 				t.Log("log:\n", logbuf.String())
