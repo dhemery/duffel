@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	. "github.com/dhemery/duffel/internal/analyze"
+	"github.com/dhemery/duffel/internal/duftest"
 	"github.com/dhemery/duffel/internal/log"
 
 	"github.com/dhemery/duffel/internal/errfs"
@@ -172,7 +173,7 @@ func TestIndex(t *testing.T) {
 	for desc, test := range tests {
 		t.Run(desc, func(t *testing.T) {
 			var logbuf bytes.Buffer
-			logger := log.Logger(&logbuf, slog.LevelInfo)
+			logger := log.Logger(&logbuf, duftest.LogLevel)
 
 			testFS := errfs.New()
 			for _, f := range test.files {

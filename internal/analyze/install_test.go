@@ -4,10 +4,10 @@ import (
 	"bytes"
 	"errors"
 	"io/fs"
-	"log/slog"
 	"testing"
 
 	. "github.com/dhemery/duffel/internal/analyze"
+	"github.com/dhemery/duffel/internal/duftest"
 
 	"github.com/dhemery/duffel/internal/errfs"
 	"github.com/dhemery/duffel/internal/file"
@@ -274,9 +274,12 @@ func (s suite) run(t *testing.T) {
 func (test test) run(t *testing.T) {
 	t.Run(test.desc, func(t *testing.T) {
 		var logbuf bytes.Buffer
-		logger := log.Logger(&logbuf, slog.LevelInfo)
+		logger := log.Logger(&logbuf, duftest.LogLevel)
+		defer duftest.Dump(t, "log", &logbuf)
 
 		testFS := errfs.New()
+		defer duftest.Dump(t, "files", testFS)
+
 		for _, tf := range test.files {
 			errfs.Add(testFS, tf)
 		}
@@ -318,11 +321,6 @@ func (test test) run(t *testing.T) {
 		if diff := cmp.Diff(test.wantNewStates, gotStates, cmpopts.EquateEmpty()); diff != "" {
 			t.Errorf("planned states after Apply(%q):\n%s",
 				test.itemPath, diff)
-		}
-
-		if t.Failed() || testing.Verbose() {
-			t.Log("files:\n", testFS)
-			t.Log("log:\n", logbuf.String())
 		}
 	})
 }

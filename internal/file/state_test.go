@@ -4,6 +4,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/dhemery/duffel/internal/duftest"
 	. "github.com/dhemery/duffel/internal/file"
 	"github.com/google/go-cmp/cmp"
 
@@ -68,6 +69,8 @@ func TestStater(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			testFS := errfs.New()
+			defer duftest.Dump(t, "files", testFS)
+
 			add(testFS, test.file)
 			add(testFS, test.destFile)
 
@@ -79,12 +82,8 @@ func TestStater(t *testing.T) {
 				t.Errorf("State(%s) error:\n got %v\nwant %v",
 					test.name, err, test.wantError)
 			}
-
 			if diff := cmp.Diff(test.wantState, state); diff != "" {
 				t.Errorf("State(%s) state:\n%s", test.name, diff)
-			}
-			if t.Failed() || testing.Verbose() {
-				t.Log("files after failure:\n", testFS)
 			}
 		})
 	}

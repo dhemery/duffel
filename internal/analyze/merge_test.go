@@ -2,14 +2,13 @@ package analyze_test
 
 import (
 	"bytes"
-	"log/slog"
 	"testing"
 
 	. "github.com/dhemery/duffel/internal/analyze"
-	"github.com/dhemery/duffel/internal/log"
-
+	"github.com/dhemery/duffel/internal/duftest"
 	"github.com/dhemery/duffel/internal/errfs"
 	"github.com/dhemery/duffel/internal/file"
+	"github.com/dhemery/duffel/internal/log"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -97,7 +96,7 @@ func TestMerge(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			var logbuf bytes.Buffer
-			logger := log.Logger(&logbuf, slog.LevelInfo)
+			logger := log.Logger(&logbuf, duftest.LogLevel)
 
 			testFS := errfs.New()
 			errfs.AddDir(testFS, test.mergeDir, 0o755)

@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	. "github.com/dhemery/duffel/internal/analyze"
+	"github.com/dhemery/duffel/internal/duftest"
 	"github.com/dhemery/duffel/internal/errfs"
 	"github.com/dhemery/duffel/internal/log"
 
@@ -102,7 +103,7 @@ func TestPackageOpItemFunc(t *testing.T) {
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			var logbuf bytes.Buffer
-			logger := log.Logger(&logbuf, slog.LevelInfo)
+			logger := log.Logger(&logbuf, duftest.LogLevel)
 
 			sourceEntry := errfs.DirEntry(item, fs.ModeDir|0o755)
 			sourcePath := NewSourcePath(source, pkg, item)
@@ -198,7 +199,7 @@ func TestPackageOpWalkFuncError(t *testing.T) {
 			)
 
 			var logbuf bytes.Buffer
-			logger := log.Logger(&logbuf, slog.LevelInfo)
+			logger := log.Logger(&logbuf, duftest.LogLevel)
 
 			targetItem := path.Join(target, test.item)
 			sourcePkg := path.Join(source, pkg)

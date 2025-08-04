@@ -1,18 +1,19 @@
 package exec_test
 
 import (
-	"log/slog"
 	"testing"
 
+	"github.com/dhemery/duffel/internal/duftest"
 	. "github.com/dhemery/duffel/internal/exec"
 
+	_ "github.com/dhemery/duffel/internal/duftest"
 	"github.com/dhemery/duffel/internal/errfs"
 	"github.com/dhemery/duffel/internal/log"
 	"github.com/google/go-cmp/cmp"
 )
 
 func TestExecuteEmptyTargetNoConflictingPackageItems(t *testing.T) {
-	logger := log.Logger(t.Output(), slog.LevelInfo)
+	logger := log.Logger(t.Output(), duftest.LogLevel)
 	specs := []struct {
 		sourceFile *errfs.File // A file in the source tree.
 		targetFile *errfs.File // A desired symlink in the target tree.
