@@ -68,7 +68,7 @@ func Execute() error {
 
 	pkgOps := []*plan.PackageOp{}
 	for _, pkg := range flags.Args() {
-		pkgOp := plan.NewPackageOp(source, pkg, plan.GoalInstall)
+		pkgOp := plan.NewInstallOp(source, pkg)
 		pkgOps = append(pkgOps, pkgOp)
 	}
 

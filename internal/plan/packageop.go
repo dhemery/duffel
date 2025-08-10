@@ -26,11 +26,11 @@ const (
 	GoalMerge   Goal = 2 // Merge a foreign package into the target tree.
 )
 
-// NewPackageOp creates a [PackageOp] to achieve the goal for the package.
-func NewPackageOp(source, pkg string, goal Goal) *PackageOp {
+// NewInstallOp creates a [PackageOp] to install a package.
+func NewInstallOp(source, pkg string) *PackageOp {
 	return &PackageOp{
 		walkRoot: NewSourcePath(source, pkg, ""),
-		goal:     goal,
+		goal:     GoalInstall,
 	}
 }
 
