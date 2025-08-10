@@ -5,10 +5,6 @@ import (
 	"log/slog"
 )
 
-type Itemizer interface {
-	Itemize(name string) (SourcePath, error)
-}
-
 type MergeError struct {
 	Name string
 	Err  error
@@ -22,7 +18,7 @@ func (me *MergeError) Unwrap() error {
 	return me.Err
 }
 
-func NewMerger(itemizer Itemizer, analyst *analyzer) *merger {
+func NewMerger(itemizer itemizer, analyst *analyzer) *merger {
 	return &merger{
 		itemizer: itemizer,
 		analyst:  analyst,
@@ -30,7 +26,7 @@ func NewMerger(itemizer Itemizer, analyst *analyzer) *merger {
 }
 
 type merger struct {
-	itemizer Itemizer
+	itemizer itemizer
 	analyst  *analyzer
 }
 
