@@ -42,7 +42,7 @@ func NewAnalyzer(fsys fs.FS, target string, index *index) *analyzer {
 	}
 	itemizer := NewItemizer(fsys)
 	merger := NewMerger(itemizer, analyst)
-	analyst.install = NewInstaller(merger)
+	analyst.install = &installer{merger}
 	return analyst
 }
 

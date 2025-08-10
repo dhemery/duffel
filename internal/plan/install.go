@@ -8,17 +8,15 @@ import (
 	"github.com/dhemery/duffel/internal/file"
 )
 
-func NewInstaller(merger *merger) *installer {
-	return &installer{
-		merger: *merger,
-	}
+type InstallMerger interface {
+	Merge(name string, l *slog.Logger) error
 }
 
 // installer describes the installed state
 // of the target item file that corresponds
 // to each given source item file.
 type installer struct {
-	merger merger
+	merger InstallMerger
 }
 
 // Analyze returns the state of the target item file

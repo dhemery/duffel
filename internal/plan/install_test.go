@@ -1,20 +1,16 @@
-package plan_test
+package plan
 
 import (
 	"bytes"
 	"errors"
 	"io/fs"
+	"log/slog"
 	"testing"
 
 	"github.com/dhemery/duffel/internal/duftest"
-	. "github.com/dhemery/duffel/internal/plan"
-
-	"github.com/dhemery/duffel/internal/errfs"
 	"github.com/dhemery/duffel/internal/file"
 	"github.com/dhemery/duffel/internal/log"
-
 	"github.com/google/go-cmp/cmp"
-	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 func TestInstall(t *testing.T) {
@@ -24,15 +20,14 @@ func TestInstall(t *testing.T) {
 }
 
 type test struct {
-	desc          string                // Description of the test.
-	itemPath      SourcePath            // The package item to pass to Install.Apply.
-	entry         file.Type             // The entry to pass to Install.Apply.
-	target        string                // The target directory to install to.
-	targetState   file.State            // The target state passed to Apply.
-	files         []*errfs.File         // Files on the file system.
-	wantState     file.State            // State returned by Apply.
-	wantErr       error                 // Error returned by Apply.
-	wantNewStates map[string]file.State // States added to index during Apply.
+	desc          string     // Description of the test.
+	itemPath      SourcePath // The package item to install.
+	entry         file.Type  // The entry for the package item.
+	target        string     // The target directory to install to.
+	targetState   file.State // The state of the target file.
+	wantMergeCall *mergeCall //
+	wantState     file.State // State result.
+	wantErr       error      // Error result.
 }
 
 type suite struct {
@@ -126,81 +121,35 @@ var entryAndStateSuite = suite{
 }
 
 // Scenarios where the entry is a dir and the target state links to a
-// dir. If the target state's destination is in a duffel package,
-// install must merge the two dirs by executing these steps:
-// - Merge the contents of the linked dir into the index.
-// - Return an fs.ModeDir state to convert the target to a dir.
-// - Return a nil error to walk the contents of the entry.
+// dir. Install must call merge.
+var errTestMerge = errors.New("error from Merge")
 var mergeSuite = suite{
 	name: "Merge",
 	tests: []test{
 		{
-			desc:        "dest is not in a package",
-			itemPath:    NewSourcePath("source", "pkg", "item"),
-			entry:       file.TypeDir,
-			target:      "target",
-			targetState: file.LinkState("../dir1/dir2/item", file.TypeDir),
-			files:       []*errfs.File{errfs.NewDir("dir1/dir2/item", 0o755)},
-			wantErr:     ErrNotInPackage,
-		},
-		{
-			desc:        "dest is a duffel source dir",
+			desc:        "merge returns error",
 			itemPath:    NewSourcePath("source", "pkg", "item"),
 			entry:       file.TypeDir,
 			target:      "target",
 			targetState: file.LinkState("../duffel/source-dir", file.TypeDir),
-			files: []*errfs.File{
-				errfs.NewFile("duffel/source-dir/.duffel", 0o644),
+			wantMergeCall: &mergeCall{
+				name: "duffel/source-dir",
+				err:  errTestMerge,
 			},
-			wantErr: ErrIsSource,
+			wantErr: errTestMerge,
 		},
 		{
-			desc:        "dest is duffel package",
+			desc:        "merge succeeds",
 			itemPath:    NewSourcePath("source", "pkg", "item"),
 			entry:       file.TypeDir,
 			target:      "target",
-			targetState: file.LinkState("../duffel/source/pkg", file.TypeDir),
-			files: []*errfs.File{
-				errfs.NewFile("duffel/source/.duffel", 0o644),
-				errfs.NewFile("duffel/source/pkg/item/content", 0o644),
-			},
-			wantErr: ErrIsPackage,
-		},
-		{
-			desc:        "dest is a top level item in a package",
-			itemPath:    NewSourcePath("source", "pkg", "item"),
-			entry:       file.TypeDir,
-			target:      "target",
-			targetState: file.LinkState("../duffel/source/pkg/item", file.TypeDir),
-			files: []*errfs.File{
-				errfs.NewFile("duffel/source/.duffel", 0o644),
-				errfs.NewFile("duffel/source/pkg/item/content", 0o644),
+			targetState: file.LinkState("../duffel/source-dir", file.TypeDir),
+			wantMergeCall: &mergeCall{
+				name: "duffel/source-dir",
+				err:  nil,
 			},
 			wantState: file.DirState(),
 			wantErr:   nil,
-			wantNewStates: map[string]file.State{
-				"target/item/content": file.LinkState(
-					"../../duffel/source/pkg/item/content",
-					file.TypeFile),
-			},
-		},
-		{
-			desc:        "dest is a nested item in a package",
-			itemPath:    NewSourcePath("source", "pkg", "item"),
-			entry:       file.TypeDir,
-			target:      "target",
-			targetState: file.LinkState("../duffel/source/pkg/item1/item2/item3", file.TypeDir),
-			files: []*errfs.File{
-				errfs.NewFile("duffel/source/.duffel", 0o644),
-				errfs.NewFile("duffel/source/pkg/item1/item2/item3/content", 0o644),
-			},
-			wantState: file.DirState(),
-			wantErr:   nil,
-			wantNewStates: map[string]file.State{
-				"target/item1/item2/item3/content": file.LinkState(
-					"../../../../duffel/source/pkg/item1/item2/item3/content",
-					file.TypeFile),
-			},
 		},
 	},
 }
@@ -277,50 +226,69 @@ func (test test) run(t *testing.T) {
 		logger := log.Logger(&logbuf, duftest.LogLevel)
 		defer duftest.Dump(t, "log", &logbuf)
 
-		testFS := errfs.New()
-		defer duftest.Dump(t, "files", testFS)
-
-		for _, tf := range test.files {
-			errfs.Add(testFS, tf)
-		}
-		stater := file.NewStater(testFS)
-		index := NewIndex(stater)
-		analyst := NewAnalyzer(testFS, test.target, index)
-		itemizer := NewItemizer(testFS)
-		merger := NewMerger(itemizer, analyst)
-		install := NewInstaller(merger)
+		testMerger := &testMerger{wantCall: test.wantMergeCall}
 
 		sourceItem := SourceItem{test.itemPath, test.entry}
 		targetItem := TargetItem{
 			NewTargetPath(test.target, test.itemPath.Item),
 			test.targetState,
 		}
+
+		install := &installer{testMerger}
 		gotState, gotErr := install.Analyze(sourceItem, targetItem, logger)
 
+		testMerger.checkCall(t)
+
 		if diff := cmp.Diff(test.wantState, gotState); diff != "" {
-			t.Errorf("Apply(%q) state result:\n%s", test.itemPath, diff)
+			t.Errorf("state:\n%s", diff)
 		}
 
 		switch want := test.wantErr.(type) {
 		case *ConflictError:
 			if diff := cmp.Diff(want, gotErr); diff != "" {
-				t.Errorf("Apply(%q) error:\n%s",
-					test.itemPath, diff)
+				t.Errorf("error:\n%s", diff)
 			}
 		default:
 			if !errors.Is(gotErr, want) {
-				t.Errorf("Apply(%q) error:\n got: %v\nwant: %v",
-					test.itemPath, gotErr, want)
+				t.Errorf("error:\n got: %v\nwant: %v", gotErr, want)
 			}
 		}
-
-		gotStates := map[string]file.State{}
-		for n, spec := range index.All() {
-			gotStates[n] = spec.Planned
-		}
-		if diff := cmp.Diff(test.wantNewStates, gotStates, cmpopts.EquateEmpty()); diff != "" {
-			t.Errorf("planned states after Apply(%q):\n%s",
-				test.itemPath, diff)
-		}
 	})
+}
+
+type mergeCall struct {
+	name string
+	err  error
+}
+
+type testMerger struct {
+	wantCall *mergeCall
+	gotCall  bool
+	gotName  string
+}
+
+func (m *testMerger) Merge(gotName string, _ *slog.Logger) error {
+	m.gotCall = true
+	m.gotName = gotName
+	if m.wantCall != nil {
+		return m.wantCall.err
+	}
+	return nil
+}
+
+func (m *testMerger) checkCall(t *testing.T) {
+	t.Helper()
+	if m.wantCall == nil {
+		if m.gotCall {
+			t.Errorf("Unexpected Merge(%q)", m.gotName)
+		}
+		return
+	}
+	if !m.gotCall {
+		t.Error("Want call to Merge(), got none")
+		return
+	}
+	if m.wantCall.name != m.gotName {
+		t.Errorf("Merge() called with %q, want %q", m.gotName, m.wantCall.name)
+	}
 }
