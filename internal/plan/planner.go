@@ -1,7 +1,5 @@
-// Package plan identifies the current and planned states
-// of each file in the target tree
-// that will have to change in order to achieve
-// a given sequence of package goals.
+// Package plan creates a plan to change the target tree
+// to realize a series of package operations.
 package plan
 
 import (
@@ -11,28 +9,29 @@ import (
 	"github.com/dhemery/duffel/internal/file"
 )
 
-func NewPlanner(fsys fs.FS, target string) *Planner {
+// NewPlanner returns a planner that plans how to change the tree rooted at target.
+func NewPlanner(fsys fs.FS, target string) *planner {
 	stater := file.NewStater(fsys)
 	index := NewIndex(stater)
 	analyst := NewAnalyst(fsys, target, index)
-	return &Planner{fsys, target, analyst}
+	return &planner{fsys, target, analyst}
 }
 
-type Planner struct {
-	FS      fs.FS
-	Target  string
+type planner struct {
+	fsys    fs.FS
+	target  string
 	analyst *Analyst
 }
 
-func (p Planner) Plan(pkgOps []*PackageOp, l *slog.Logger) (Plan, error) {
-	for _, pop := range pkgOps {
-		err := p.analyst.Analyze(pop, l)
-		if err != nil {
+// Plan creates a plan to realize ops in p's target tree.
+func (p planner) Plan(ops []*PackageOp, l *slog.Logger) (Plan, error) {
+	for _, op := range ops {
+		if err := p.analyst.Analyze(op, l); err != nil {
 			return Plan{}, err
 		}
 
 	}
-	return NewPlan(p.Target, p.analyst.index), nil
+	return NewPlan(p.target, p.analyst.index), nil
 }
 
 func NewAnalyst(fsys fs.FS, target string, index *index) *Analyst {

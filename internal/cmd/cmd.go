@@ -22,8 +22,12 @@ var (
 	ErrLogLevel = errors.New("unknown log level")
 )
 
+type Planner interface {
+	Plan([]*plan.PackageOp, *slog.Logger) (plan.Plan, error)
+}
+
 type Command struct {
-	planner *plan.Planner
+	planner Planner
 	FS      fs.FS
 	DryRun  bool
 }
