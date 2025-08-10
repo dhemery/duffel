@@ -1,3 +1,5 @@
+// Package plan creates a plan to change the target tree
+// to realize a series of package operations.
 package plan
 
 import (
@@ -8,8 +10,13 @@ import (
 	"github.com/dhemery/duffel/internal/file"
 )
 
-// Goal identifies the goal for a PackageOp to plan for the items in a package.
+// Goal identifies the goal for a [PackageOp] to accomplish.
 type Goal int
+
+const (
+	GoalInstall Goal = 1 // Install the package into the target tree.
+	GoalMerge   Goal = 2 // Merge the foreign package into the target tree.
+)
 
 func (op Goal) String() string {
 	switch op {
@@ -21,10 +28,28 @@ func (op Goal) String() string {
 	return fmt.Sprintf("unknown goal: %d", op)
 }
 
-const (
-	GoalInstall Goal = 1 // Install a package into the target tree.
-	GoalMerge   Goal = 2 // Merge a foreign package into the target tree.
-)
+func NewAnalyzer(fsys fs.FS, target string, index *index) *analyzer {
+	analyst := &analyzer{
+		fsys:   fsys,
+		target: target,
+		index:  index,
+	}
+	itemizer := NewItemizer(fsys)
+	merger := NewMerger(itemizer, analyst)
+	analyst.install = &installer{merger}
+	return analyst
+}
+
+type analyzer struct {
+	fsys    fs.FS
+	target  string
+	index   *index
+	install *installer
+}
+
+func (a *analyzer) Analyze(op *PackageOp, l *slog.Logger) error {
+	return fs.WalkDir(a.fsys, op.walkRoot.String(), op.VisitFunc(a.target, a.index, a.install.Analyze, l))
+}
 
 // NewInstallOp creates a [PackageOp] to install a package.
 func NewInstallOp(source, pkg string) *PackageOp {

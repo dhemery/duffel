@@ -13,6 +13,31 @@ import (
 	"github.com/dhemery/duffel/internal/file"
 )
 
+// NewPlanner returns a planner that plans how to change the tree rooted at target.
+func NewPlanner(fsys fs.FS, target string) *planner {
+	stater := file.NewStater(fsys)
+	index := NewIndex(stater)
+	analyst := NewAnalyzer(fsys, target, index)
+	return &planner{fsys, target, analyst}
+}
+
+type planner struct {
+	fsys    fs.FS
+	target  string
+	analyst *analyzer
+}
+
+// Plan creates a plan to realize ops in p's target tree.
+func (p planner) Plan(ops []*PackageOp, l *slog.Logger) (Plan, error) {
+	for _, op := range ops {
+		if err := p.analyst.Analyze(op, l); err != nil {
+			return Plan{}, err
+		}
+
+	}
+	return NewPlan(p.target, p.analyst.index), nil
+}
+
 // A Plan is a set of tasks
 // to bring the file tree rooted at Target to the desired state.
 type Plan struct {
