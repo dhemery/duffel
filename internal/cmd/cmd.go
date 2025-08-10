@@ -3,11 +3,9 @@
 package cmd
 
 import (
-	"encoding/json/v2"
 	"errors"
 	"flag"
 	"fmt"
-	"io"
 	"io/fs"
 	"log/slog"
 	"os"
@@ -33,14 +31,13 @@ type Command struct {
 }
 
 func (c Command) Execute(ops []*plan.PackageOp, l *slog.Logger) error {
-
 	plan, err := c.planner.Plan(ops, l)
 	if err != nil {
 		return err
 	}
 
 	if c.DryRun {
-		return printPlan(os.Stdout, plan)
+		return plan.Print(os.Stdout)
 	}
 
 	return plan.Execute(c.FS, l)
@@ -117,8 +114,4 @@ func mustRel(desc, root, name string) string {
 		fatal(fmt.Errorf("%q: %w", desc, err))
 	}
 	return rel
-}
-
-func printPlan(w io.Writer, p plan.Plan) error {
-	return json.MarshalWrite(w, p, json.Deterministic(true))
 }

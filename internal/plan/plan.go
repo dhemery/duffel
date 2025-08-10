@@ -1,6 +1,8 @@
 package plan
 
 import (
+	"encoding/json/v2"
+	"io"
 	"io/fs"
 	"iter"
 	"log/slog"
@@ -16,6 +18,10 @@ import (
 type Plan struct {
 	Target string          `json:"target"`
 	Tasks  map[string]Task `json:"tasks"`
+}
+
+func (p Plan) Print(w io.Writer) error {
+	return json.MarshalWrite(w, p, json.Deterministic(true))
 }
 
 type Specs interface {
