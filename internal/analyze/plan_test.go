@@ -1,11 +1,9 @@
-package exec_test
+package analyze_test
 
 import (
 	"iter"
 	"maps"
 	"testing"
-
-	. "github.com/dhemery/duffel/internal/exec"
 
 	"github.com/dhemery/duffel/internal/analyze"
 	"github.com/dhemery/duffel/internal/file"
@@ -22,7 +20,7 @@ func (sm specMap) All() iter.Seq2[string, analyze.Spec] {
 func TestNewPlan(t *testing.T) {
 	tests := map[string]struct {
 		specs     specMap
-		wantTasks map[string]Task
+		wantTasks map[string]analyze.Task
 	}{
 		"plans no task if current and planned are equal": {
 			specs: specMap{
@@ -53,7 +51,7 @@ func TestNewPlan(t *testing.T) {
 					Planned: file.LinkState("some/dest", file.TypeSymlink),
 				},
 			},
-			wantTasks: map[string]Task{},
+			wantTasks: map[string]analyze.Task{},
 		},
 		"plans tasks if current and planned differ": {
 			specs: specMap{
@@ -70,9 +68,9 @@ func TestNewPlan(t *testing.T) {
 					Planned: file.DirState(),
 				},
 			},
-			wantTasks: map[string]Task{
-				"link-to-dir": {{Action: ActRemove}, {Action: ActMkdir}},
-				"new-dir":     {{Action: ActMkdir}},
+			wantTasks: map[string]analyze.Task{
+				"link-to-dir": {{Action: analyze.ActRemove}, {Action: analyze.ActMkdir}},
+				"new-dir":     {{Action: analyze.ActMkdir}},
 				"new-link":    {{Action: "symlink", Dest: "some/dest"}},
 			},
 		},
@@ -81,9 +79,9 @@ func TestNewPlan(t *testing.T) {
 	for desc, test := range tests {
 		const target = "target"
 		t.Run(desc, func(t *testing.T) {
-			plan := NewPlan(target, test.specs)
+			plan := analyze.NewPlan(target, test.specs)
 
-			wantPlan := Plan{Target: target, Tasks: test.wantTasks}
+			wantPlan := analyze.Plan{Target: target, Tasks: test.wantTasks}
 
 			if diff := cmp.Diff(wantPlan, plan); diff != "" {
 				t.Error("Plan: ", diff)
@@ -96,28 +94,28 @@ func TestNewTask(t *testing.T) {
 	tests := map[string]struct {
 		current  file.State
 		planned  file.State
-		wantTask Task
+		wantTask analyze.Task
 	}{
 		"from no file to symlink": {
 			current:  file.NoFileState(),
 			planned:  file.LinkState("../planned/dest", file.TypeFile),
-			wantTask: Task{{Action: "symlink", Dest: "../planned/dest"}},
+			wantTask: analyze.Task{{Action: "symlink", Dest: "../planned/dest"}},
 		},
 		"from no file to dir": {
 			current:  file.NoFileState(),
 			planned:  file.DirState(),
-			wantTask: Task{{Action: ActMkdir}},
+			wantTask: analyze.Task{{Action: analyze.ActMkdir}},
 		},
 		"from symlink to dir": {
 			current:  file.LinkState("some/dest", file.TypeFile),
 			planned:  file.DirState(),
-			wantTask: Task{{Action: ActRemove}, {Action: ActMkdir}},
+			wantTask: analyze.Task{{Action: analyze.ActRemove}, {Action: analyze.ActMkdir}},
 		},
 	}
 
 	for desc, test := range tests {
 		t.Run(desc, func(t *testing.T) {
-			gotTask := NewTask(test.current, test.planned)
+			gotTask := analyze.NewTask(test.current, test.planned)
 
 			wantTask := test.wantTask
 

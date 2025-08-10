@@ -1,4 +1,4 @@
-package exec
+package analyze
 
 import (
 	"io/fs"
@@ -8,7 +8,6 @@ import (
 	"path"
 	"slices"
 
-	"github.com/dhemery/duffel/internal/analyze"
 	"github.com/dhemery/duffel/internal/file"
 )
 
@@ -22,7 +21,7 @@ type Plan struct {
 type Specs interface {
 	// All returns an iterator over the item name and [analyze.Spec]
 	// for each file in the target tree that is not in its planned state.
-	All() iter.Seq2[string, analyze.Spec]
+	All() iter.Seq2[string, Spec]
 }
 
 // NewPlan returns a [Plan] to bring the les the target tree

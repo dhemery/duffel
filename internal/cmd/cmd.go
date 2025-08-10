@@ -14,7 +14,6 @@ import (
 	"path/filepath"
 
 	"github.com/dhemery/duffel/internal/analyze"
-	"github.com/dhemery/duffel/internal/exec"
 	"github.com/dhemery/duffel/internal/file"
 	"github.com/dhemery/duffel/internal/log"
 )
@@ -24,9 +23,9 @@ var (
 )
 
 type Command struct {
-	planner    Planner
-	FS         fs.FS
-	DryRun     bool
+	planner Planner
+	FS      fs.FS
+	DryRun  bool
 }
 
 func (c Command) Execute(ops []*analyze.PackageOp, l *slog.Logger) error {
@@ -74,9 +73,9 @@ func Execute() error {
 
 	planner := Planner{fsys, target}
 	c := Command{
-		FS:         fsys,
-		planner:    planner,
-		DryRun:     dryRunOpt,
+		FS:      fsys,
+		planner: planner,
+		DryRun:  dryRunOpt,
 	}
 	return c.Execute(pkgOps, logger)
 }
@@ -117,7 +116,7 @@ func mustRel(desc, root, name string) string {
 	return rel
 }
 
-func printPlan(w io.Writer, p exec.Plan) error {
+func printPlan(w io.Writer, p analyze.Plan) error {
 	return json.MarshalWrite(w, p, json.Deterministic(true))
 }
 
@@ -126,11 +125,11 @@ type Planner struct {
 	Target string
 }
 
-func (p Planner) Plan(pkgOps []*analyze.PackageOp, l *slog.Logger) (exec.Plan, error) {
+func (p Planner) Plan(pkgOps []*analyze.PackageOp, l *slog.Logger) (analyze.Plan, error) {
 	specs, err := analyze.Analyze(p.FS, p.Target, pkgOps, l)
 	if err != nil {
-		return exec.Plan{}, err
+		return analyze.Plan{}, err
 	}
 
-	return exec.NewPlan(p.Target, specs), nil
+	return analyze.NewPlan(p.Target, specs), nil
 }

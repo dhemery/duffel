@@ -11,8 +11,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	. "github.com/dhemery/duffel/internal/exec"
-
+	"github.com/dhemery/duffel/internal/analyze"
 	"github.com/dhemery/duffel/internal/duftest"
 	"github.com/google/go-cmp/cmp"
 )
@@ -143,16 +142,16 @@ func TestDryRun(t *testing.T) {
 		t.Error("created target item:", fs.FormatFileInfo(info))
 	}
 
-	var gotPlan Plan
+	var gotPlan analyze.Plan
 	if err = json.Unmarshal(td.stdout.Bytes(), &gotPlan); err != nil {
 		t.Fatal(err)
 	}
 
 	wantDest, _ := filepath.Rel(absTarget, absSourcePkgItem)
-	wantOp := Action{Action: "symlink", Dest: wantDest}
-	wantTask := Task{wantOp}
-	wantTasks := map[string]Task{"item": wantTask}
-	wantPlan := Plan{Target: absTarget[1:], Tasks: wantTasks}
+	wantOp := analyze.Action{Action: "symlink", Dest: wantDest}
+	wantTask := analyze.Task{wantOp}
+	wantTasks := map[string]analyze.Task{"item": wantTask}
+	wantPlan := analyze.Plan{Target: absTarget[1:], Tasks: wantTasks}
 
 	if diff := cmp.Diff(wantPlan, gotPlan); diff != "" {
 		t.Error("plan:", diff)
