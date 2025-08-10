@@ -3,6 +3,7 @@ package exec
 import (
 	"io/fs"
 	"iter"
+	"log/slog"
 	"maps"
 	"path"
 	"slices"
@@ -42,7 +43,7 @@ func NewPlan(target string, specs Specs) Plan {
 }
 
 // Execute executes p's tasks against the target file tree.
-func (p Plan) Execute(fsys fs.FS) error {
+func (p Plan) Execute(fsys fs.FS, l *slog.Logger) error {
 	for _, item := range slices.Sorted(maps.Keys(p.Tasks)) {
 		task := p.Tasks[item]
 		name := path.Join(p.Target, item)
