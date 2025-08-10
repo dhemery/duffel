@@ -13,14 +13,14 @@ import (
 func NewPlanner(fsys fs.FS, target string) *planner {
 	stater := file.NewStater(fsys)
 	index := NewIndex(stater)
-	analyst := NewAnalyst(fsys, target, index)
+	analyst := NewAnalyzer(fsys, target, index)
 	return &planner{fsys, target, analyst}
 }
 
 type planner struct {
 	fsys    fs.FS
 	target  string
-	analyst *Analyst
+	analyst *analyzer
 }
 
 // Plan creates a plan to realize ops in p's target tree.
@@ -34,8 +34,8 @@ func (p planner) Plan(ops []*PackageOp, l *slog.Logger) (Plan, error) {
 	return NewPlan(p.target, p.analyst.index), nil
 }
 
-func NewAnalyst(fsys fs.FS, target string, index *index) *Analyst {
-	analyst := &Analyst{
+func NewAnalyzer(fsys fs.FS, target string, index *index) *analyzer {
+	analyst := &analyzer{
 		fsys:   fsys,
 		target: target,
 		index:  index,
@@ -46,13 +46,13 @@ func NewAnalyst(fsys fs.FS, target string, index *index) *Analyst {
 	return analyst
 }
 
-type Analyst struct {
+type analyzer struct {
 	fsys    fs.FS
 	target  string
 	index   *index
 	install *Install
 }
 
-func (a *Analyst) Analyze(pop *PackageOp, l *slog.Logger) error {
-	return fs.WalkDir(a.fsys, pop.walkRoot.String(), pop.VisitFunc(a.target, a.index, a.install.Apply, l))
+func (a *analyzer) Analyze(op *PackageOp, l *slog.Logger) error {
+	return fs.WalkDir(a.fsys, op.walkRoot.String(), op.VisitFunc(a.target, a.index, a.install.Apply, l))
 }

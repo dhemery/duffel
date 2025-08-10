@@ -22,7 +22,7 @@ func (me *MergeError) Unwrap() error {
 	return me.Err
 }
 
-func NewMerger(itemizer Itemizer, analyst *Analyst) *merger {
+func NewMerger(itemizer Itemizer, analyst *analyzer) *merger {
 	return &merger{
 		itemizer: itemizer,
 		analyst:  analyst,
@@ -31,7 +31,7 @@ func NewMerger(itemizer Itemizer, analyst *Analyst) *merger {
 
 type merger struct {
 	itemizer Itemizer
-	analyst  *Analyst
+	analyst  *analyzer
 }
 
 func (m merger) Merge(name string, logger *slog.Logger) error {

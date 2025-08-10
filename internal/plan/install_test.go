@@ -285,7 +285,7 @@ func (test test) run(t *testing.T) {
 		}
 		stater := file.NewStater(testFS)
 		index := NewIndex(stater)
-		analyst := NewAnalyst(testFS, test.target, index)
+		analyst := NewAnalyzer(testFS, test.target, index)
 		itemizer := NewItemizer(testFS)
 		merger := NewMerger(itemizer, analyst)
 		install := NewInstall(merger)
