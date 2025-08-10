@@ -12,9 +12,8 @@ type Merger interface {
 	Merge(string, *slog.Logger) error
 }
 
-func NewInstall(target string, merger Merger) *Install {
+func NewInstall(merger Merger) *Install {
 	return &Install{
-		target: target,
 		merger: merger,
 	}
 }
@@ -23,7 +22,6 @@ func NewInstall(target string, merger Merger) *Install {
 // of the target file that corresponds
 // to each given source item.
 type Install struct {
-	target string
 	merger Merger
 }
 

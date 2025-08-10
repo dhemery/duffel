@@ -288,7 +288,7 @@ func (test test) run(t *testing.T) {
 		analyst := NewAnalyst(testFS, test.target, index)
 		itemizer := NewItemizer(testFS)
 		merger := NewMerger(itemizer, analyst)
-		install := NewInstall(test.target, merger)
+		install := NewInstall(merger)
 
 		sourceItem := SourceItem{test.itemPath, test.entry}
 		targetItem := TargetItem{

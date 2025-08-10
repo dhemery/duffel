@@ -30,7 +30,7 @@ func NewAnalyst(fsys fs.FS, target string, index *index) *Analyst {
 	}
 	itemizer := NewItemizer(fsys)
 	merger := NewMerger(itemizer, a)
-	a.install = NewInstall(target, merger)
+	a.install = NewInstall(merger)
 	return a
 }
 
