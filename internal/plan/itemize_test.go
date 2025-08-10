@@ -1,10 +1,10 @@
-package analyze_test
+package plan_test
 
 import (
 	"errors"
 	"testing"
 
-	. "github.com/dhemery/duffel/internal/analyze"
+	. "github.com/dhemery/duffel/internal/plan"
 
 	"github.com/dhemery/duffel/internal/errfs"
 )

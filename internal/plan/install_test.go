@@ -1,4 +1,4 @@
-package analyze_test
+package plan_test
 
 import (
 	"bytes"
@@ -6,8 +6,8 @@ import (
 	"io/fs"
 	"testing"
 
-	. "github.com/dhemery/duffel/internal/analyze"
 	"github.com/dhemery/duffel/internal/duftest"
+	. "github.com/dhemery/duffel/internal/plan"
 
 	"github.com/dhemery/duffel/internal/errfs"
 	"github.com/dhemery/duffel/internal/file"

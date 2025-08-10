@@ -13,9 +13,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/dhemery/duffel/internal/analyze"
 	"github.com/dhemery/duffel/internal/file"
 	"github.com/dhemery/duffel/internal/log"
+	"github.com/dhemery/duffel/internal/plan"
 )
 
 var (
@@ -28,7 +28,7 @@ type Command struct {
 	DryRun  bool
 }
 
-func (c Command) Execute(ops []*analyze.PackageOp, l *slog.Logger) error {
+func (c Command) Execute(ops []*plan.PackageOp, l *slog.Logger) error {
 
 	plan, err := c.planner.Plan(ops, l)
 	if err != nil {
@@ -65,9 +65,9 @@ func Execute() error {
 
 	logger := log.Logger(os.Stderr, parseLogLevel(logLevelOpt))
 
-	pkgOps := []*analyze.PackageOp{}
+	pkgOps := []*plan.PackageOp{}
 	for _, pkg := range flags.Args() {
-		pkgOp := analyze.NewPackageOp(source, pkg, analyze.GoalInstall)
+		pkgOp := plan.NewPackageOp(source, pkg, plan.GoalInstall)
 		pkgOps = append(pkgOps, pkgOp)
 	}
 
@@ -116,7 +116,7 @@ func mustRel(desc, root, name string) string {
 	return rel
 }
 
-func printPlan(w io.Writer, p analyze.Plan) error {
+func printPlan(w io.Writer, p plan.Plan) error {
 	return json.MarshalWrite(w, p, json.Deterministic(true))
 }
 
@@ -125,11 +125,11 @@ type Planner struct {
 	Target string
 }
 
-func (p Planner) Plan(pkgOps []*analyze.PackageOp, l *slog.Logger) (analyze.Plan, error) {
-	specs, err := analyze.Analyze(p.FS, p.Target, pkgOps, l)
+func (p Planner) Plan(pkgOps []*plan.PackageOp, l *slog.Logger) (plan.Plan, error) {
+	specs, err := plan.Analyze(p.FS, p.Target, pkgOps, l)
 	if err != nil {
-		return analyze.Plan{}, err
+		return plan.Plan{}, err
 	}
 
-	return analyze.NewPlan(p.Target, specs), nil
+	return plan.NewPlan(p.Target, specs), nil
 }

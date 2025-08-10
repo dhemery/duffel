@@ -1,14 +1,14 @@
-package analyze_test
+package plan_test
 
 import (
 	"bytes"
 	"testing"
 
-	. "github.com/dhemery/duffel/internal/analyze"
 	"github.com/dhemery/duffel/internal/duftest"
 	"github.com/dhemery/duffel/internal/errfs"
 	"github.com/dhemery/duffel/internal/file"
 	"github.com/dhemery/duffel/internal/log"
+	. "github.com/dhemery/duffel/internal/plan"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"

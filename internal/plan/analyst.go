@@ -1,8 +1,8 @@
-// Package analyze identifies the current and planned states
+// Package plan identifies the current and planned states
 // of each file in the target tree
 // that will have to change in order to achieve
 // a given sequence of package goals.
-package analyze
+package plan
 
 import (
 	"io/fs"

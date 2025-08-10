@@ -1,10 +1,10 @@
-package analyze_test
+package plan_test
 
 import (
 	"path"
 	"testing"
 
-	. "github.com/dhemery/duffel/internal/analyze"
+	. "github.com/dhemery/duffel/internal/plan"
 )
 
 func TestSourcePath(t *testing.T) {
