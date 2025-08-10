@@ -8,26 +8,22 @@ import (
 	"github.com/dhemery/duffel/internal/file"
 )
 
-type Merger interface {
-	Merge(string, *slog.Logger) error
-}
-
-func NewInstall(merger Merger) *Install {
-	return &Install{
-		merger: merger,
+func NewInstaller(merger *merger) *installer {
+	return &installer{
+		merger: *merger,
 	}
 }
 
-// Install describes the installed state
-// of the target file that corresponds
-// to each given source item.
-type Install struct {
-	merger Merger
+// installer describes the installed state
+// of the target item file that corresponds
+// to each given source item file.
+type installer struct {
+	merger merger
 }
 
-// Apply returns the state of the targetItem file
-// that would result from installing the sourceItem file.
-func (op Install) Apply(s SourceItem, t TargetItem, l *slog.Logger) (file.State, error) {
+// Analyze returns the state of the target item file
+// that would result from installing the source item file.
+func (i installer) Analyze(s SourceItem, t TargetItem, l *slog.Logger) (file.State, error) {
 	var state file.State
 	targetPath := t.Path
 	targetState := t.State
@@ -45,7 +41,7 @@ func (op Install) Apply(s SourceItem, t TargetItem, l *slog.Logger) (file.State,
 		return file.LinkState(itemAsDest, sourceType), err
 	}
 
-	// At this point, we know that earlier goals (if any)
+	// At this point, we know that the tasks planned earlier (if any)
 	// either create or preserve a file at the target path.
 
 	targetType := targetState.Type
@@ -110,7 +106,7 @@ func (op Install) Apply(s SourceItem, t TargetItem, l *slog.Logger) (file.State,
 
 	// The package item is a dir and the target is a link to a dir.
 	// Try to merge the target item.
-	err := op.merger.Merge(targetPath.Resolve(targetState.Dest.Path), l)
+	err := i.merger.Merge(targetPath.Resolve(targetState.Dest.Path), l)
 	if err != nil {
 		return state, err
 	}

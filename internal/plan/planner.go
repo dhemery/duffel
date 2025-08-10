@@ -42,7 +42,7 @@ func NewAnalyzer(fsys fs.FS, target string, index *index) *analyzer {
 	}
 	itemizer := NewItemizer(fsys)
 	merger := NewMerger(itemizer, analyst)
-	analyst.install = NewInstall(merger)
+	analyst.install = NewInstaller(merger)
 	return analyst
 }
 
@@ -50,9 +50,9 @@ type analyzer struct {
 	fsys    fs.FS
 	target  string
 	index   *index
-	install *Install
+	install *installer
 }
 
 func (a *analyzer) Analyze(op *PackageOp, l *slog.Logger) error {
-	return fs.WalkDir(a.fsys, op.walkRoot.String(), op.VisitFunc(a.target, a.index, a.install.Apply, l))
+	return fs.WalkDir(a.fsys, op.walkRoot.String(), op.VisitFunc(a.target, a.index, a.install.Analyze, l))
 }

@@ -288,14 +288,14 @@ func (test test) run(t *testing.T) {
 		analyst := NewAnalyzer(testFS, test.target, index)
 		itemizer := NewItemizer(testFS)
 		merger := NewMerger(itemizer, analyst)
-		install := NewInstall(merger)
+		install := NewInstaller(merger)
 
 		sourceItem := SourceItem{test.itemPath, test.entry}
 		targetItem := TargetItem{
 			NewTargetPath(test.target, test.itemPath.Item),
 			test.targetState,
 		}
-		gotState, gotErr := install.Apply(sourceItem, targetItem, logger)
+		gotState, gotErr := install.Analyze(sourceItem, targetItem, logger)
 
 		if diff := cmp.Diff(test.wantState, gotState); diff != "" {
 			t.Errorf("Apply(%q) state result:\n%s", test.itemPath, diff)
