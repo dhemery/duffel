@@ -105,7 +105,7 @@ func TestMerge(t *testing.T) {
 			}
 
 			stater := file.NewStater(testFS)
-			index := NewIndex(stater, logger)
+			index := NewIndex(stater)
 			analyzer := NewAnalyst(testFS, test.target, index)
 			itemizer := NewItemizer(testFS)
 

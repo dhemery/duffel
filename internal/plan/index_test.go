@@ -181,7 +181,7 @@ func TestIndex(t *testing.T) {
 			}
 			testStater := newOneTimeStater(file.NewStater(testFS))
 
-			index := NewIndex(testStater, logger)
+			index := NewIndex(testStater)
 
 			for _, call := range test.calls {
 				call(index, t, logger)

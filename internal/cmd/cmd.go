@@ -23,7 +23,7 @@ var (
 )
 
 type Command struct {
-	planner Planner
+	planner *plan.Planner
 	FS      fs.FS
 	DryRun  bool
 }
@@ -71,10 +71,9 @@ func Execute() error {
 		pkgOps = append(pkgOps, pkgOp)
 	}
 
-	planner := Planner{fsys, target}
 	c := Command{
 		FS:      fsys,
-		planner: planner,
+		planner: plan.NewPlanner(fsys, target),
 		DryRun:  dryRunOpt,
 	}
 	return c.Execute(pkgOps, logger)
@@ -118,18 +117,4 @@ func mustRel(desc, root, name string) string {
 
 func printPlan(w io.Writer, p plan.Plan) error {
 	return json.MarshalWrite(w, p, json.Deterministic(true))
-}
-
-type Planner struct {
-	FS     fs.FS
-	Target string
-}
-
-func (p Planner) Plan(pkgOps []*plan.PackageOp, l *slog.Logger) (plan.Plan, error) {
-	specs, err := plan.Analyze(p.FS, p.Target, pkgOps, l)
-	if err != nil {
-		return plan.Plan{}, err
-	}
-
-	return plan.NewPlan(p.Target, specs), nil
 }

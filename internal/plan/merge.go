@@ -42,6 +42,5 @@ func (m merger) Merge(name string, logger *slog.Logger) error {
 
 	mergeOp := NewMergeOp(mergeItem)
 	mergeLogger := logger.WithGroup("merge").With("root", mergeItem)
-	_, err = m.analyst.Analyze(mergeLogger, mergeOp)
-	return err
+	return m.analyst.Analyze(mergeOp, mergeLogger)
 }

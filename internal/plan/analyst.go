@@ -11,27 +11,40 @@ import (
 	"github.com/dhemery/duffel/internal/file"
 )
 
-// Analyze applies packageOps
-// to identify the current and desired states
-// of files in the target tree
-// that correspond to the items in the packages.
-func Analyze(fsys fs.FS, target string, packageOps []*PackageOp, logger *slog.Logger) (*index, error) {
+func NewPlanner(fsys fs.FS, target string) *Planner {
 	stater := file.NewStater(fsys)
-	index := NewIndex(stater, logger)
+	index := NewIndex(stater)
 	analyst := NewAnalyst(fsys, target, index)
-	return analyst.Analyze(logger, packageOps...)
+	return &Planner{fsys, target, analyst}
+}
+
+type Planner struct {
+	FS      fs.FS
+	Target  string
+	analyst *Analyst
+}
+
+func (p Planner) Plan(pkgOps []*PackageOp, l *slog.Logger) (Plan, error) {
+	for _, pop := range pkgOps {
+		err := p.analyst.Analyze(pop, l)
+		if err != nil {
+			return Plan{}, err
+		}
+
+	}
+	return NewPlan(p.Target, p.analyst.index), nil
 }
 
 func NewAnalyst(fsys fs.FS, target string, index *index) *Analyst {
-	a := &Analyst{
+	analyst := &Analyst{
 		fsys:   fsys,
 		target: target,
 		index:  index,
 	}
 	itemizer := NewItemizer(fsys)
-	merger := NewMerger(itemizer, a)
-	a.install = NewInstall(merger)
-	return a
+	merger := NewMerger(itemizer, analyst)
+	analyst.install = NewInstall(merger)
+	return analyst
 }
 
 type Analyst struct {
@@ -41,12 +54,6 @@ type Analyst struct {
 	install *Install
 }
 
-func (a *Analyst) Analyze(l *slog.Logger, pops ...*PackageOp) (*index, error) {
-	for _, pop := range pops {
-		err := fs.WalkDir(a.fsys, pop.walkRoot.String(), pop.VisitFunc(a.target, a.index, a.install.Apply, l))
-		if err != nil {
-			return nil, err
-		}
-	}
-	return a.index, nil
+func (a *Analyst) Analyze(pop *PackageOp, l *slog.Logger) error {
+	return fs.WalkDir(a.fsys, pop.walkRoot.String(), pop.VisitFunc(a.target, a.index, a.install.Apply, l))
 }

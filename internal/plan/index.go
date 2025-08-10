@@ -19,7 +19,7 @@ type Spec struct {
 }
 
 // NewIndex returns a new, empty index that reads file system states from s.
-func NewIndex(s Stater, l *slog.Logger) *index {
+func NewIndex(s Stater) *index {
 	return &index{
 		specs:  map[string]Spec{},
 		stater: s,
