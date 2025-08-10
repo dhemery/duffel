@@ -11,6 +11,7 @@ import (
 	"github.com/dhemery/duffel/internal/file"
 	"github.com/dhemery/duffel/internal/log"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 )
 
 func TestInstall(t *testing.T) {
@@ -134,9 +135,15 @@ var mergeSuite = suite{
 			targetState: file.LinkState("../duffel/source-dir", file.TypeDir),
 			wantMergeCall: &mergeCall{
 				name: "duffel/source-dir",
-				err:  errTestMerge,
+				err: &MergeError{
+					Name: "duffel/source-dir",
+					Err:  ErrIsSource,
+				},
 			},
-			wantErr: errTestMerge,
+			wantErr: &MergeError{
+				Name: "duffel/source-dir",
+				Err:  ErrIsSource,
+			},
 		},
 		{
 			desc:        "merge succeeds",
@@ -244,13 +251,13 @@ func (test test) run(t *testing.T) {
 		}
 
 		switch want := test.wantErr.(type) {
-		case *ConflictError:
+		case *ConflictError, *MergeError:
 			if diff := cmp.Diff(want, gotErr); diff != "" {
 				t.Errorf("error:\n%s", diff)
 			}
 		default:
-			if !errors.Is(gotErr, want) {
-				t.Errorf("error:\n got: %v\nwant: %v", gotErr, want)
+			if diff := cmp.Diff(test.wantErr, gotErr, cmpopts.EquateErrors()); diff != "" {
+				t.Errorf("error:\n%s", diff)
 			}
 		}
 	})

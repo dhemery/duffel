@@ -11,7 +11,7 @@ type MergeError struct {
 }
 
 func (me *MergeError) Error() string {
-	return fmt.Sprintf("merge %q: %s", me.Name, me.Err)
+	return fmt.Sprintf("cannot merge %q: %s", me.Name, me.Err)
 }
 
 func (me *MergeError) Unwrap() error {
