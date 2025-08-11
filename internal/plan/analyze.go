@@ -10,23 +10,13 @@ import (
 	"github.com/dhemery/duffel/internal/file"
 )
 
-// Goal identifies the goal for a [PackageOp] to accomplish.
-type Goal int
+// A Goal for a [PackageOp] to accomplish.
+type Goal string
 
 const (
-	GoalInstall Goal = 1 // Install the package into the target tree.
-	GoalMerge   Goal = 2 // Merge the foreign package into the target tree.
+	GoalInstall Goal = "install" // Install the package into the target tree.
+	GoalMerge   Goal = "merge"   // Merge the foreign package into the target tree.
 )
-
-func (op Goal) String() string {
-	switch op {
-	case GoalInstall:
-		return "install"
-	case GoalMerge:
-		return "merge"
-	}
-	return fmt.Sprintf("unknown goal: %d", op)
-}
 
 func NewAnalyzer(fsys fs.FS, target string, index *index) *analyzer {
 	analyst := &analyzer{
@@ -59,7 +49,7 @@ func NewInstallOp(source, pkg string) *PackageOp {
 	}
 }
 
-// NewMergeOp creates a [PackageOp] to merge a package.
+// NewMergeOp creates a [PackageOp] to merge a previously installed package with a package currently being installed.
 func NewMergeOp(itemPath SourcePath) *PackageOp {
 	return &PackageOp{
 		walkRoot: itemPath,
@@ -67,6 +57,9 @@ func NewMergeOp(itemPath SourcePath) *PackageOp {
 	}
 }
 
+// ItemFunc analyzes the source and target to identify the planned state for the target item.
+// If the target was planned by previous operations, the target item describes the previously planned state.
+// Otherwise it describes the state of the file in the target tree.
 type ItemFunc func(SourceItem, TargetItem, *slog.Logger) (file.State, error)
 
 // PackageOp plans how to achieve a goal for a package.
@@ -100,7 +93,7 @@ func (po *PackageOp) VisitFunc(target string, index Index, itemFunc ItemFunc, lo
 		sourceItem := SourceItem{sourcePath, sourceType}
 
 		tpAttr := slog.Any("path", targetPath)
-		goalAttr := slog.String("goal", po.goal.String())
+		goalAttr := slog.Any("goal", po.goal)
 		indexLogger := logger.With(goalAttr, "source", sourceItem, slog.Group("target", tpAttr))
 		indexLogger.Info("start analyzing")
 

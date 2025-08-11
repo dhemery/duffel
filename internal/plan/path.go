@@ -56,6 +56,11 @@ func (s SourcePath) LogValue() slog.Value {
 	)
 }
 
+// NewSourceItem returns a [SourceItem] with the given path and file type.
+func NewSourceItem(source, pkg, item string, t file.Type) SourceItem {
+	return SourceItem{NewSourcePath(source, pkg, item), t}
+}
+
 // SourceItem describes a file in a duffel source tree.
 type SourceItem struct {
 	Path SourcePath `json:"path"` // The path to the file.
@@ -108,6 +113,11 @@ func (t TargetPath) LogValue() slog.Value {
 		slog.String("target", t.Target),
 		slog.String("item", t.Item),
 	)
+}
+
+// NewTargetItem returns a [TargetItem] with the given path and file state.
+func NewTargetItem(target, item string, state file.State) TargetItem {
+	return TargetItem{TargetPath{target, item}, state}
 }
 
 // TargetItem describes a planned or existing file in the target tree.
