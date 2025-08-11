@@ -33,8 +33,7 @@ type suite struct {
 	tests []test
 }
 
-// Simpler scenarios in which Apply can install the item based solely on
-// the given entry and state, without merging and without conflict.
+// Simpler scenarios that do not involve merging or conflicts.
 var entryAndStateSuite = suite{
 	name: "Entry and State",
 	tests: []test{
@@ -104,11 +103,20 @@ var entryAndStateSuite = suite{
 	},
 }
 
-// Scenarios where the entry is a dir and the target state links to a
-// dir. Install must call merge.
+// Scenarios where installing a directory source item requires merging its contents
+// with items from another package installed or planned earlier.
 var mergeSuite = suite{
 	name: "Merge",
 	tests: []test{
+		{
+			desc:       "merge succeeds",
+			sourceItem: NewSourceItem("source", "pkg", "item", file.TypeDir),
+			targetItem: NewTargetItem("target", "item",
+				file.LinkState("../duffel/source-dir", file.TypeDir)),
+			wantMergeCall: &mergeCall{name: "duffel/source-dir", err: nil},
+			wantState:     file.DirState(),
+			wantErr:       nil,
+		},
 		{
 			desc:       "merge fails",
 			sourceItem: NewSourceItem("source", "pkg", "item", file.TypeDir),
@@ -123,20 +131,11 @@ var mergeSuite = suite{
 				Err:  ErrIsSource,
 			},
 		},
-		{
-			desc:       "merge succeeds",
-			sourceItem: NewSourceItem("source", "pkg", "item", file.TypeDir),
-			targetItem: NewTargetItem("target", "item",
-				file.LinkState("../duffel/source-dir", file.TypeDir)),
-			wantMergeCall: &mergeCall{name: "duffel/source-dir", err: nil},
-			wantState:     file.DirState(),
-			wantErr:       nil,
-		},
 	},
 }
 
-// Scenarios in which Apply must return an error describing a conflict
-// between the entry and the target state.
+// Scenarios where the source file conflicts
+// with the existing or planned state of the target file.
 var conflictSuite = suite{
 	name: "Conflict",
 	tests: []test{
@@ -204,6 +203,7 @@ func (test test) run(t *testing.T) {
 		testMerger := &testMerger{wantCall: test.wantMergeCall}
 
 		install := &installer{testMerger}
+
 		gotState, gotErr := install.Analyze(test.sourceItem, test.targetItem, logger)
 
 		testMerger.checkCall(t)
