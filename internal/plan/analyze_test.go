@@ -49,8 +49,8 @@ func TestPackageOpItemFunc(t *testing.T) {
 		indexState    file.State // Initial state of the item in the index.
 		itemFuncState file.State // State returned by ItemFunc.
 		itemFuncError error      // Error returned by ItemFunc.
-		wantErr       error      // Error returned by visit func.
-		wantState     file.State // Index's state for the item after visit func.
+		wantErr       error      // The error result.
+		wantState     file.State // The resulting State recorded in the index.
 	}{
 		"index has no file, item func returns state": {
 			indexState:    file.NoFileState(),
@@ -163,10 +163,10 @@ func TestPackageOpWalkFuncError(t *testing.T) {
 	)
 
 	tests := map[string]struct {
-		item      string // The item being visited, or . to visit the pkg dir.
-		walkErr   error  // The error passed to visit func.
-		indexErr  error  // The error returned from index.Desired.
-		wantError error
+		item      string // The item being visited, or . to visit the package directory.
+		walkErr   error  // The error arg.
+		indexErr  error  // The error returned from index.
+		wantError error  // The error result.
 	}{
 		"pkg dir with no walk error": {
 			item:      ".",

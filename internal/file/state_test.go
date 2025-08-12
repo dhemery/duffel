@@ -20,11 +20,11 @@ func add(tfs *errfs.FS, f *errfs.File) {
 
 func TestStater(t *testing.T) {
 	tests := map[string]struct {
-		name      string
-		file      *errfs.File
-		destFile  *errfs.File
-		wantState State
-		wantError error
+		name      string      // The name of the file.
+		file      *errfs.File // The fila with that name.
+		destFile  *errfs.File // The file's symlink destination if it is a symlink.
+		wantState State       // The State result.
+		wantError error       // The Error result.
 	}{
 		"file": {
 			name:      "dir/file",

@@ -17,55 +17,11 @@ import (
 	"github.com/google/go-cmp/cmp"
 )
 
-type indexCall func(i Index, t *testing.T, l *slog.Logger)
-
-func get(name string, wantState file.State, wantErr error) indexCall {
-	return func(i Index, t *testing.T, l *slog.Logger) {
-		t.Helper()
-		state, err := i.State(name, l)
-		if diff := cmp.Diff(wantState, state); diff != "" {
-			t.Errorf("State(%q) state:\n%s", name, diff)
-		}
-		if !errors.Is(err, wantErr) {
-			t.Errorf("State(%q) error:\n got: %v\nwant: %v",
-				name, err, wantErr)
-		}
-	}
-}
-
-func set(name string, state file.State) indexCall {
-	return func(i Index, t *testing.T, l *slog.Logger) {
-		i.SetState(name, state, l)
-	}
-}
-
-func newOneTimeStater(s Stater) Stater {
-	return oneTimeStater{s: s, calls: map[string]int{}}
-}
-
-// oneTimeStater is a Stater that returns an error
-// if State is called more than once with the same name.
-type oneTimeStater struct {
-	s     Stater
-	calls map[string]int
-}
-
-func (ots oneTimeStater) State(name string) (file.State, error) {
-	called := ots.calls[name]
-	called++
-	ots.calls[name] = called
-
-	if called > 1 {
-		return file.State{}, fmt.Errorf("oneTimeStater.State(%q) called %d times", name, called)
-	}
-	return ots.s.State(name)
-}
-
 func TestIndex(t *testing.T) {
 	tests := map[string]struct {
-		files     []*errfs.File
-		calls     []indexCall
-		wantSpecs map[string]Spec
+		files     []*errfs.File   // Files in the file system.
+		calls     []indexCall     // Calls that the test makes to index.
+		wantSpecs map[string]Spec // The resulting specs recorded in the index.
 	}{
 		"get state of non-existent file": {
 			files: []*errfs.File{}, // No files.
@@ -198,4 +154,48 @@ func TestIndex(t *testing.T) {
 			}
 		})
 	}
+}
+
+type indexCall func(i Index, t *testing.T, l *slog.Logger)
+
+func get(name string, wantState file.State, wantErr error) indexCall {
+	return func(i Index, t *testing.T, l *slog.Logger) {
+		t.Helper()
+		state, err := i.State(name, l)
+		if diff := cmp.Diff(wantState, state); diff != "" {
+			t.Errorf("State(%q) state:\n%s", name, diff)
+		}
+		if !errors.Is(err, wantErr) {
+			t.Errorf("State(%q) error:\n got: %v\nwant: %v",
+				name, err, wantErr)
+		}
+	}
+}
+
+func set(name string, state file.State) indexCall {
+	return func(i Index, t *testing.T, l *slog.Logger) {
+		i.SetState(name, state, l)
+	}
+}
+
+func newOneTimeStater(s Stater) Stater {
+	return oneTimeStater{s: s, calls: map[string]int{}}
+}
+
+// oneTimeStater is a Stater that returns an error
+// if State is called more than once with the same name.
+type oneTimeStater struct {
+	s     Stater
+	calls map[string]int
+}
+
+func (ots oneTimeStater) State(name string) (file.State, error) {
+	called := ots.calls[name]
+	called++
+	ots.calls[name] = called
+
+	if called > 1 {
+		return file.State{}, fmt.Errorf("oneTimeStater.State(%q) called %d times", name, called)
+	}
+	return ots.s.State(name)
 }
