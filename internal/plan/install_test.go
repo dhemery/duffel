@@ -19,7 +19,7 @@ func TestInstall(t *testing.T) {
 	mergeSuite.run(t)
 }
 
-type test struct {
+type installTest struct {
 	desc          string     // Description of the test.
 	sourceItem    SourceItem // The state of the source item.
 	targetItem    TargetItem // The state of the target item as of any earlier planning.
@@ -28,15 +28,10 @@ type test struct {
 	wantErr       error      // Error result.
 }
 
-type suite struct {
-	name  string
-	tests []test
-}
-
 // Simpler scenarios that do not involve merging or conflicts.
-var entryAndStateSuite = suite{
+var entryAndStateSuite = installSuite{
 	name: "Entry and State",
-	tests: []test{
+	tests: []installTest{
 		{
 			desc:       "create new target link to file item",
 			sourceItem: NewSourceItem("source", "pkg", "item", file.TypeFile),
@@ -105,9 +100,9 @@ var entryAndStateSuite = suite{
 
 // Scenarios where installing a directory source item requires merging its contents
 // with items from another package installed or planned earlier.
-var mergeSuite = suite{
+var mergeSuite = installSuite{
 	name: "Merge",
-	tests: []test{
+	tests: []installTest{
 		{
 			desc:       "merge succeeds",
 			sourceItem: NewSourceItem("source", "pkg", "item", file.TypeDir),
@@ -136,9 +131,9 @@ var mergeSuite = suite{
 
 // Scenarios where the source file conflicts
 // with the existing or planned state of the target file.
-var conflictSuite = suite{
+var conflictSuite = installSuite{
 	name: "Conflict",
-	tests: []test{
+	tests: []installTest{
 		{
 			desc:       "target is a file, source is a dir",
 			sourceItem: NewSourceItem("source", "pkg", "item", file.TypeDir),
@@ -186,7 +181,12 @@ var conflictSuite = suite{
 	},
 }
 
-func (s suite) run(t *testing.T) {
+type installSuite struct {
+	name  string
+	tests []installTest
+}
+
+func (s installSuite) run(t *testing.T) {
 	t.Run(s.name, func(t *testing.T) {
 		for _, test := range s.tests {
 			test.run(t)
@@ -194,7 +194,7 @@ func (s suite) run(t *testing.T) {
 	})
 }
 
-func (test test) run(t *testing.T) {
+func (test installTest) run(t *testing.T) {
 	t.Run(test.desc, func(t *testing.T) {
 		var logbuf bytes.Buffer
 		logger := log.Logger(&logbuf, duftest.LogLevel)
