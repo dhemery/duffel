@@ -54,9 +54,9 @@ type Specs interface {
 	All() iter.Seq2[string, Spec]
 }
 
-// NewPlan returns a [Plan] to bring the les the target tree
+// NewPlan returns a [Plan] to bring the target tree
 // to its planned state.
-// Specs describes the desired and planned states for each file
+// Specs describes the current and planned state of each file
 // that is not in its planned state.
 func NewPlan(target string, specs Specs) Plan {
 	targetLen := len(target) + 1
@@ -71,12 +71,12 @@ func NewPlan(target string, specs Specs) Plan {
 	return p
 }
 
-// Execute executes p's tasks against the target file tree.
-func (p Plan) Execute(pfs PlanFS, l *slog.Logger) error {
+// Execute executes p's tasks actions against the given file system.
+func (p Plan) Execute(afs ActionFS, l *slog.Logger) error {
 	for _, item := range slices.Sorted(maps.Keys(p.Tasks)) {
 		task := p.Tasks[item]
 		name := path.Join(p.Target, item)
-		if err := task.Execute(pfs, name); err != nil {
+		if err := task.Execute(afs, name); err != nil {
 			return err
 		}
 	}
@@ -113,9 +113,9 @@ func NewTask(current, planned file.State) Task {
 type Task []Action
 
 // Execute executes t's actions on the named file.
-func (t Task) Execute(pfs PlanFS, name string) error {
+func (t Task) Execute(afs ActionFS, name string) error {
 	for _, op := range t {
-		if err := op.Execute(pfs, name); err != nil {
+		if err := op.Execute(afs, name); err != nil {
 			return err
 		}
 	}

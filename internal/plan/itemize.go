@@ -24,8 +24,8 @@ type itemizer struct {
 // Itemize returns a [SourcePath] describing the named file.
 // If the file is not in a duffel source directory,
 // the method returns an error.
-func (pf itemizer) Itemize(name string) (SourcePath, error) {
-	source, err := pf.findSource(name)
+func (i itemizer) Itemize(name string) (SourcePath, error) {
+	source, err := i.findSource(name)
 	if err != nil {
 		return SourcePath{}, err
 	}
@@ -43,16 +43,16 @@ func (pf itemizer) Itemize(name string) (SourcePath, error) {
 	return NewSourcePath(source, pkg, item), nil
 }
 
-func (pf itemizer) findSource(name string) (string, error) {
+func (i itemizer) findSource(name string) (string, error) {
 	if name == "." {
 		return "", ErrNotInPackage
 	}
 
 	dfName := path.Join(name, ".duffel")
-	_, err := pf.fsys.Lstat(dfName)
+	_, err := i.fsys.Lstat(dfName)
 
 	if errors.Is(err, fs.ErrNotExist) {
-		return pf.findSource(path.Dir(name))
+		return i.findSource(path.Dir(name))
 	}
 
 	if err != nil {

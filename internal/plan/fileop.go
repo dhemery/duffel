@@ -6,30 +6,41 @@ import (
 )
 
 var (
-	ActMkdir   = "mkdir"
-	ActRemove  = "remove"
-	ActSymlink = "symlink"
+	ActMkdir   = "mkdir"   // Create a directory with permission 0o755.
+	ActRemove  = "remove"  // Remove a file or (empty) directory.
+	ActSymlink = "symlink" // Create a symlink.
 )
 
-type PlanFS interface {
-	Mkdir(name string, mode fs.FileMode) error
+// ActionFS provides methods to execute actions in a file system.
+type ActionFS interface {
+	// Mkdir creates a new directory with the specified name and permission bits
+	Mkdir(name string, perm fs.FileMode) error
+
+	// Remove removes the named file or (empty) directory.
 	Remove(name string) error
+
+	// Symlink creates newname as a symbolic link to oldname.
 	Symlink(oldname, newname string) error
 }
 
+// Action describes a change to make to a file.
 type Action struct {
+	// Action is the kind of change to make.
 	Action string `json:"action"`
-	Dest   string `json:"dest,omitempty"`
+
+	// Dest is the link destination if the action is [ActSymlink].
+	Dest string `json:"dest,omitempty"`
 }
 
-func (a Action) Execute(pfs PlanFS, name string) error {
+// Execute performs the action on the named file.
+func (a Action) Execute(afs ActionFS, name string) error {
 	switch a.Action {
 	case ActMkdir:
-		return pfs.Mkdir(name, fs.ModeDir|0o755)
+		return afs.Mkdir(name, fs.ModeDir|0o755)
 	case ActRemove:
-		return pfs.Remove(name)
+		return afs.Remove(name)
 	case ActSymlink:
-		return pfs.Symlink(a.Dest, name)
+		return afs.Symlink(a.Dest, name)
 	}
 	return fmt.Errorf("unknown file action %q", a.Action)
 }

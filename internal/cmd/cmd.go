@@ -25,7 +25,7 @@ type Planner interface {
 
 type Command struct {
 	planner Planner
-	FS      plan.PlanFS
+	FS      plan.ActionFS
 	DryRun  bool
 }
 
