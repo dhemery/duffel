@@ -205,7 +205,6 @@ func (test installTest) run(t *testing.T) {
 		install := &installer{testMerger}
 
 		gotState, gotErr := install.Analyze(test.sourceItem, test.targetItem, logger)
-
 		testMerger.checkCall(t)
 
 		if diff := cmp.Diff(test.wantState, gotState); diff != "" {
