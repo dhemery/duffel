@@ -13,12 +13,12 @@ var (
 	ErrNotInPackage = errors.New("not in a duffel package")
 )
 
-func NewItemizer(fsys fs.FS) itemizer {
+func NewItemizer(fsys fs.ReadLinkFS) itemizer {
 	return itemizer{fsys}
 }
 
 type itemizer struct {
-	fsys fs.FS
+	fsys fs.ReadLinkFS
 }
 
 // Itemize returns a [SourcePath] describing the named file.
@@ -49,7 +49,7 @@ func (pf itemizer) findSource(name string) (string, error) {
 	}
 
 	dfName := path.Join(name, ".duffel")
-	_, err := fs.Lstat(pf.fsys, dfName)
+	_, err := pf.fsys.Lstat(dfName)
 
 	if errors.Is(err, fs.ErrNotExist) {
 		return pf.findSource(path.Dir(name))

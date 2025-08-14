@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	. "github.com/dhemery/duffel/internal/file"
+	"github.com/dhemery/duffel/internal/file"
 
 	"github.com/dhemery/duffel/internal/duftest"
 )
@@ -20,30 +20,30 @@ func TestLstat(t *testing.T) {
 	must.WriteFile(filepath.Join(root, "sub/file"), []byte{}, 0o644)
 	must.Symlink("../ignored/dest", filepath.Join(root, "sub/link"))
 
-	fsys := DirFS(root)
+	fsys := file.DirFS(root)
 
-	info, err := fs.Lstat(fsys, "sub/dir")
+	info, err := fsys.Lstat("sub/dir")
 	if err != nil {
 		t.Errorf("Lstat(%s): unexpected error: %s", "sub/dir", err)
 	} else if !info.IsDir() {
 		t.Errorf("Lstat(%s) got %s, want dir", "sub/dir", fs.FormatFileInfo(info))
 	}
 
-	info, err = fs.Lstat(fsys, "sub/file")
+	info, err = fsys.Lstat("sub/file")
 	if err != nil {
 		t.Error("unexpected error:", err)
 	} else if !info.Mode().IsRegular() {
 		t.Errorf("Lstat(%s) got %s, want regular file", "sub/file", fs.FormatFileInfo(info))
 	}
 
-	info, err = fs.Lstat(fsys, "sub/link")
+	info, err = fsys.Lstat("sub/link")
 	if err != nil {
 		t.Error("unexpected error:", err)
 	} else if info.Mode()&fs.ModeType != fs.ModeSymlink {
 		t.Errorf("Lstat(%s) got %s, want symlink", "sub/link", fs.FormatFileInfo(info))
 	}
 
-	info, err = fs.Lstat(fsys, "no/such/entry")
+	info, err = fsys.Lstat("no/such/entry")
 	if !errors.Is(err, fs.ErrNotExist) {
 		t.Errorf("Lstat(%s) error: got %s, want error %s", "no/such/entry", err, fs.ErrNotExist)
 	}
@@ -55,7 +55,7 @@ func TestLstat(t *testing.T) {
 func TestMkdir(t *testing.T) {
 	must := duftest.Must(t)
 	root := t.TempDir()
-	fsys := DirFS(root)
+	fsys := file.DirFS(root)
 
 	existingPerm := fs.FileMode(0o755)
 	existingDir := "existing-dir"
@@ -64,7 +64,7 @@ func TestMkdir(t *testing.T) {
 	newPerm := fs.FileMode(0o700)
 	newDir := "existing-dir/new-dir"
 
-	err := Mkdir(fsys, newDir, newPerm)
+	err := fsys.Mkdir(newDir, newPerm)
 	if err != nil {
 		t.Fatalf("MkDir(%s): unexpected error: %s", "existing-dir/new-dir", err)
 	}
@@ -79,7 +79,7 @@ func TestMkdir(t *testing.T) {
 
 	badDir := "no-such-parent/new-dir"
 
-	gotErr := Mkdir(fsys, badDir, 0o755)
+	gotErr := fsys.Mkdir(badDir, 0o755)
 	wantErr := fs.ErrNotExist
 	if !errors.Is(gotErr, wantErr) {
 		t.Errorf("Mkdir(%s) error: got %v, want %s", badDir, gotErr, wantErr)
@@ -95,7 +95,7 @@ func TestReadDir(t *testing.T) {
 	must.WriteFile(filepath.Join(root, "sub/file"), []byte{}, filePerm)
 	must.Symlink("../ignored/dest", filepath.Join(root, "sub/link"))
 
-	fsys := DirFS(root)
+	fsys := file.DirFS(root)
 
 	entries, err := fs.ReadDir(fsys, "sub")
 	if err != nil {
@@ -186,9 +186,9 @@ func TestRemove(t *testing.T) {
 				test.setup(t, root)
 			}
 
-			fsys := DirFS(root)
+			fsys := file.DirFS(root)
 
-			err := Remove(fsys, test.remove)
+			err := fsys.Remove(test.remove)
 			gotErr := err != nil
 			switch {
 			case gotErr == test.wantErr:
@@ -208,12 +208,12 @@ func TestSymlink(t *testing.T) {
 	root := t.TempDir()
 	must.MkdirAll(filepath.Join(root, "sub"), 0o755)
 
-	fsys := DirFS(root)
+	fsys := file.DirFS(root)
 	linkDest := "../../some/link/dest"
 
 	goodPath := "sub/link"
 
-	err := Symlink(fsys, linkDest, goodPath)
+	err := fsys.Symlink(linkDest, goodPath)
 
 	if err == nil {
 		e := must.Lstat(filepath.Join(root, goodPath))
@@ -227,7 +227,7 @@ func TestSymlink(t *testing.T) {
 
 	badPath := "nonexistent-parent/link"
 
-	err = Symlink(fsys, linkDest, badPath)
+	err = fsys.Symlink(linkDest, badPath)
 	wantErr := fs.ErrNotExist
 	if !errors.Is(err, wantErr) {
 		t.Errorf("Symlink(%s) error: got %s, want %s", badPath, err, wantErr)
@@ -237,7 +237,7 @@ func TestSymlink(t *testing.T) {
 func TestValidatesPath(t *testing.T) {
 	root := t.TempDir()
 
-	fsys := DirFS(root)
+	fsys := file.DirFS(root)
 	invalidPath := "invalid/../path"
 
 	check := func(op string, err error) {
@@ -249,16 +249,16 @@ func TestValidatesPath(t *testing.T) {
 	_, err := fs.Lstat(fsys, invalidPath)
 	check("Lstat", err)
 
-	err = Mkdir(fsys, invalidPath, 0o755)
+	err = fsys.Mkdir(invalidPath, 0o755)
 	check("Mkdir", err)
 
 	_, err = fs.ReadDir(fsys, invalidPath)
 	check("ReadDir", err)
 
-	err = Remove(fsys, invalidPath)
+	err = fsys.Remove(invalidPath)
 	check("Remove", err)
 
-	err = Symlink(fsys, "link/dest", invalidPath)
+	err = fsys.Symlink("link/dest", invalidPath)
 	check("Symlink", err)
 }
 

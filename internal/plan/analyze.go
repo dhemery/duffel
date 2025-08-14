@@ -18,7 +18,7 @@ const (
 	GoalMerge   Goal = "merge"   // Merge the foreign package into the target tree.
 )
 
-func NewAnalyzer(fsys fs.FS, target string, index *index) *analyzer {
+func NewAnalyzer(fsys fs.ReadLinkFS, target string, index *index) *analyzer {
 	analyst := &analyzer{
 		fsys:   fsys,
 		target: target,

@@ -6,7 +6,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"io/fs"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -26,7 +25,7 @@ type Planner interface {
 
 type Command struct {
 	planner Planner
-	FS      fs.FS
+	FS      plan.PlanFS
 	DryRun  bool
 }
 

@@ -3,8 +3,6 @@ package plan
 import (
 	"fmt"
 	"io/fs"
-
-	"github.com/dhemery/duffel/internal/file"
 )
 
 var (
@@ -13,19 +11,25 @@ var (
 	ActSymlink = "symlink"
 )
 
+type PlanFS interface {
+	Mkdir(name string, mode fs.FileMode) error
+	Remove(name string) error
+	Symlink(oldname, newname string) error
+}
+
 type Action struct {
 	Action string `json:"action"`
 	Dest   string `json:"dest,omitempty"`
 }
 
-func (a Action) Execute(fsys fs.FS, name string) error {
+func (a Action) Execute(pfs PlanFS, name string) error {
 	switch a.Action {
 	case ActMkdir:
-		return file.Mkdir(fsys, name, fs.ModeDir|0o755)
+		return pfs.Mkdir(name, fs.ModeDir|0o755)
 	case ActRemove:
-		return file.Remove(fsys, name)
+		return pfs.Remove(name)
 	case ActSymlink:
-		return file.Symlink(fsys, a.Dest, name)
+		return pfs.Symlink(a.Dest, name)
 	}
 	return fmt.Errorf("unknown file action %q", a.Action)
 }

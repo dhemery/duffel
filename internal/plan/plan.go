@@ -14,28 +14,27 @@ import (
 )
 
 // NewPlanner returns a planner that plans how to change the tree rooted at target.
-func NewPlanner(fsys fs.FS, target string) *planner {
+func NewPlanner(fsys fs.ReadLinkFS, target string) *planner {
 	stater := file.NewStater(fsys)
 	index := NewIndex(stater)
 	analyst := NewAnalyzer(fsys, target, index)
-	return &planner{fsys, target, analyst}
+	return &planner{target, analyst}
 }
 
 type planner struct {
-	fsys    fs.FS
-	target  string
-	analyst *analyzer
+	target   string
+	analyzer *analyzer
 }
 
 // Plan creates a plan to realize ops in p's target tree.
 func (p planner) Plan(ops []*PackageOp, l *slog.Logger) (Plan, error) {
 	for _, op := range ops {
-		if err := p.analyst.Analyze(op, l); err != nil {
+		if err := p.analyzer.Analyze(op, l); err != nil {
 			return Plan{}, err
 		}
 
 	}
-	return NewPlan(p.target, p.analyst.index), nil
+	return NewPlan(p.target, p.analyzer.index), nil
 }
 
 // A Plan is a set of tasks
@@ -73,11 +72,11 @@ func NewPlan(target string, specs Specs) Plan {
 }
 
 // Execute executes p's tasks against the target file tree.
-func (p Plan) Execute(fsys fs.FS, l *slog.Logger) error {
+func (p Plan) Execute(pfs PlanFS, l *slog.Logger) error {
 	for _, item := range slices.Sorted(maps.Keys(p.Tasks)) {
 		task := p.Tasks[item]
 		name := path.Join(p.Target, item)
-		if err := task.Execute(fsys, name); err != nil {
+		if err := task.Execute(pfs, name); err != nil {
 			return err
 		}
 	}
@@ -114,9 +113,9 @@ func NewTask(current, planned file.State) Task {
 type Task []Action
 
 // Execute executes t's actions on the named file.
-func (t Task) Execute(fsys fs.FS, name string) error {
+func (t Task) Execute(pfs PlanFS, name string) error {
 	for _, op := range t {
-		if err := op.Execute(fsys, name); err != nil {
+		if err := op.Execute(pfs, name); err != nil {
 			return err
 		}
 	}

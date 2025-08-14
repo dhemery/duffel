@@ -130,13 +130,13 @@ func (d *Dest) LogValue() slog.Value {
 }
 
 // NewStater creates a [Stater] that reads file states from fsys.
-func NewStater(fsys fs.FS) Stater {
+func NewStater(fsys fs.ReadLinkFS) Stater {
 	return Stater{fsys}
 }
 
 // A Stater describes the states of files in a file system.
 type Stater struct {
-	FS fs.FS
+	FS fs.ReadLinkFS
 }
 
 // State returns the state of the named file.
@@ -148,7 +148,7 @@ func (s Stater) State(name string) (State, error) {
 	state := State{Type: t}
 
 	if t == TypeSymlink {
-		dest, err := fs.ReadLink(s.FS, name)
+		dest, err := s.FS.ReadLink(name)
 		if err != nil {
 			return State{}, err
 		}
@@ -164,7 +164,7 @@ func (s Stater) State(name string) (State, error) {
 
 // statType returns the [Type] of the file.
 func (s Stater) statType(name string) (Type, error) {
-	info, err := fs.Lstat(s.FS, name)
+	info, err := s.FS.Lstat(name)
 	if errors.Is(err, fs.ErrNotExist) {
 		return TypeNoFile, nil
 	}
