@@ -20,12 +20,12 @@ func TestInstall(t *testing.T) {
 }
 
 type installTest struct {
-	desc          string     // Description of the test.
-	sourceItem    SourceItem // The state of the source item.
-	targetItem    TargetItem // The state of the target item as of any earlier planning.
-	wantMergeCall *mergeCall // The call the installer must make to Merge, if any.
-	wantState     file.State // State result.
-	wantErr       error      // Error result.
+	desc       string      // Description of the test.
+	sourceItem SourceItem  // The state of the source item.
+	targetItem TargetItem  // The state of the target item as of any earlier planning.
+	merger     *testMerger // The merger for the installer to call.
+	wantState  file.State  // State result.
+	wantErr    error       // Error result.
 }
 
 // Simpler scenarios that do not involve merging or conflicts.
@@ -108,25 +108,27 @@ var mergeSuite = installSuite{
 			sourceItem: NewSourceItem("source", "pkg", "item", file.TypeDir),
 			targetItem: NewTargetItem("target", "item",
 				file.LinkState("../duffel/source-dir", file.TypeDir)),
-			wantMergeCall: &mergeCall{name: "duffel/source-dir", err: nil},
-			wantState:     file.DirState(),
-			wantErr:       nil,
+			merger:    mergeNoError("duffel/source-dir"),
+			wantState: file.DirState(),
+			wantErr:   nil,
 		},
 		{
 			desc:       "merge fails",
 			sourceItem: NewSourceItem("source", "pkg", "item", file.TypeDir),
 			targetItem: NewTargetItem("target", "item",
 				file.LinkState("../duffel/source-dir", file.TypeDir)),
-			wantMergeCall: &mergeCall{
-				name: "duffel/source-dir",
-				err:  &MergeError{Name: "duffel/source-dir", Err: ErrIsSource},
-			},
-			wantErr: &MergeError{
-				Name: "duffel/source-dir",
-				Err:  ErrIsSource,
-			},
+			merger:  mergeError(&MergeError{Name: "duffel/source-dir", Err: ErrIsSource}),
+			wantErr: &MergeError{Name: "duffel/source-dir", Err: ErrIsSource},
 		},
 	},
+}
+
+func mergeNoError(name string) *testMerger {
+	return &testMerger{wantCall: &mergeArgs{name: name}}
+}
+
+func mergeError(e *MergeError) *testMerger {
+	return &testMerger{wantCall: &mergeArgs{name: e.Name, err: e}}
 }
 
 // Scenarios where the source file conflicts
@@ -200,12 +202,9 @@ func (test installTest) run(t *testing.T) {
 		logger := log.Logger(&logbuf, duftest.LogLevel)
 		defer duftest.Dump(t, "log", &logbuf)
 
-		testMerger := &testMerger{wantCall: test.wantMergeCall}
-
-		install := &installer{testMerger}
+		install := &installer{test.merger}
 
 		gotState, gotErr := install.Analyze(test.sourceItem, test.targetItem, logger)
-		testMerger.checkCall(t)
 
 		if diff := cmp.Diff(test.wantState, gotState); diff != "" {
 			t.Errorf("state:\n%s", diff)
@@ -221,16 +220,18 @@ func (test installTest) run(t *testing.T) {
 				t.Errorf("error:\n%s", diff)
 			}
 		}
+
+		test.merger.checkCall(t)
 	})
 }
 
-type mergeCall struct {
+type mergeArgs struct {
 	name string
 	err  error
 }
 
 type testMerger struct {
-	wantCall *mergeCall
+	wantCall *mergeArgs
 	gotCall  bool
 	gotName  string
 }
@@ -246,6 +247,10 @@ func (m *testMerger) Merge(gotName string, _ *slog.Logger) error {
 
 func (m *testMerger) checkCall(t *testing.T) {
 	t.Helper()
+	if m == nil {
+		return
+	}
+
 	if m.wantCall == nil {
 		if m.gotCall {
 			t.Errorf("Unexpected Merge(%q)", m.gotName)

@@ -23,10 +23,10 @@ func TestPackageOp(t *testing.T) {
 }
 
 type packageOpTest struct {
-	desc      string      // Description of the test
+	desc      string      // Description of the test.
 	index     indexItem   // The state of the item in the index before analyzing.
 	source    sourceState // The state of the source item to analyze.
-	itemFunc  itemFunc    // The results returned by itemFunc.
+	itemFunc  itemFunc    // The fake itemFunc to call.
 	wantErr   error       // Error result.
 	wantState *file.State // State passed to index.SetState.
 }
@@ -37,6 +37,7 @@ var (
 	errPassedToVisitFunc = errors.New("error passed to visit func")
 )
 
+// Scenarios where PackageOp calls itemFunc.
 var itemFuncSuite = packageOpSuite{
 	name: "ItemFunc",
 	tests: []packageOpTest{
@@ -104,26 +105,27 @@ var itemFuncSuite = packageOpSuite{
 	},
 }
 
+// Scenarios where PackageOp determines the outcome without calling itemFunc.
 var earlyExitSuite = packageOpSuite{
 	name: "EarlyExit",
 	tests: []packageOpTest{
 		{
-			desc:    "visit package dir with no walk error",
+			desc:    "package directory",
 			source:  sourceDir("source", "pkg", "."),
 			wantErr: nil,
 		},
 		{
-			desc:    "visit package dir with walk error",
+			desc:    "error arg for package directory",
 			source:  sourceDirError("source", "pkg", ".", errPassedToVisitFunc),
 			wantErr: errPassedToVisitFunc,
 		},
 		{
-			desc:    "visit item with walk error",
+			desc:    "error arg for item",
 			source:  sourceDirError("source", "pkg", "item", errPassedToVisitFunc),
 			wantErr: errPassedToVisitFunc,
 		},
 		{
-			desc:    "visit item with index error",
+			desc:    "index error for item",
 			index:   indexError("target", "item", errFromIndexState),
 			source:  sourceDir("source", "pkg", "item"),
 			wantErr: errFromIndexState,
@@ -279,6 +281,7 @@ func (s *indexItem) SetState(name string, state file.State, _ *slog.Logger) {
 }
 
 func (s *indexItem) checkSetState(t *testing.T, wantName string, wantState *file.State) {
+	t.Helper()
 	if wantState == nil {
 		if s.gotState != nil {
 			t.Errorf("unwanted call to index.SetState():\n name: %q\nstate: %s",
@@ -307,6 +310,7 @@ func (i *itemFunc) Call(gotSource SourceItem, gotTarget TargetItem, l *slog.Logg
 }
 
 func (i *itemFunc) checkCall(t *testing.T, wantSource SourceItem, wantTarget TargetItem) {
+	t.Helper()
 	if i.gotSource == nil {
 		return
 	}
