@@ -38,31 +38,36 @@ func TestDirOptions(t *testing.T) {
 		defaultTarget = ".."
 	)
 
-	tests := map[string]struct {
+	tests := []struct {
+		desc      string // Description of the test.
 		wd        string // The working directory in which duffel is run.
 		sourceOpt string // The value for the -source option.
 		targetOpt string // The value for the -target option.
 		wantDest  string // The desired destination for the target link.
 	}{
-		"Default source and target": {
+		{
+			desc:      "Default source and target",
 			wd:        "home/user/wd",
 			sourceOpt: "", // home/user/wd
 			targetOpt: "", // home/user
 			wantDest:  filepath.Join("wd", pkg, item),
 		},
-		"Default target, given source": {
+		{
+			desc:      "Default target, given source",
 			wd:        "home/user/target/wd",
 			sourceOpt: "../../source", // home/user/source
 			targetOpt: "",             // home/user/target
 			wantDest:  filepath.Join("../source", pkg, item),
 		},
-		"Default source, given target": {
+		{
+			desc:      "Default source, given target",
 			wd:        "home/user/wd",
-			sourceOpt: "",          // home/user/source
+			sourceOpt: "",          // home/user/wd
 			targetOpt: "../target", // home/user/target
 			wantDest:  filepath.Join("../wd", pkg, item),
 		},
-		"Given source and target": {
+		{
+			desc:      "Given source and target",
 			wd:        "home/user/wd",
 			sourceOpt: "../source", // home/user/source
 			targetOpt: "../target", // home/user/target
@@ -70,8 +75,8 @@ func TestDirOptions(t *testing.T) {
 		},
 	}
 
-	for name, test := range tests {
-		t.Run(name, func(t *testing.T) {
+	for _, test := range tests {
+		t.Run(test.desc, func(t *testing.T) {
 			root := t.TempDir()
 			wd := filepath.Join(root, test.wd)
 			absSource := filepath.Join(wd, Or(test.sourceOpt, defaultSource))
@@ -166,6 +171,7 @@ type testDuffelData struct {
 }
 
 func (td *testDuffelData) DumpIfTestFails() {
+	td.t.Helper()
 	if td.t.Failed() {
 		td.t.Logf("stdout: %q", td.stdout.String())
 		td.t.Logf("stderr: %q", td.stderr.String())

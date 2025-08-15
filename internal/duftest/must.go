@@ -32,6 +32,15 @@ func (m must) MkdirAll(name string, perm fs.FileMode) {
 	}
 }
 
+func (m must) OpenRoot(name string) *os.Root {
+	m.Helper()
+	r, err := os.OpenRoot(name)
+	if err != nil {
+		m.Fatal("must open root", err)
+	}
+	return r
+}
+
 func (m must) ReadDir(name string) []fs.DirEntry {
 	m.Helper()
 	ee, err := os.ReadDir(name)

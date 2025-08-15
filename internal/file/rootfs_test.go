@@ -8,19 +8,18 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/dhemery/duffel/internal/file"
-
 	"github.com/dhemery/duffel/internal/duftest"
+	"github.com/dhemery/duffel/internal/file"
 )
 
-func TestLstat(t *testing.T) {
+func TestRootFSLstat(t *testing.T) {
 	must := duftest.Must(t)
-	root := t.TempDir()
-	must.MkdirAll(filepath.Join(root, "sub/dir"), 0o755)
-	must.WriteFile(filepath.Join(root, "sub/file"), []byte{}, 0o644)
-	must.Symlink("../ignored/dest", filepath.Join(root, "sub/link"))
+	tdir := t.TempDir()
+	must.MkdirAll(filepath.Join(tdir, "sub/dir"), 0o755)
+	must.WriteFile(filepath.Join(tdir, "sub/file"), []byte{}, 0o644)
+	must.Symlink("../ignored/dest", filepath.Join(tdir, "sub/link"))
 
-	fsys := file.DirFS(root)
+	fsys := file.RootFS(must.OpenRoot(tdir))
 
 	info, err := fsys.Lstat("sub/dir")
 	if err != nil {
@@ -52,24 +51,25 @@ func TestLstat(t *testing.T) {
 	}
 }
 
-func TestMkdir(t *testing.T) {
+func TestRootFSMkdir(t *testing.T) {
 	must := duftest.Must(t)
-	root := t.TempDir()
-	fsys := file.DirFS(root)
+	tdir := t.TempDir()
 
 	existingPerm := fs.FileMode(0o755)
 	existingDir := "existing-dir"
-	must.MkdirAll(filepath.Join(root, existingDir), existingPerm)
+	must.MkdirAll(filepath.Join(tdir, existingDir), existingPerm)
 
 	newPerm := fs.FileMode(0o700)
 	newDir := "existing-dir/new-dir"
+
+	fsys := file.RootFS(must.OpenRoot(tdir))
 
 	err := fsys.Mkdir(newDir, newPerm)
 	if err != nil {
 		t.Fatalf("MkDir(%s): unexpected error: %s", "existing-dir/new-dir", err)
 	}
 
-	info := must.Lstat(filepath.Join(root, newDir))
+	info := must.Lstat(filepath.Join(tdir, newDir))
 	if !info.IsDir() {
 		t.Errorf("Lstat(%s) info: got %s, want dir", newDir, fs.FormatFileInfo(info))
 	}
@@ -86,16 +86,16 @@ func TestMkdir(t *testing.T) {
 	}
 }
 
-func TestReadDir(t *testing.T) {
+func TestRootFSReadDir(t *testing.T) {
 	must := duftest.Must(t)
-	root := t.TempDir()
+	tdir := t.TempDir()
 	dirPerm := fs.FileMode(0o755)
-	must.MkdirAll(filepath.Join(root, "sub/dir"), dirPerm)
+	must.MkdirAll(filepath.Join(tdir, "sub/dir"), dirPerm)
 	filePerm := fs.FileMode(0o644)
-	must.WriteFile(filepath.Join(root, "sub/file"), []byte{}, filePerm)
-	must.Symlink("../ignored/dest", filepath.Join(root, "sub/link"))
+	must.WriteFile(filepath.Join(tdir, "sub/file"), []byte{}, filePerm)
+	must.Symlink("../ignored/dest", filepath.Join(tdir, "sub/link"))
 
-	fsys := file.DirFS(root)
+	fsys := file.RootFS(must.OpenRoot(tdir))
 
 	entries, err := fs.ReadDir(fsys, "sub")
 	if err != nil {
@@ -110,7 +110,7 @@ func TestReadDir(t *testing.T) {
 		if !e.IsDir() {
 			t.Errorf("%q mode: got %s, want dir", "dir", fs.FormatDirEntry(e))
 		}
-		assertEntryMode(t, e, fs.ModeDir|dirPerm)
+		checkEntryMode(t, e, fs.ModeDir|dirPerm)
 	} else {
 		t.Error("no entry for", "dir")
 	}
@@ -119,7 +119,7 @@ func TestReadDir(t *testing.T) {
 		if !e.Type().IsRegular() {
 			t.Errorf("%q mode: got %s, want regular file", "file", fs.FormatDirEntry(e))
 		}
-		assertEntryMode(t, e, filePerm) // No other mode bits on for regular files
+		checkEntryMode(t, e, filePerm) // No other mode bits on for regular files
 	} else {
 		t.Error("no entry for", "file")
 	}
@@ -133,7 +133,7 @@ func TestReadDir(t *testing.T) {
 	}
 }
 
-func TestRemove(t *testing.T) {
+func TestRootFSRemove(t *testing.T) {
 	tests := map[string]struct {
 		setup   filesFunc
 		remove  string
@@ -180,13 +180,14 @@ func TestRemove(t *testing.T) {
 
 	for desc, test := range tests {
 		t.Run(desc, func(t *testing.T) {
-			root := t.TempDir()
+			must := duftest.Must(t)
+			tdir := t.TempDir()
 
 			if test.setup != nil {
-				test.setup(t, root)
+				test.setup(t, tdir)
 			}
 
-			fsys := file.DirFS(root)
+			fsys := file.RootFS(must.OpenRoot(tdir))
 
 			err := fsys.Remove(test.remove)
 			gotErr := err != nil
@@ -198,25 +199,24 @@ func TestRemove(t *testing.T) {
 				t.Errorf("Remove(%q) want error, got none", test.remove)
 			}
 
-			test.check(t, root)
+			test.check(t, tdir)
 		})
 	}
 }
 
-func TestSymlink(t *testing.T) {
+func TestRootFSSymlink(t *testing.T) {
 	must := duftest.Must(t)
-	root := t.TempDir()
-	must.MkdirAll(filepath.Join(root, "sub"), 0o755)
+	tdir := t.TempDir()
+	fsys := file.RootFS(must.OpenRoot(tdir))
 
-	fsys := file.DirFS(root)
+	must.MkdirAll(filepath.Join(tdir, "sub"), 0o755)
 	linkDest := "../../some/link/dest"
-
 	goodPath := "sub/link"
 
 	err := fsys.Symlink(linkDest, goodPath)
 
 	if err == nil {
-		e := must.Lstat(filepath.Join(root, goodPath))
+		e := must.Lstat(filepath.Join(tdir, goodPath))
 		gotType := e.Mode().Type()
 		if gotType != fs.ModeSymlink {
 			t.Errorf("Lstat(%s) type: got %s, want symlink", e.Name(), &gotType)
@@ -234,35 +234,7 @@ func TestSymlink(t *testing.T) {
 	}
 }
 
-func TestValidatesPath(t *testing.T) {
-	root := t.TempDir()
-
-	fsys := file.DirFS(root)
-	invalidPath := "invalid/../path"
-
-	check := func(op string, err error) {
-		if !errors.Is(err, fs.ErrInvalid) {
-			t.Errorf("%s(%q) error:\n got: %v\nwant: %v",
-				op, invalidPath, err, fs.ErrInvalid)
-		}
-	}
-	_, err := fs.Lstat(fsys, invalidPath)
-	check("Lstat", err)
-
-	err = fsys.Mkdir(invalidPath, 0o755)
-	check("Mkdir", err)
-
-	_, err = fs.ReadDir(fsys, invalidPath)
-	check("ReadDir", err)
-
-	err = fsys.Remove(invalidPath)
-	check("Remove", err)
-
-	err = fsys.Symlink("link/dest", invalidPath)
-	check("Symlink", err)
-}
-
-func assertEntryMode(t *testing.T, entry fs.DirEntry, wantMode fs.FileMode) {
+func checkEntryMode(t *testing.T, entry fs.DirEntry, wantMode fs.FileMode) {
 	t.Helper()
 	info, err := entry.Info()
 	if err != nil {

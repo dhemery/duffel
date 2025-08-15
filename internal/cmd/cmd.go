@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -42,7 +43,12 @@ func (c Command) Execute(ops []*plan.PackageOp, l *slog.Logger) error {
 	return plan.Execute(c.FS, l)
 }
 
-func Execute() error {
+type FS interface {
+	fs.ReadLinkFS
+	plan.ActionFS
+}
+
+func Execute(r file.Root) error {
 	var (
 		dryRunOpt   bool
 		logLevelOpt string
@@ -57,11 +63,8 @@ func Execute() error {
 
 	flags.Parse(os.Args[1:])
 
-	root := "/"
-	fsys := file.DirFS(root)
-
-	target := mustRel("target", root, targetOpt)
-	source := mustRel("source", root, sourceOpt)
+	target := mustRel("target", r.Name(), targetOpt)
+	source := mustRel("source", r.Name(), sourceOpt)
 
 	logger := log.Logger(os.Stderr, parseLogLevel(logLevelOpt))
 
@@ -71,6 +74,7 @@ func Execute() error {
 		pkgOps = append(pkgOps, pkgOp)
 	}
 
+	fsys := file.RootFS(r)
 	c := Command{
 		FS:      fsys,
 		planner: plan.NewPlanner(fsys, target),

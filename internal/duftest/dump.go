@@ -25,5 +25,5 @@ func Dump(t *testing.T, name string, val fmt.Stringer) {
 	if forceDump && !t.Failed() {
 		t.Error("Failure forced by -dump", forceTag)
 	}
-	t.Logf("%s:\n%s", name, val)
+	t.Logf("%s:\n%s\n", name, val)
 }
