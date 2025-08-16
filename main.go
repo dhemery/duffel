@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/dhemery/duffel/internal/cmd"
+	"github.com/dhemery/duffel/internal/file"
 )
 
 func main() {
@@ -12,7 +13,9 @@ func main() {
 	if err != nil {
 		fatal(err)
 	}
-	if err = cmd.Execute(r); err != nil {
+	fsys := file.RootFS(r)
+
+	if err = cmd.Execute(os.Args[1:], fsys, os.Stdout, os.Stderr); err != nil {
 		fatal(err)
 	}
 }

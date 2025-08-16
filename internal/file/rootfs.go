@@ -24,6 +24,10 @@ func RootFS(r Root) *rootFS {
 	}
 }
 
+func (f *rootFS) Name() string {
+	return f.r.Name()
+}
+
 func (f *rootFS) Mkdir(name string, perm fs.FileMode) error {
 	return f.r.Mkdir(name, perm)
 }

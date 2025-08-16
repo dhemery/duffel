@@ -6,12 +6,12 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"io/fs"
 	"log/slog"
 	"os"
 	"path/filepath"
 
-	"github.com/dhemery/duffel/internal/file"
 	"github.com/dhemery/duffel/internal/log"
 	"github.com/dhemery/duffel/internal/plan"
 )
@@ -20,6 +20,12 @@ var (
 	ErrLogLevel = errors.New("unknown log level")
 )
 
+type FS interface {
+	fs.ReadLinkFS
+	plan.ActionFS
+	Name() string
+}
+
 type Planner interface {
 	Plan([]*plan.PackageOp, *slog.Logger) (plan.Plan, error)
 }
@@ -27,6 +33,7 @@ type Planner interface {
 type Command struct {
 	planner Planner
 	FS      plan.ActionFS
+	Out     io.Writer
 	DryRun  bool
 }
 
@@ -37,18 +44,13 @@ func (c Command) Execute(ops []*plan.PackageOp, l *slog.Logger) error {
 	}
 
 	if c.DryRun {
-		return plan.Print(os.Stdout)
+		return plan.Print(c.Out)
 	}
 
 	return plan.Execute(c.FS, l)
 }
 
-type FS interface {
-	fs.ReadLinkFS
-	plan.ActionFS
-}
-
-func Execute(r file.Root) error {
+func Execute(args []string, fsys FS, wout, werr io.Writer) error {
 	var (
 		dryRunOpt   bool
 		logLevelOpt string
@@ -61,12 +63,12 @@ func Execute(r file.Root) error {
 	flags.StringVar(&sourceOpt, "source", ".", "The source `dir`")
 	flags.StringVar(&targetOpt, "target", "..", "The target `dir`")
 
-	flags.Parse(os.Args[1:])
+	flags.Parse(args)
 
-	target := mustRel("target", r.Name(), targetOpt)
-	source := mustRel("source", r.Name(), sourceOpt)
+	target := mustRel("target", fsys.Name(), targetOpt, werr)
+	source := mustRel("source", fsys.Name(), sourceOpt, werr)
 
-	logger := log.Logger(os.Stderr, parseLogLevel(logLevelOpt))
+	logger := log.Logger(werr, parseLogLevel(logLevelOpt, werr))
 
 	pkgOps := []*plan.PackageOp{}
 	for _, pkg := range flags.Args() {
@@ -74,16 +76,16 @@ func Execute(r file.Root) error {
 		pkgOps = append(pkgOps, pkgOp)
 	}
 
-	fsys := file.RootFS(r)
 	c := Command{
 		FS:      fsys,
+		Out:     wout,
 		planner: plan.NewPlanner(fsys, target),
 		DryRun:  dryRunOpt,
 	}
 	return c.Execute(pkgOps, logger)
 }
 
-func parseLogLevel(name string) slog.Level {
+func parseLogLevel(name string, werr io.Writer) slog.Level {
 	switch name {
 	case "none":
 		return slog.LevelError + 4
@@ -96,25 +98,25 @@ func parseLogLevel(name string) slog.Level {
 	case "debug":
 		return slog.LevelDebug
 	default:
-		fatal(fmt.Errorf("%s: unknown log level; level must be one of: none, error, warn, info, debug", name))
+		fatal(werr, fmt.Errorf("%s: unknown log level; level must be one of: none, error, warn, info, debug", name))
 	}
 	return 0
 }
 
-func fatal(e error) {
-	fmt.Fprintln(os.Stderr, e.Error())
+func fatal(w io.Writer, e error) {
+	fmt.Fprintln(w, e.Error())
 	os.Exit(1)
 }
 
-func mustRel(desc, root, name string) string {
+func mustRel(desc, root, name string, w io.Writer) string {
 	abs, err := filepath.Abs(name)
 	if err != nil {
-		fatal(fmt.Errorf("%q: %w", desc, err))
+		fatal(w, fmt.Errorf("%q: %w", desc, err))
 	}
 
 	rel, err := filepath.Rel(root, abs)
 	if err != nil {
-		fatal(fmt.Errorf("%q: %w", desc, err))
+		fatal(w, fmt.Errorf("%q: %w", desc, err))
 	}
 	return rel
 }

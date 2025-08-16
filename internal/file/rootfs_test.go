@@ -22,6 +22,7 @@ func TestRootFSLstat(t *testing.T) {
 	fsys := file.RootFS(must.OpenRoot(tdir))
 
 	info, err := fsys.Lstat("sub/dir")
+
 	if err != nil {
 		t.Errorf("Lstat(%s): unexpected error: %s", "sub/dir", err)
 	} else if !info.IsDir() {
