@@ -70,11 +70,10 @@ func Parse(args []string) (options, []string, error) {
 type FS interface {
 	fs.ReadLinkFS
 	plan.ActionFS
-	Name() string
 }
 
-// FSFunc is a function that returns a [FS].
-type FSFunc func() (FS, error)
+// FSFunc is a function that returns a [FS] rooted at root.
+type FSFunc func(root string) (FS, error)
 
 // Execute parses and validates args, then executes the user's request
 // against the [FS] returned by fsFunc.
@@ -84,15 +83,14 @@ func Execute(args []string, fsFunc FSFunc, wout, werr io.Writer) {
 		fatalUsage(werr, err)
 	}
 
-	fsys, err := fsFunc()
+	root := "/"
+	target := mustRel("target", root, opts.target, werr)
+	source := mustRel("source", root, opts.source, werr)
+
+	fsys, err := fsFunc(root)
 	if err != nil {
 		fatal(werr, err)
 	}
-
-	target := mustRel("target", fsys.Name(), opts.target, werr)
-	source := mustRel("source", fsys.Name(), opts.source, werr)
-
-	logger := log.Logger(werr, &opts.logLevel)
 
 	pkgOps := []*plan.PackageOp{}
 	for _, pkg := range args {
@@ -106,6 +104,8 @@ func Execute(args []string, fsFunc FSFunc, wout, werr io.Writer) {
 		planner: plan.NewPlanner(fsys, target),
 		DryRun:  opts.dryRun,
 	}
+
+	logger := log.Logger(werr, &opts.logLevel)
 	if err = c.Execute(pkgOps, logger); err != nil {
 		fatal(werr, err)
 	}
@@ -137,25 +137,6 @@ func (c Command) Execute(ops []*plan.PackageOp, l *slog.Logger) error {
 	}
 
 	return plan.Execute(c.FS, l)
-}
-
-func parseLogLevel(name string, werr io.Writer) slog.Level {
-	switch name {
-	case "none":
-		return slog.LevelError + 4
-	case "error":
-		return slog.LevelError
-	case "warn":
-		return slog.LevelWarn
-	case "info":
-		return slog.LevelInfo
-	case "debug":
-		return slog.LevelDebug
-	default:
-		err := fmt.Errorf("%s: unknown log level; level must be one of: none, error, warn, info, debug", name)
-		fatalUsage(werr, err)
-	}
-	return 0
 }
 
 func fatal(w io.Writer, e error) {

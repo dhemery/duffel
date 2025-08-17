@@ -11,9 +11,9 @@ func main() {
 	cmd.Execute(os.Args[1:], makeFS, os.Stdout, os.Stderr)
 }
 
-// MakeFS returns a [cmd.FS] rooted at /.
-func makeFS() (cmd.FS, error) {
-	r, err := os.OpenRoot("/")
+// MakeFS returns a [cmd.FS] rooted at root.
+func makeFS(root string) (cmd.FS, error) {
+	r, err := os.OpenRoot(root)
 	if err != nil {
 		return nil, err
 	}

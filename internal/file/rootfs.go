@@ -5,7 +5,6 @@ import (
 )
 
 type Root interface {
-	Name() string
 	FS() fs.FS
 	Mkdir(string, fs.FileMode) error
 	Remove(string) error
@@ -22,10 +21,6 @@ func RootFS(r Root) *rootFS {
 		ReadLinkFS: r.FS().(fs.ReadLinkFS),
 		r:          r,
 	}
-}
-
-func (f *rootFS) Name() string {
-	return f.r.Name()
 }
 
 func (f *rootFS) Mkdir(name string, perm fs.FileMode) error {
