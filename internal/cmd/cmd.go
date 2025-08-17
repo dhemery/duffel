@@ -3,7 +3,6 @@
 package cmd
 
 import (
-	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -16,14 +15,56 @@ import (
 	"github.com/dhemery/duffel/internal/plan"
 )
 
-const (
-	executionError = iota + 1
-	badUsage
-)
+type LogLevelOption struct {
+	l slog.Level
+}
 
-var (
-	ErrLogLevel = errors.New("unknown log level")
-)
+func (o *LogLevelOption) String() string {
+	return o.l.String()
+}
+
+func (o *LogLevelOption) Set(name string) error {
+	switch name {
+	case "none":
+		o.l = slog.LevelError + 4
+	case "error":
+		o.l = slog.LevelError
+	case "warn":
+		o.l = slog.LevelWarn
+	case "info":
+		o.l = slog.LevelInfo
+	case "debug":
+		o.l = slog.LevelDebug
+	default:
+		return fmt.Errorf("%s: unknown log level; level must be one of: none, error, warn, info, debug", name)
+	}
+	return nil
+}
+
+func (o *LogLevelOption) Level() slog.Level {
+	return o.l
+}
+
+type options struct {
+	source   string
+	target   string
+	dryRun   bool
+	logLevel LogLevelOption
+}
+
+func Parse(args []string) (options, []string, error) {
+	opts := options{
+		logLevel: LogLevelOption{slog.LevelError},
+	}
+
+	flags := flag.NewFlagSet("duffel", flag.ExitOnError)
+	flags.BoolVar(&opts.dryRun, "n", false, "Print planned actions without executing them.")
+	flags.Var(&opts.logLevel, "log", "Log level")
+	flags.StringVar(&opts.source, "source", ".", "The source `dir`")
+	flags.StringVar(&opts.target, "target", "..", "The target `dir`")
+	err := flags.Parse(args)
+	return opts, flags.Args(), err
+}
 
 // FS is a [fs.FS] that implements all of the methods used by duffel.
 type FS interface {
@@ -38,19 +79,8 @@ type FSFunc func() (FS, error)
 // Execute parses and validates args, then executes the user's request
 // against the [FS] returned by fsFunc.
 func Execute(args []string, fsFunc FSFunc, wout, werr io.Writer) {
-	var (
-		dryRunOpt   bool
-		logLevelOpt string
-		sourceOpt   string
-		targetOpt   string
-	)
-	flags := flag.NewFlagSet("duffel", flag.ExitOnError)
-	flags.BoolVar(&dryRunOpt, "n", false, "Print planned actions without executing them.")
-	flags.StringVar(&logLevelOpt, "log", "error", "Log level")
-	flags.StringVar(&sourceOpt, "source", ".", "The source `dir`")
-	flags.StringVar(&targetOpt, "target", "..", "The target `dir`")
-
-	if err := flags.Parse(args); err != nil {
+	opts, args, err := Parse(args)
+	if err != nil {
 		fatalUsage(werr, err)
 	}
 
@@ -59,13 +89,13 @@ func Execute(args []string, fsFunc FSFunc, wout, werr io.Writer) {
 		fatal(werr, err)
 	}
 
-	target := mustRel("target", fsys.Name(), targetOpt, werr)
-	source := mustRel("source", fsys.Name(), sourceOpt, werr)
+	target := mustRel("target", fsys.Name(), opts.target, werr)
+	source := mustRel("source", fsys.Name(), opts.source, werr)
 
-	logger := log.Logger(werr, parseLogLevel(logLevelOpt, werr))
+	logger := log.Logger(werr, &opts.logLevel)
 
 	pkgOps := []*plan.PackageOp{}
-	for _, pkg := range flags.Args() {
+	for _, pkg := range args {
 		pkgOp := plan.NewInstallOp(source, pkg)
 		pkgOps = append(pkgOps, pkgOp)
 	}
@@ -74,7 +104,7 @@ func Execute(args []string, fsFunc FSFunc, wout, werr io.Writer) {
 		FS:      fsys,
 		Out:     wout,
 		planner: plan.NewPlanner(fsys, target),
-		DryRun:  dryRunOpt,
+		DryRun:  opts.dryRun,
 	}
 	if err = c.Execute(pkgOps, logger); err != nil {
 		fatal(werr, err)

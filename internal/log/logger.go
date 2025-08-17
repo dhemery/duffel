@@ -6,7 +6,7 @@ import (
 	"log/slog"
 )
 
-func Logger(w io.Writer, l slog.Level) *slog.Logger {
+func Logger(w io.Writer, l slog.Leveler) *slog.Logger {
 	opts := &slog.HandlerOptions{Level: l, ReplaceAttr: DiscardTimeAttr}
 	handler := slog.NewTextHandler(w, opts)
 	return slog.New(handler)
