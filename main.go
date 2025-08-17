@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	"github.com/dhemery/duffel/internal/cmd"
@@ -9,19 +8,14 @@ import (
 )
 
 func main() {
-	r, err := os.OpenRoot("/")
-	if err != nil {
-		fatal(err)
-	}
-	fsys := file.RootFS(r)
-
-	if err = cmd.Execute(os.Args[1:], fsys, os.Stdout, os.Stderr); err != nil {
-		fatal(err)
-	}
+	cmd.Execute(os.Args[1:], makeFS, os.Stdout, os.Stderr)
 }
 
-func fatal(err error) {
-	fmt.Fprintln(os.Stderr, err)
-	os.Exit(1)
-
+// MakeFS returns a [cmd.FS] rooted at /.
+func makeFS() (cmd.FS, error) {
+	r, err := os.OpenRoot("/")
+	if err != nil {
+		return nil, err
+	}
+	return file.RootFS(r), nil
 }
