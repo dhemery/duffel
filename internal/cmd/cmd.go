@@ -125,10 +125,7 @@ func validate(fsys FS, target, source string, pkgOps []*plan.PackageOp) error {
 	errs := []error{terr, serr}
 
 	for _, op := range pkgOps {
-		operr := validatePackage(op)
-		if operr == nil && serr == nil {
-			operr = validateDir(fsys, "package", op.Path())
-		}
+		operr := validatePackage(fsys, op, serr == nil)
 		errs = append(errs, operr)
 	}
 
@@ -157,10 +154,21 @@ func validateSource(fsys FS, source string) error {
 	return nil
 }
 
-func validatePackage(op *plan.PackageOp) error {
-	packageDir := path.Dir(op.Path())
-	if packageDir != op.Source() {
-		return fmt.Errorf("package %s: not a child of source %s", op.Package(), op.Source())
+func validatePackage(fsys FS, op *plan.PackageOp, checkDir bool) error {
+	pname := op.Package()
+	if path.IsAbs(pname) {
+		return fmt.Errorf("package %s: is absolute", pname)
+	}
+
+	ppath := op.Path()
+	pparent := path.Dir(ppath)
+	source := op.Source()
+	if pparent != source {
+		return fmt.Errorf("package %s (%s): not a child of source %s", pname, ppath, source)
+	}
+
+	if checkDir {
+		return validateDir(fsys, "package", op.Path())
 	}
 
 	return nil
