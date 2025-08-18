@@ -1,4 +1,4 @@
-// Package cmd parses the command line and constructs a command
+// Package cmd constructs and executes a plan
 // to satisfy the user's request.
 package cmd
 
@@ -6,81 +6,63 @@ import (
 	"fmt"
 	"io"
 	"io/fs"
-	"log/slog"
 	"os"
 
-	"github.com/dhemery/duffel/internal/log"
 	"github.com/dhemery/duffel/internal/plan"
 )
 
-// FS is a [fs.FS] that implements all of the methods used by duffel.
+const Root = "/"
+
+// FS is an [fs.FS] that implements all of the methods used by duffel.
 type FS interface {
 	fs.ReadLinkFS
 	plan.ActionFS
 }
 
-// FSFunc is a function that returns a [FS] rooted at root.
+// FSFunc creates an [FS] rooted at root.
 type FSFunc func(root string) (FS, error)
 
-// Execute parses and validates args, then executes the user's request
-// against the [FS] returned by fsFunc.
+// Execute performs the duffel operations requested by args.
 func Execute(args []string, fsFunc FSFunc, wout, werr io.Writer) {
-	root := "/"
-	fsys, err := fsFunc(root)
+	fsys, err := fsFunc(Root)
 	if err != nil {
 		fatal(werr, err)
 	}
 
-	opts, args, err := ParseArgs(args)
+	cmd, err := Compile(args, fsys, wout, werr)
 	if err != nil {
 		fatalUsage(werr, err)
 	}
 
-	req, err := CompileRequest(root, fsys, opts, args)
-	if err != nil {
-		fatal(werr, err)
-	}
-
-	c := Command{
-		FS:      fsys,
-		Out:     wout,
-		planner: plan.NewPlanner(fsys, req.target),
-		DryRun:  opts.dryRun,
-	}
-
-	logger := log.Logger(werr, &opts.logLevel)
-	if err := c.Execute(req.ops, logger); err != nil {
+	if err := cmd.Execute(); err != nil {
 		fatal(werr, err)
 	}
 }
 
-// A Planner creates a [plan.Plan] to implement a sequence of [*plan.PackageOp].
-type Planner interface {
-	// Plan creates a [plan.Plan] to implement the ops.
-	Plan(ops []*plan.PackageOp, l *slog.Logger) (plan.Plan, error)
-}
-
-// A Command creates and executes a plan to implement a sequence of [*plan.PackageOp].
+// Command creates a [plan.Plan] and acts on it.
 type Command struct {
-	planner Planner
-	FS      FS
-	Out     io.Writer
-	DryRun  bool
+	Planner  Planner  // Creates the plan.
+	PlanFunc PlanFunc // Acts on the plan.
 }
 
-// Execute creates and executes a plan to implement ops.
-func (c Command) Execute(ops []*plan.PackageOp, l *slog.Logger) error {
-	plan, err := c.planner.Plan(ops, l)
+// Execute creates a plan and acts on it.
+func (c Command) Execute() error {
+	plan, err := c.Planner.Plan()
 	if err != nil {
 		return err
 	}
 
-	if c.DryRun {
-		return plan.Print(c.Out)
-	}
-
-	return plan.Execute(c.FS, l)
+	return c.PlanFunc(plan)
 }
+
+// A Planner creates a [plan.Plan].
+type Planner interface {
+	// Plan creates a [plan.Plan].
+	Plan() (plan.Plan, error)
+}
+
+// PlanFunc acts on a [plan.Plan].
+type PlanFunc func(p plan.Plan) error
 
 func fatal(w io.Writer, e error) {
 	fmt.Fprintln(w, e.Error())

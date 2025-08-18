@@ -13,39 +13,68 @@ import (
 	"github.com/dhemery/duffel/internal/file"
 )
 
-// NewPlanner returns a planner that plans how to change the tree rooted at target.
-func NewPlanner(fsys fs.ReadLinkFS, target string) *planner {
-	stater := file.NewStater(fsys)
-	index := NewIndex(stater)
-	analyst := NewAnalyzer(fsys, target, index)
-	return &planner{target, analyst}
-}
-
-type planner struct {
-	target   string
-	analyzer *analyzer
-}
-
-// Plan creates a plan to realize ops in p's target tree.
-func (p planner) Plan(ops []*PackageOp, l *slog.Logger) (Plan, error) {
-	for _, op := range ops {
-		if err := p.analyzer.Analyze(op, l); err != nil {
-			return Plan{}, err
-		}
-
-	}
-	return NewPlan(p.target, p.analyzer.index), nil
-}
-
-// A Plan is a set of tasks
+// A Plan is a sequence of tasks
 // to bring the file tree rooted at Target to the desired state.
 type Plan struct {
 	Target string          `json:"target"`
 	Tasks  map[string]Task `json:"tasks"`
 }
 
+// Print prints p to w.
 func (p Plan) Print(w io.Writer) error {
 	return json.MarshalWrite(w, p, json.Deterministic(true))
+}
+
+// Execute executes p in afs.
+func (p Plan) Execute(afs ActionFS, l *slog.Logger) error {
+	for _, item := range slices.Sorted(maps.Keys(p.Tasks)) {
+		task := p.Tasks[item]
+		name := path.Join(p.Target, item)
+		if err := task.Execute(afs, name); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Execute returns a function that executes a plan in afs.
+func Execute(afs ActionFS, l *slog.Logger) func(p Plan) error {
+	return func(p Plan) error {
+		return p.Execute(afs, l)
+	}
+}
+
+// Print returns a function that writes a plan to w.
+func Print(w io.Writer) func(p Plan) error {
+	return func(p Plan) error {
+		return p.Print(w)
+	}
+}
+
+// NewPlanner returns a planner that plans how to change the tree rooted at target.
+func NewPlanner(fsys fs.ReadLinkFS, target string, ops []*PackageOp, l *slog.Logger) *planner {
+	stater := file.NewStater(fsys)
+	index := NewIndex(stater)
+	analyst := NewAnalyzer(fsys, target, index)
+	return &planner{target, analyst, ops, l}
+}
+
+type planner struct {
+	target   string
+	analyzer *analyzer
+	ops      []*PackageOp
+	logger   *slog.Logger
+}
+
+// Plan creates a plan to realize ops in p's target tree.
+func (p planner) Plan() (Plan, error) {
+	for _, op := range p.ops {
+		if err := p.analyzer.Analyze(op, p.logger); err != nil {
+			return Plan{}, err
+		}
+
+	}
+	return NewPlan(p.target, p.analyzer.index), nil
 }
 
 type Specs interface {
@@ -69,18 +98,6 @@ func NewPlan(target string, specs Specs) Plan {
 		p.Tasks[item] = NewTask(spec.Current, spec.Planned)
 	}
 	return p
-}
-
-// Execute executes p's tasks actions against the given file system.
-func (p Plan) Execute(afs ActionFS, l *slog.Logger) error {
-	for _, item := range slices.Sorted(maps.Keys(p.Tasks)) {
-		task := p.Tasks[item]
-		name := path.Join(p.Target, item)
-		if err := task.Execute(afs, name); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // NewTask creates a [Task] with the actions to bring file

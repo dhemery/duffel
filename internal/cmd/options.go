@@ -7,16 +7,19 @@ import (
 	"strings"
 )
 
+// Options provides the set of options parsed from the command arguments.
 type Options struct {
 	source   string
 	target   string
 	dryRun   bool
-	logLevel LogLevelOption
+	logLevel LogLevelOpt
 }
 
+// ParseArgs returns the [Options] parsed from args.
+// The []string result holds the non-flag args.
 func ParseArgs(args []string) (Options, []string, error) {
 	opts := Options{
-		logLevel: LogLevelOption{slog.LevelError},
+		logLevel: LogLevelOpt{slog.LevelError},
 	}
 
 	flags := flag.NewFlagSet("duffel", flag.ExitOnError)
@@ -28,15 +31,18 @@ func ParseArgs(args []string) (Options, []string, error) {
 	return opts, flags.Args(), err
 }
 
-type LogLevelOption struct {
+// LogLevelOpt is the minimum severity level for duffel to log.
+type LogLevelOpt struct {
 	l slog.Level
 }
 
-func (o *LogLevelOption) String() string {
+// String implements [flag.Value].
+func (o *LogLevelOpt) String() string {
 	return strings.ToLower(o.l.String())
 }
 
-func (o *LogLevelOption) Set(name string) error {
+// Set implements [flag.Value].
+func (o *LogLevelOpt) Set(name string) error {
 	switch name {
 	case "none":
 		o.l = slog.LevelError + 4
@@ -54,6 +60,7 @@ func (o *LogLevelOption) Set(name string) error {
 	return nil
 }
 
-func (o *LogLevelOption) Level() slog.Level {
+// Level implements [slog.Leveler].
+func (o *LogLevelOpt) Level() slog.Level {
 	return o.l
 }
