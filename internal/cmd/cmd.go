@@ -10,7 +10,9 @@ import (
 	"io/fs"
 	"log/slog"
 	"os"
+	"path"
 	"path/filepath"
+	"strings"
 
 	"github.com/dhemery/duffel/internal/file"
 	"github.com/dhemery/duffel/internal/log"
@@ -22,7 +24,7 @@ type LogLevelOption struct {
 }
 
 func (o *LogLevelOption) String() string {
-	return o.l.String()
+	return strings.ToLower(o.l.String())
 }
 
 func (o *LogLevelOption) Set(name string) error {
@@ -61,7 +63,7 @@ func Parse(args []string) (options, []string, error) {
 
 	flags := flag.NewFlagSet("duffel", flag.ExitOnError)
 	flags.BoolVar(&opts.dryRun, "n", false, "Print planned actions without executing them.")
-	flags.Var(&opts.logLevel, "log", "Log level")
+	flags.Var(&opts.logLevel, "log", "Log `level`")
 	flags.StringVar(&opts.source, "source", ".", "The source `dir`")
 	flags.StringVar(&opts.target, "target", "..", "The target `dir`")
 	err := flags.Parse(args)
@@ -122,14 +124,14 @@ func validate(fsys FS, target, source string, pkgOps []*plan.PackageOp) error {
 	serr := validateSource(fsys, source)
 	errs := []error{terr, serr}
 
-	if serr != nil {
-		// If source is invalid, don't bother validating ops, because they can't be valid either.
-		return errors.Join(errs...)
+	for _, op := range pkgOps {
+		operr := validatePackage(op)
+		if operr == nil && serr == nil {
+			operr = validateDir(fsys, "package", op.Path())
+		}
+		errs = append(errs, operr)
 	}
 
-	for _, op := range pkgOps {
-		errs = append(errs, validateOp(fsys, op))
-	}
 	return errors.Join(errs...)
 }
 
@@ -141,7 +143,7 @@ func validateDir(fsys FS, ctx, name string) error {
 
 	if !info.IsDir() {
 		typ, _ := file.TypeOf(info.Mode().Type())
-		return fmt.Errorf("%s must be a directory, but %q is type %s",
+		return fmt.Errorf("%s %s (type %s): not a directory",
 			ctx, name, typ)
 	}
 
@@ -155,11 +157,12 @@ func validateSource(fsys FS, source string) error {
 	return nil
 }
 
-func validateOp(fsys FS, op *plan.PackageOp) error {
-	packageDir := op.WalkRoot.String()
-	if err := validateDir(fsys, "package", packageDir); err != nil {
-		return err
+func validatePackage(op *plan.PackageOp) error {
+	packageDir := path.Dir(op.Path())
+	if packageDir != op.Source() {
+		return fmt.Errorf("package %s: not a child of source %s", op.Package(), op.Source())
 	}
+
 	return nil
 }
 

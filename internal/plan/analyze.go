@@ -38,22 +38,22 @@ type analyzer struct {
 }
 
 func (a *analyzer) Analyze(op *PackageOp, l *slog.Logger) error {
-	return fs.WalkDir(a.fsys, op.WalkRoot.String(), op.VisitFunc(a.target, a.index, a.install.Analyze, l))
+	return fs.WalkDir(a.fsys, op.walkRoot.String(), op.VisitFunc(a.target, a.index, a.install.Analyze, l))
 }
 
 // NewInstallOp creates a [PackageOp] to install a package.
 func NewInstallOp(source, pkg string) *PackageOp {
 	return &PackageOp{
-		WalkRoot: NewSourcePath(source, pkg, ""),
-		Goal:     GoalInstall,
+		walkRoot: NewSourcePath(source, pkg, ""),
+		goal:     GoalInstall,
 	}
 }
 
 // NewMergeOp creates a [PackageOp] to merge a previously installed package with a package currently being installed.
 func NewMergeOp(itemPath SourcePath) *PackageOp {
 	return &PackageOp{
-		WalkRoot: itemPath,
-		Goal:     GoalMerge,
+		walkRoot: itemPath,
+		goal:     GoalMerge,
 	}
 }
 
@@ -64,8 +64,20 @@ type ItemFunc func(SourceItem, TargetItem, *slog.Logger) (file.State, error)
 
 // PackageOp plans how to achieve a goal for a package.
 type PackageOp struct {
-	WalkRoot SourcePath
-	Goal     Goal
+	walkRoot SourcePath
+	goal     Goal
+}
+
+func (po *PackageOp) Source() string {
+	return po.walkRoot.Source
+}
+
+func (po *PackageOp) Package() string {
+	return po.walkRoot.Package
+}
+
+func (po *PackageOp) Path() string {
+	return po.walkRoot.String()
 }
 
 type Index interface {
@@ -78,12 +90,12 @@ func (po *PackageOp) VisitFunc(target string, index Index, itemFunc ItemFunc, lo
 		if err != nil {
 			return err
 		}
-		if name == po.WalkRoot.String() {
+		if name == po.walkRoot.String() {
 			// Skip the dir being walked.
 			return nil
 		}
 
-		sourcePath := po.WalkRoot.WithItemFrom(name)
+		sourcePath := po.walkRoot.WithItemFrom(name)
 		targetPath := NewTargetPath(target, sourcePath.Item)
 
 		sourceType, err := file.TypeOf(entry.Type())
@@ -93,7 +105,7 @@ func (po *PackageOp) VisitFunc(target string, index Index, itemFunc ItemFunc, lo
 		sourceItem := SourceItem{sourcePath, sourceType}
 
 		tpAttr := slog.Any("path", targetPath)
-		goalAttr := slog.Any("goal", po.Goal)
+		goalAttr := slog.Any("goal", po.goal)
 		indexLogger := logger.With(goalAttr, "source", sourceItem, slog.Group("target", tpAttr))
 		indexLogger.Info("start analyzing")
 
