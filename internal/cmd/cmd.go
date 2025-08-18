@@ -118,9 +118,15 @@ func Execute(args []string, fsFunc FSFunc, wout, werr io.Writer) {
 }
 
 func validate(fsys FS, target, source string, pkgOps []*plan.PackageOp) error {
-	var errs []error
-	errs = append(errs, validateDir(fsys, "target", target))
-	errs = append(errs, validateSource(fsys, source))
+	terr := validateDir(fsys, "target", target)
+	serr := validateSource(fsys, source)
+	errs := []error{terr, serr}
+
+	if serr != nil {
+		// If source is invalid, don't bother validating ops, because they can't be valid either.
+		return errors.Join(errs...)
+	}
+
 	for _, op := range pkgOps {
 		errs = append(errs, validateOp(fsys, op))
 	}
@@ -130,7 +136,7 @@ func validate(fsys FS, target, source string, pkgOps []*plan.PackageOp) error {
 func validateDir(fsys FS, ctx, name string) error {
 	info, err := fsys.Lstat(name)
 	if err != nil {
-		return err
+		return fmt.Errorf("%s: %w", ctx, err)
 	}
 
 	if !info.IsDir() {
