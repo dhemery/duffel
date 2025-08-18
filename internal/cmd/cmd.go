@@ -3,6 +3,7 @@
 package cmd
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -11,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/dhemery/duffel/internal/file"
 	"github.com/dhemery/duffel/internal/log"
 	"github.com/dhemery/duffel/internal/plan"
 )
@@ -87,15 +89,19 @@ func Execute(args []string, fsFunc FSFunc, wout, werr io.Writer) {
 	target := mustRel("target", root, opts.target, werr)
 	source := mustRel("source", root, opts.source, werr)
 
+	pkgOps := []*plan.PackageOp{}
+	for _, pkg := range args {
+		pkgOp := plan.NewInstallOp(source, pkg)
+		pkgOps = append(pkgOps, pkgOp)
+	}
+
 	fsys, err := fsFunc(root)
 	if err != nil {
 		fatal(werr, err)
 	}
 
-	pkgOps := []*plan.PackageOp{}
-	for _, pkg := range args {
-		pkgOp := plan.NewInstallOp(source, pkg)
-		pkgOps = append(pkgOps, pkgOp)
+	if err = validate(fsys, target, source, pkgOps); err != nil {
+		fatal(werr, err)
 	}
 
 	c := Command{
@@ -109,6 +115,46 @@ func Execute(args []string, fsFunc FSFunc, wout, werr io.Writer) {
 	if err = c.Execute(pkgOps, logger); err != nil {
 		fatal(werr, err)
 	}
+}
+
+func validate(fsys FS, target, source string, pkgOps []*plan.PackageOp) error {
+	var errs []error
+	errs = append(errs, validateDir(fsys, "target", target))
+	errs = append(errs, validateSource(fsys, source))
+	for _, op := range pkgOps {
+		errs = append(errs, validateOp(fsys, op))
+	}
+	return errors.Join(errs...)
+}
+
+func validateDir(fsys FS, ctx, name string) error {
+	info, err := fsys.Lstat(name)
+	if err != nil {
+		return err
+	}
+
+	if !info.IsDir() {
+		typ, _ := file.TypeOf(info.Mode().Type())
+		return fmt.Errorf("%s must be a directory, but %q is type %s",
+			ctx, name, typ)
+	}
+
+	return nil
+}
+
+func validateSource(fsys FS, source string) error {
+	if err := validateDir(fsys, "source", source); err != nil {
+		return err
+	}
+	return nil
+}
+
+func validateOp(fsys FS, op *plan.PackageOp) error {
+	packageDir := op.WalkRoot.String()
+	if err := validateDir(fsys, "package", packageDir); err != nil {
+		return err
+	}
+	return nil
 }
 
 // A Planner creates a [plan.Plan] to implement a sequence of [*plan.PackageOp].
