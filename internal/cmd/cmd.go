@@ -24,12 +24,18 @@ type FSFunc func(root string) (FS, error)
 
 // Execute performs the duffel operations requested by args.
 func Execute(args []string, fsFunc FSFunc, wout, werr io.Writer) {
+
 	fsys, err := fsFunc(Root)
 	if err != nil {
 		fatal(werr, err)
 	}
 
-	cmd, err := Compile(args, fsys, wout, werr)
+	opts, args, err := ParseArgs(args, werr)
+	if err != nil {
+		fatalUsage(werr, err)
+	}
+
+	cmd, err := Compile(opts, args, fsys, wout, werr)
 	if err != nil {
 		fatalUsage(werr, err)
 	}

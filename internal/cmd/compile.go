@@ -14,14 +14,9 @@ import (
 )
 
 // Compile compiles a [Command] that perform the operations requested by args.
-func Compile(args []string, fsys FS, wout, werr io.Writer) (Command, error) {
-	opts, args, err := ParseArgs(args)
-	if err != nil {
-		return Command{}, err
-	}
-
-	target, terr := relativeToRoot("target", opts.target)
-	source, serr := relativeToRoot("source", opts.source)
+func Compile(opts Options, args []string, fsys FS, wout, werr io.Writer) (Command, error) {
+	target, terr := relativeToRoot("target", opts.Target)
+	source, serr := relativeToRoot("source", opts.Source)
 	if err := errors.Join(serr, terr); err != nil {
 		return Command{}, err
 	}
@@ -44,10 +39,10 @@ func Compile(args []string, fsys FS, wout, werr io.Writer) (Command, error) {
 		return Command{}, err
 	}
 
-	logger := log.Logger(werr, &opts.logLevel)
+	logger := log.Logger(werr, &opts.LogLevel)
 
 	var planFunc PlanFunc
-	if opts.dryRun {
+	if opts.DryRun {
 		planFunc = plan.Print(wout)
 	} else {
 		planFunc = plan.Execute(fsys, logger)
