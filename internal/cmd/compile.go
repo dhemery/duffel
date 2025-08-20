@@ -6,7 +6,6 @@ import (
 	"io"
 	"io/fs"
 	"path"
-	"path/filepath"
 
 	"github.com/dhemery/duffel/internal/file"
 	"github.com/dhemery/duffel/internal/log"
@@ -14,15 +13,12 @@ import (
 )
 
 // Compile compiles a [Command] that perform the operations requested by args.
-func Compile(opts Options, args []string, fsys FS, wout, werr io.Writer) (Command, error) {
-	target, terr := relativeToRoot("target", opts.Target)
-	source, serr := relativeToRoot("source", opts.Source)
-	if err := errors.Join(serr, terr); err != nil {
-		return Command{}, err
-	}
+func Compile(opts Options, args []string, fsys FS, cwd string, wout, werr io.Writer) (Command, error) {
+	target := relativeToRoot(opts.Target, cwd)
+	source := relativeToRoot(opts.Source, cwd)
 
-	terr = validateDir(fsys, "target", target)
-	serr = validateSource(fsys, source)
+	terr := validateDir(fsys, "target", target)
+	serr := validateSource(fsys, source)
 	if err := errors.Join(serr, terr); err != nil {
 		return Command{}, err
 	}
@@ -97,18 +93,12 @@ func validatePackage(fsys fs.ReadLinkFS, op *plan.PackageOp) error {
 	return validateDir(fsys, "package", op.Path())
 }
 
-// relativeToRoot converts filename to a name relative to [Root].
-// If filename is relative, it is joined to the currrent working directory
-// before being made relative to [Root].
-func relativeToRoot(desc, filename string) (string, error) {
-	abs, err := filepath.Abs(filename)
-	if err != nil {
-		return "", fmt.Errorf("%s: %w", desc, err)
+// Abs returns the path to filename relative to the root of the file system.
+// If filename is relative, it is joined onto cwd before being made relative to the root.
+// Cwd is assumed to be relative to the root.
+func relativeToRoot(filename, cwd string) string {
+	if path.IsAbs(filename) {
+		return filename[1:]
 	}
-
-	rel, err := filepath.Rel(Root, abs)
-	if err != nil {
-		return "", fmt.Errorf("%s: %w", desc, err)
-	}
-	return rel, err
+	return path.Join(cwd, filename)
 }

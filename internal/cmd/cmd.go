@@ -11,31 +11,20 @@ import (
 	"github.com/dhemery/duffel/internal/plan"
 )
 
-const Root = "/"
-
 // FS is an [fs.FS] that implements all of the methods used by duffel.
 type FS interface {
 	fs.ReadLinkFS
 	plan.ActionFS
 }
 
-// FSFunc creates an [FS] rooted at root.
-type FSFunc func(root string) (FS, error)
-
 // Execute performs the duffel operations requested by args.
-func Execute(args []string, fsFunc FSFunc, wout, werr io.Writer) {
-
-	fsys, err := fsFunc(Root)
-	if err != nil {
-		fatal(werr, err)
-	}
-
+func Execute(args []string, fsys FS, cwd string, wout, werr io.Writer) {
 	opts, args, err := ParseArgs(args, werr)
 	if err != nil {
 		fatalUsage(werr, err)
 	}
 
-	cmd, err := Compile(opts, args, fsys, wout, werr)
+	cmd, err := Compile(opts, args, fsys, cwd[1:], wout, werr)
 	if err != nil {
 		fatalUsage(werr, err)
 	}
