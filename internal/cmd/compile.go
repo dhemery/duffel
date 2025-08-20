@@ -60,8 +60,8 @@ func validateDir(fsys fs.ReadLinkFS, desc, name string) error {
 
 	if !info.IsDir() {
 		typ, _ := file.TypeOf(info.Mode().Type())
-		return fmt.Errorf("%s %s (%s): not a directory",
-			desc, name, typ)
+		return fmt.Errorf("%s %s (%s): %w: not a directory",
+			desc, name, typ, fs.ErrInvalid)
 	}
 
 	return nil
@@ -80,15 +80,12 @@ func validateSource(fsys fs.ReadLinkFS, source string) error {
 // is a directory and is a child of its source directory.
 func validatePackage(fsys fs.ReadLinkFS, op *plan.PackageOp) error {
 	pname := op.Package()
-	if path.IsAbs(pname) {
-		return fmt.Errorf("package %s: is absolute", pname)
-	}
-
 	ppath := op.Path()
 	pparent := path.Dir(ppath)
 	source := op.Source()
 	if pparent != source {
-		return fmt.Errorf("package %s (%s): not a child of source %s", pname, ppath, source)
+		return fmt.Errorf("package %s (%s): %w: not a child of source (%s)",
+			pname, ppath, fs.ErrInvalid, source)
 	}
 
 	return validateDir(fsys, "package", op.Path())

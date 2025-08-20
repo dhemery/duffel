@@ -135,6 +135,10 @@ func (fsys *FS) Lstat(name string) (fs.FileInfo, error) {
 	return file.info(), nil
 }
 
+func (fsys *FS) Mkdir(name string, perm fs.FileMode) error {
+	panic("unimplemented")
+}
+
 // ReadDir reads the named directory
 // and returns a list of directory entries sorted by filename.
 // If the directory was created with a ReadDir [Error],
@@ -183,6 +187,10 @@ func (fsys *FS) ReadLink(name string) (string, error) {
 	}
 
 	return file.dest, nil
+}
+
+func (fsys *FS) Remove(name string) error {
+	panic("unimplemented")
 }
 
 // Symlink creates a new symlink with the given name and destination.
