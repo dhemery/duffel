@@ -14,20 +14,42 @@ func TestValidate(t *testing.T) {
 		files   []*errfs.File // Files on the file system.
 		opts    Options       // Options passed to Compile.
 		args    []string      // Args passed to Compile.
+		cwd     string        // Current working directory passed to Compile.
 		wantErr error         // Error result from Compile.
 		skip    string        // Reason to skip this test.
 	}{
 		{
-			desc:    "target does not exist",
-			files:   []*errfs.File{},
-			opts:    Options{Target: "target"},
+			desc: "target does not exist",
+			files: []*errfs.File{
+				errfs.NewFile("source/.duffel", 0644),
+			},
+			opts:    Options{Target: "target", Source: "source"},
 			wantErr: fs.ErrNotExist,
 		},
 		{
-			desc:    "target is not a dir",
-			files:   []*errfs.File{errfs.NewFile("target", 0644)},
-			opts:    Options{Target: "target"},
+			desc: "target is not a dir",
+			files: []*errfs.File{
+				errfs.NewFile("source/.duffel", 0644),
+				errfs.NewFile("target", 0644),
+			},
+			opts:    Options{Target: "target", Source: "source"},
 			wantErr: fs.ErrInvalid,
+		},
+		{
+			desc: "root target",
+			files: []*errfs.File{
+				errfs.NewFile("source/.duffel", 0644),
+			},
+			opts:    Options{Target: "/", Source: "source"},
+			wantErr: nil, // Root target is okay.
+		},
+		{
+			desc: "empty target",
+			files: []*errfs.File{
+				errfs.NewFile("source/.duffel", 0644),
+			},
+			opts:    Options{Target: "", Source: "source"},
+			wantErr: nil, // Empty target uses root.
 		},
 		{
 			desc:    "source does not exist",
@@ -48,32 +70,65 @@ func TestValidate(t *testing.T) {
 			},
 			opts:    Options{Source: "source"},
 			wantErr: fs.ErrInvalid,
-			skip:    "not yet implemented",
 		},
 		{
-			desc:    "package does not exist",
-			files:   []*errfs.File{errfs.NewDir("source", 0755)},
+			desc: "source is inside a duffel source",
+			files: []*errfs.File{
+				errfs.NewFile("a/b/c/source/.duffel", 0644),
+				errfs.NewDir("a/b/c/source/sourceopt", 0755),
+			},
+			opts:    Options{Source: "a/b/c/source/sourceopt"},
+			wantErr: fs.ErrInvalid,
+		},
+		{
+			desc:    "root source",
+			files:   []*errfs.File{errfs.NewFile(".duffel", 0644)},
+			opts:    Options{Source: "/"},
+			wantErr: nil,
+		},
+		{
+			desc: "empty source",
+			files: []*errfs.File{
+				// If source is empty, Compile uses cwd as source.
+				errfs.NewFile("a/b/c/cwd/.duffel", 0644),
+			},
+			cwd:     "a/b/c/cwd",
+			opts:    Options{Source: ""},
+			wantErr: nil,
+		},
+		{
+			desc: "package does not exist",
+			files: []*errfs.File{
+				errfs.NewFile("source/.duffel", 0644),
+			},
 			opts:    Options{Source: "source"},
 			args:    []string{"pkg"},
 			wantErr: fs.ErrNotExist,
 		},
 		{
-			desc:    "package is not a dir",
-			files:   []*errfs.File{errfs.NewFile("source/pkg", 0644)},
+			desc: "package is not a dir",
+			files: []*errfs.File{
+				errfs.NewFile("source/.duffel", 0644),
+				errfs.NewFile("source/pkg", 0644),
+			},
 			opts:    Options{Source: "source"},
 			args:    []string{"pkg"},
 			wantErr: fs.ErrInvalid,
 		},
 		{
-			desc:    "empty package",
-			files:   []*errfs.File{errfs.NewDir("source", 0755)},
+			desc: "empty package",
+			files: []*errfs.File{
+				errfs.NewFile("source/.duffel", 0644),
+			},
 			opts:    Options{Source: "source"},
 			args:    []string{""},
 			wantErr: fs.ErrInvalid,
 		},
 		{
-			desc:    "package is .",
-			files:   []*errfs.File{errfs.NewDir("source", 0755)},
+			desc: "package is .",
+			files: []*errfs.File{
+				errfs.NewFile("source/.duffel", 0644),
+			},
 			opts:    Options{Source: "source"},
 			args:    []string{"."},
 			wantErr: fs.ErrInvalid,
@@ -81,7 +136,7 @@ func TestValidate(t *testing.T) {
 		{
 			desc: "package is not in source",
 			files: []*errfs.File{
-				errfs.NewDir("source", 0755),
+				errfs.NewFile("source/.duffel", 0644),
 				errfs.NewDir("pkg", 0755),
 			},
 			opts:    Options{Source: "source"},
@@ -89,10 +144,13 @@ func TestValidate(t *testing.T) {
 			wantErr: fs.ErrInvalid,
 		},
 		{
-			desc:    "package is deeper than child",
-			files:   []*errfs.File{errfs.NewDir("source/sub1/sub2", 0755)},
+			desc: "package is deeper than child",
+			files: []*errfs.File{
+				errfs.NewFile("source/.duffel", 0644),
+				errfs.NewDir("source/pkg1/pkg2", 0755),
+			},
 			opts:    Options{Source: "source"},
-			args:    []string{"sub1/sub2"},
+			args:    []string{"pk1/pkg2"},
 			wantErr: fs.ErrInvalid,
 		},
 	}
@@ -107,7 +165,7 @@ func TestValidate(t *testing.T) {
 				errfs.Add(testfs, file)
 			}
 
-			_, err := Compile(test.opts, test.args, testfs, "/", nil, nil)
+			_, err := Compile(test.opts, test.args, testfs, test.cwd, nil, nil)
 
 			if !errors.Is(err, test.wantErr) {
 				t.Errorf("error result:\n got: %v\nwant: %v", err, test.wantErr)

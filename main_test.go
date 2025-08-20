@@ -81,6 +81,7 @@ func TestDirOptions(t *testing.T) {
 			root := t.TempDir()
 			wd := filepath.Join(root, test.wd)
 			absSource := filepath.Join(wd, Or(test.sourceOpt, defaultSource))
+			absDuffelFile := filepath.Join(absSource, ".duffel")
 			absTarget := filepath.Join(wd, Or(test.targetOpt, defaultTarget))
 			absSourcePkgItem := filepath.Join(absSource, pkg, item)
 
@@ -88,6 +89,7 @@ func TestDirOptions(t *testing.T) {
 			must.MkdirAll(wd, 0o755)
 			must.MkdirAll(absTarget, 0o755)
 			must.MkdirAll(absSourcePkgItem, 0o755) // Also necessarily makes sourceDir
+			must.WriteFile(absDuffelFile, []byte(absDuffelFile), 0644)
 
 			args := []string{}
 			if test.sourceOpt != "" {
@@ -124,12 +126,14 @@ func TestDryRun(t *testing.T) {
 	item := "item"
 	absTarget := filepath.Join(root, "home/user")
 	absSource := filepath.Join(absTarget, "source")
+	absDuffelFile := filepath.Join(absSource, ".duffel")
 	absSourcePkg := filepath.Join(absSource, pkg)
 	absSourcePkgItem := filepath.Join(absSourcePkg, item)
 
 	must := duftest.Must(t)
 	// Also creates target and source, which are ancestors
 	must.MkdirAll(absSourcePkgItem, 0o755)
+	must.WriteFile(absDuffelFile, []byte(absDuffelFile), 0644)
 
 	// default source (.) and target (..)
 	td := testDuffel(t, absSource, "-n", "pkg")
