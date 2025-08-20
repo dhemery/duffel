@@ -217,7 +217,7 @@ func sourceDir(source, pkg, item string) sourceState {
 		pkg:    pkg,
 		item:   item,
 		ftype:  file.TypeDir,
-		fmode:  fs.ModeDir | 0755,
+		fmode:  fs.ModeDir | 0o755,
 	}
 }
 
@@ -227,7 +227,7 @@ func sourceDirError(source, pkg, item string, err error) sourceState {
 		pkg:    pkg,
 		item:   item,
 		ftype:  file.TypeDir,
-		fmode:  fs.ModeDir | 0755,
+		fmode:  fs.ModeDir | 0o755,
 		errArg: err,
 	}
 }
@@ -238,7 +238,7 @@ func sourceFile(source, pkg, item string) sourceState {
 		pkg:    pkg,
 		item:   item,
 		ftype:  file.TypeFile,
-		fmode:  0644,
+		fmode:  0o644,
 	}
 }
 

@@ -89,7 +89,7 @@ func TestDirOptions(t *testing.T) {
 			must.MkdirAll(wd, 0o755)
 			must.MkdirAll(absTarget, 0o755)
 			must.MkdirAll(absSourcePkgItem, 0o755) // Also necessarily makes sourceDir
-			must.WriteFile(absDuffelFile, []byte(absDuffelFile), 0644)
+			must.WriteFile(absDuffelFile, []byte(absDuffelFile), 0o644)
 
 			args := []string{}
 			if test.sourceOpt != "" {
@@ -133,7 +133,7 @@ func TestDryRun(t *testing.T) {
 	must := duftest.Must(t)
 	// Also creates target and source, which are ancestors
 	must.MkdirAll(absSourcePkgItem, 0o755)
-	must.WriteFile(absDuffelFile, []byte(absDuffelFile), 0644)
+	must.WriteFile(absDuffelFile, []byte(absDuffelFile), 0o644)
 
 	// default source (.) and target (..)
 	td := testDuffel(t, absSource, "-n", "pkg")

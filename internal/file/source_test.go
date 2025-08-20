@@ -20,34 +20,34 @@ func TestSourceDir(t *testing.T) {
 	}{
 		{
 			desc:       "name is source dir",
-			files:      []*errfs.File{errfs.NewFile("a/b/c/name/.duffel", 0644)},
+			files:      []*errfs.File{errfs.NewFile("a/b/c/name/.duffel", 0o644)},
 			name:       "a/b/c/name",
 			wantSource: "a/b/c/name",
 		},
 		{
 			desc: "name is inside source dir",
 			files: []*errfs.File{
-				errfs.NewFile("a/b/c/source/.duffel", 0644),
-				errfs.NewDir("a/b/c/source/d/e/f/name", 0755),
+				errfs.NewFile("a/b/c/source/.duffel", 0o644),
+				errfs.NewDir("a/b/c/source/d/e/f/name", 0o755),
 			},
 			name:       "a/b/c/source/d/e/f/name",
 			wantSource: "a/b/c/source",
 		},
 		{
 			desc:    "source dir is inside name",
-			files:   []*errfs.File{errfs.NewFile("a/b/c/name/d/e/f/source/.duffel", 0644)},
+			files:   []*errfs.File{errfs.NewFile("a/b/c/name/d/e/f/source/.duffel", 0o644)},
 			name:    "a/b/c/name",
 			wantErr: fs.ErrNotExist,
 		},
 		{
 			desc:    "no duffel file",
-			files:   []*errfs.File{errfs.NewDir("a/b/c/dir", 0744)},
+			files:   []*errfs.File{errfs.NewDir("a/b/c/dir", 0o755)},
 			name:    "a/b/c/dir",
 			wantErr: fs.ErrNotExist,
 		},
 		{
 			desc:    "name is not a dir",
-			files:   []*errfs.File{errfs.NewFile("a/b/c/file", 0644)},
+			files:   []*errfs.File{errfs.NewFile("a/b/c/file", 0o644)},
 			name:    "a/b/c/file",
 			wantErr: fs.ErrInvalid,
 		},

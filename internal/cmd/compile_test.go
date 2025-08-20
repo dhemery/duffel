@@ -21,7 +21,7 @@ func TestValidate(t *testing.T) {
 		{
 			desc: "target does not exist",
 			files: []*errfs.File{
-				errfs.NewFile("source/.duffel", 0644),
+				errfs.NewFile("source/.duffel", 0o644),
 			},
 			opts:    Options{Target: "target", Source: "source"},
 			wantErr: fs.ErrNotExist,
@@ -29,8 +29,8 @@ func TestValidate(t *testing.T) {
 		{
 			desc: "target is not a dir",
 			files: []*errfs.File{
-				errfs.NewFile("source/.duffel", 0644),
-				errfs.NewFile("target", 0644),
+				errfs.NewFile("source/.duffel", 0o644),
+				errfs.NewFile("target", 0o644),
 			},
 			opts:    Options{Target: "target", Source: "source"},
 			wantErr: fs.ErrInvalid,
@@ -38,7 +38,7 @@ func TestValidate(t *testing.T) {
 		{
 			desc: "root target",
 			files: []*errfs.File{
-				errfs.NewFile("source/.duffel", 0644),
+				errfs.NewFile("source/.duffel", 0o644),
 			},
 			opts:    Options{Target: "/", Source: "source"},
 			wantErr: nil, // Root target is okay.
@@ -46,7 +46,7 @@ func TestValidate(t *testing.T) {
 		{
 			desc: "empty target",
 			files: []*errfs.File{
-				errfs.NewFile("source/.duffel", 0644),
+				errfs.NewFile("source/.duffel", 0o644),
 			},
 			opts:    Options{Target: "", Source: "source"},
 			wantErr: nil, // Empty target uses root.
@@ -59,14 +59,14 @@ func TestValidate(t *testing.T) {
 		},
 		{
 			desc:    "source is not a dir",
-			files:   []*errfs.File{errfs.NewFile("source", 0644)},
+			files:   []*errfs.File{errfs.NewFile("source", 0o644)},
 			opts:    Options{Source: "source"},
 			wantErr: fs.ErrInvalid,
 		},
 		{
 			desc: "source is not a duffel source",
 			files: []*errfs.File{
-				errfs.NewDir("source", 0755),
+				errfs.NewDir("source", 0o755),
 			},
 			opts:    Options{Source: "source"},
 			wantErr: fs.ErrInvalid,
@@ -74,15 +74,15 @@ func TestValidate(t *testing.T) {
 		{
 			desc: "source is inside a duffel source",
 			files: []*errfs.File{
-				errfs.NewFile("a/b/c/source/.duffel", 0644),
-				errfs.NewDir("a/b/c/source/sourceopt", 0755),
+				errfs.NewFile("a/b/c/source/.duffel", 0o644),
+				errfs.NewDir("a/b/c/source/sourceopt", 0o755),
 			},
 			opts:    Options{Source: "a/b/c/source/sourceopt"},
 			wantErr: fs.ErrInvalid,
 		},
 		{
 			desc:    "root source",
-			files:   []*errfs.File{errfs.NewFile(".duffel", 0644)},
+			files:   []*errfs.File{errfs.NewFile(".duffel", 0o644)},
 			opts:    Options{Source: "/"},
 			wantErr: nil,
 		},
@@ -90,7 +90,7 @@ func TestValidate(t *testing.T) {
 			desc: "empty source",
 			files: []*errfs.File{
 				// If source is empty, Compile uses cwd as source.
-				errfs.NewFile("a/b/c/cwd/.duffel", 0644),
+				errfs.NewFile("a/b/c/cwd/.duffel", 0o644),
 			},
 			cwd:     "a/b/c/cwd",
 			opts:    Options{Source: ""},
@@ -99,7 +99,7 @@ func TestValidate(t *testing.T) {
 		{
 			desc: "package does not exist",
 			files: []*errfs.File{
-				errfs.NewFile("source/.duffel", 0644),
+				errfs.NewFile("source/.duffel", 0o644),
 			},
 			opts:    Options{Source: "source"},
 			args:    []string{"pkg"},
@@ -108,8 +108,8 @@ func TestValidate(t *testing.T) {
 		{
 			desc: "package is not a dir",
 			files: []*errfs.File{
-				errfs.NewFile("source/.duffel", 0644),
-				errfs.NewFile("source/pkg", 0644),
+				errfs.NewFile("source/.duffel", 0o644),
+				errfs.NewFile("source/pkg", 0o644),
 			},
 			opts:    Options{Source: "source"},
 			args:    []string{"pkg"},
@@ -118,7 +118,7 @@ func TestValidate(t *testing.T) {
 		{
 			desc: "empty package",
 			files: []*errfs.File{
-				errfs.NewFile("source/.duffel", 0644),
+				errfs.NewFile("source/.duffel", 0o644),
 			},
 			opts:    Options{Source: "source"},
 			args:    []string{""},
@@ -127,7 +127,7 @@ func TestValidate(t *testing.T) {
 		{
 			desc: "package is .",
 			files: []*errfs.File{
-				errfs.NewFile("source/.duffel", 0644),
+				errfs.NewFile("source/.duffel", 0o644),
 			},
 			opts:    Options{Source: "source"},
 			args:    []string{"."},
@@ -136,8 +136,8 @@ func TestValidate(t *testing.T) {
 		{
 			desc: "package is not in source",
 			files: []*errfs.File{
-				errfs.NewFile("source/.duffel", 0644),
-				errfs.NewDir("pkg", 0755),
+				errfs.NewFile("source/.duffel", 0o644),
+				errfs.NewDir("pkg", 0o755),
 			},
 			opts:    Options{Source: "source"},
 			args:    []string{"../pkg"},
@@ -146,8 +146,8 @@ func TestValidate(t *testing.T) {
 		{
 			desc: "package is deeper than child",
 			files: []*errfs.File{
-				errfs.NewFile("source/.duffel", 0644),
-				errfs.NewDir("source/pkg1/pkg2", 0755),
+				errfs.NewFile("source/.duffel", 0o644),
+				errfs.NewDir("source/pkg1/pkg2", 0o755),
 			},
 			opts:    Options{Source: "source"},
 			args:    []string{"pk1/pkg2"},
