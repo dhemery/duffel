@@ -65,6 +65,13 @@ func TestValidate(t *testing.T) {
 			wantErr: fs.ErrInvalid,
 		},
 		{
+			desc:    "empty package",
+			files:   []*errfs.File{errfs.NewDir("source", 0755)},
+			opts:    Options{Source: "source"},
+			args:    []string{""},
+			wantErr: fs.ErrInvalid,
+		},
+		{
 			desc:    "package is .",
 			files:   []*errfs.File{errfs.NewDir("source", 0755)},
 			opts:    Options{Source: "source"},
@@ -72,7 +79,17 @@ func TestValidate(t *testing.T) {
 			wantErr: fs.ErrInvalid,
 		},
 		{
-			desc:    "package is not a child of source",
+			desc: "package is not in source",
+			files: []*errfs.File{
+				errfs.NewDir("source", 0755),
+				errfs.NewDir("pkg", 0755),
+			},
+			opts:    Options{Source: "source"},
+			args:    []string{"../pkg"},
+			wantErr: fs.ErrInvalid,
+		},
+		{
+			desc:    "package is deeper than child",
 			files:   []*errfs.File{errfs.NewDir("source/sub1/sub2", 0755)},
 			opts:    Options{Source: "source"},
 			args:    []string{"sub1/sub2"},

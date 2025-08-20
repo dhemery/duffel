@@ -91,9 +91,9 @@ func validatePackage(fsys fs.ReadLinkFS, op *plan.PackageOp) error {
 	return validateDir(fsys, "package", op.Path())
 }
 
-// fullValidPath returns the path to name relative to /.
+// fullValidPath returns the relative path from / to name.
 // If name is relative, it is joined onto cwd,
-// which is assumed to be either absolute or relative to /.
+// which either is absolute or is assumed to be relative to /.
 func fullValidPath(cwd, name string) string {
 	name = filepath.ToSlash(name)
 	if !path.IsAbs(name) {
