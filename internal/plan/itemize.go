@@ -3,8 +3,9 @@ package plan
 import (
 	"errors"
 	"io/fs"
-	"path"
 	"strings"
+
+	"github.com/dhemery/duffel/internal/file"
 )
 
 var (
@@ -25,7 +26,11 @@ type itemizer struct {
 // If the file is not in a duffel source directory,
 // the method returns an error.
 func (i itemizer) Itemize(name string) (SourcePath, error) {
-	source, err := i.findSource(name)
+	source, err := file.SourceDir(i.fsys, name)
+	if errors.Is(err, fs.ErrNotExist) {
+		return SourcePath{}, ErrNotInPackage
+	}
+
 	if err != nil {
 		return SourcePath{}, err
 	}
@@ -41,23 +46,4 @@ func (i itemizer) Itemize(name string) (SourcePath, error) {
 	}
 
 	return NewSourcePath(source, pkg, item), nil
-}
-
-func (i itemizer) findSource(name string) (string, error) {
-	if name == "." {
-		return "", ErrNotInPackage
-	}
-
-	dfName := path.Join(name, ".duffel")
-	_, err := i.fsys.Lstat(dfName)
-
-	if errors.Is(err, fs.ErrNotExist) {
-		return i.findSource(path.Dir(name))
-	}
-
-	if err != nil {
-		return "", err
-	}
-
-	return name, nil
 }
