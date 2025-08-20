@@ -6,6 +6,7 @@ import (
 	"io"
 	"io/fs"
 	"path"
+	"path/filepath"
 
 	"github.com/dhemery/duffel/internal/file"
 	"github.com/dhemery/duffel/internal/log"
@@ -14,8 +15,8 @@ import (
 
 // Compile compiles a [Command] that perform the operations requested by args.
 func Compile(opts Options, args []string, fsys FS, cwd string, wout, werr io.Writer) (Command, error) {
-	target := relativeToRoot(opts.Target, cwd)
-	source := relativeToRoot(opts.Source, cwd)
+	target := fullValidPath(cwd, opts.Target)
+	source := fullValidPath(cwd, opts.Source)
 
 	terr := validateDir(fsys, "target", target)
 	serr := validateSource(fsys, source)
@@ -93,12 +94,16 @@ func validatePackage(fsys fs.ReadLinkFS, op *plan.PackageOp) error {
 	return validateDir(fsys, "package", op.Path())
 }
 
-// Abs returns the path to filename relative to the root of the file system.
-// If filename is relative, it is joined onto cwd before being made relative to the root.
-// Cwd is assumed to be relative to the root.
-func relativeToRoot(filename, cwd string) string {
-	if path.IsAbs(filename) {
-		return filename[1:]
+// fullValidPath returns the path to name relative to /.
+// If name is relative, it is joined onto cwd,
+// which is assumed to be either absolute or relative to /.
+func fullValidPath(cwd, name string) string {
+	name = filepath.ToSlash(name)
+	if !path.IsAbs(name) {
+		name = path.Join(filepath.ToSlash(cwd), name)
 	}
-	return path.Join(cwd, filename)
+	if path.IsAbs(name) {
+		name = name[1:]
+	}
+	return path.Clean(name)
 }

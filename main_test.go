@@ -11,9 +11,10 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/google/go-cmp/cmp"
+
 	"github.com/dhemery/duffel/internal/duftest"
 	"github.com/dhemery/duffel/internal/plan"
-	"github.com/google/go-cmp/cmp"
 )
 
 // TestMain executes the test binary as the duffel command if
