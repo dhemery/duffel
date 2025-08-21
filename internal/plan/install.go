@@ -19,9 +19,13 @@ type installer struct {
 	merger InstallMerger
 }
 
-// Analyze returns the state of the target item file
+func (i installer) Goal() Goal {
+	return GoalInstall
+}
+
+// AnalyzeItem returns the state of the target item file
 // that would result from installing the source item file.
-func (i installer) Analyze(s SourceItem, t TargetItem, l *slog.Logger) (file.State, error) {
+func (i installer) AnalyzeItem(s SourceItem, t TargetItem, l *slog.Logger) (file.State, error) {
 	var state file.State
 	targetPath := t.Path
 	targetState := t.State

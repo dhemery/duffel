@@ -10,13 +10,51 @@ import (
 	"github.com/dhemery/duffel/internal/file"
 )
 
-// A Goal for a [PackageOp] to accomplish.
+// A Goal for a [PackageGoal] to accomplish.
 type Goal string
 
 const (
 	GoalInstall Goal = "install" // Install the package into the target tree.
 	GoalMerge   Goal = "merge"   // Merge the foreign package into the target tree.
 )
+
+// InstallGoal creates a [PackageGoal] to install a package.
+func InstallGoal(source, pkg string) PackageGoal {
+	return PackageGoal{
+		root: NewSourcePath(source, pkg, ""),
+		goal: GoalInstall,
+	}
+}
+
+// MergeGoal creates a [PackageGoal] to merge a previously installed package with a package currently being installed.
+func MergeGoal(itemPath SourcePath) PackageGoal {
+	return PackageGoal{
+		root: itemPath,
+		goal: GoalMerge,
+	}
+}
+
+// PackageGoal identifies a goal for the items in a package.
+type PackageGoal struct {
+	root SourcePath
+	goal Goal
+}
+
+func (pg PackageGoal) Source() string {
+	return pg.root.Source
+}
+
+func (pg PackageGoal) Package() string {
+	return pg.root.Package
+}
+
+func (pg PackageGoal) Path() string {
+	return pg.root.String()
+}
+
+func (pg PackageGoal) Goal() Goal {
+	return pg.goal
+}
 
 func NewAnalyzer(fsys fs.ReadLinkFS, target string, index *index) *analyzer {
 	analyst := &analyzer{
@@ -31,53 +69,32 @@ func NewAnalyzer(fsys fs.ReadLinkFS, target string, index *index) *analyzer {
 }
 
 type analyzer struct {
-	fsys    fs.FS
-	target  string
-	index   *index
+	fsys   fs.FS
+	target string
+	*index
 	install *installer
 }
 
-func (a *analyzer) Analyze(op *PackageOp, l *slog.Logger) error {
-	return fs.WalkDir(a.fsys, op.walkRoot.String(), op.VisitFunc(a.target, a.index, a.install.Analyze, l))
+func (a *analyzer) Target() string {
+	return a.target
 }
 
-// NewInstallOp creates a [PackageOp] to install a package.
-func NewInstallOp(source, pkg string) *PackageOp {
-	return &PackageOp{
-		walkRoot: NewSourcePath(source, pkg, ""),
-		goal:     GoalInstall,
-	}
+func (a *analyzer) Analyze(goal PackageGoal, l *slog.Logger) error {
+	return fs.WalkDir(a.fsys, goal.Path(), func(name string, entry fs.DirEntry, err error) error {
+		return AnalyzeEntry(name, entry, err, goal.root, a, a.install, l)
+	})
 }
 
-// NewMergeOp creates a [PackageOp] to merge a previously installed package with a package currently being installed.
-func NewMergeOp(itemPath SourcePath) *PackageOp {
-	return &PackageOp{
-		walkRoot: itemPath,
-		goal:     GoalMerge,
-	}
-}
+// ItemAnalyzer identifies the goal states for target items.
+type ItemAnalyzer interface {
+	// The [Goal] to achieve.
+	Goal() Goal
 
-// ItemFunc analyzes the source and target to identify the planned state for the target item.
-// If the target was planned by previous operations, the target item describes the previously planned state.
-// Otherwise it describes the state of the file in the target tree.
-type ItemFunc func(SourceItem, TargetItem, *slog.Logger) (file.State, error)
-
-// PackageOp plans how to achieve a goal for a package.
-type PackageOp struct {
-	walkRoot SourcePath
-	goal     Goal
-}
-
-func (po *PackageOp) Source() string {
-	return po.walkRoot.Source
-}
-
-func (po *PackageOp) Package() string {
-	return po.walkRoot.Package
-}
-
-func (po *PackageOp) Path() string {
-	return po.walkRoot.String()
+	// AnalyzeItem analyzes the source and target to identify the goal state for the target item.
+	// If the target was planned by previous operations,
+	// the target item describes the previously planned goal state.
+	// Otherwise it describes the state of the file in the target tree.
+	AnalyzeItem(SourceItem, TargetItem, *slog.Logger) (file.State, error)
 }
 
 type Index interface {
@@ -85,63 +102,36 @@ type Index interface {
 	SetState(string, file.State, *slog.Logger)
 }
 
-func (po *PackageOp) VisitFunc(target string, index Index, itemFunc ItemFunc, logger *slog.Logger) fs.WalkDirFunc {
-	return func(name string, entry fs.DirEntry, err error) error {
-		a := &analysis{dir: po.walkRoot, target: target, Index: index}
-		return AnalyzeEntry(name, entry, err, a, itemFunc, logger)
-	}
-}
-
-type analysis struct {
-	Index
-	dir    SourcePath
-	target string
-}
-
-func (a *analysis) WalkDir() string {
-	return a.dir.String()
-}
-
 type Analysis interface {
-	WalkDir() string
-	TargetPath(name string) TargetPath
-	SourcePath(name string) SourcePath
+	Target() string
 	State(name string, l *slog.Logger) (file.State, error)
 	SetState(name string, state file.State, l *slog.Logger)
 }
 
-func (a *analysis) TargetPath(name string) TargetPath {
-	return NewTargetPath(a.target, a.SourcePath(name).Item)
-}
-
-func (a *analysis) SourcePath(name string) SourcePath {
-	return a.dir.WithItemFrom(name)
-}
-
-func AnalyzeEntry(name string, entry fs.DirEntry, err error, a Analysis, itemFunc ItemFunc, l *slog.Logger) error {
+func AnalyzeEntry(name string, entry fs.DirEntry, err error,
+	walkRoot SourcePath, analysis Analysis, ia ItemAnalyzer, l *slog.Logger) error {
 	if err != nil {
 		return err
 	}
-	if name == a.WalkDir() {
+	if name == walkRoot.String() {
 		// Skip the dir being walked, but walk its contents.
 		return nil
 	}
 
-	sourcePath := a.SourcePath(name)
-	targetPath := a.TargetPath(name)
-
+	sourcePath := walkRoot.WithItemFrom(name)
 	sourceType, err := file.TypeOf(entry.Type())
 	if err != nil {
 		return fmt.Errorf("%q: %w", sourcePath, err)
 	}
 	sourceItem := SourceItem{sourcePath, sourceType}
 
+	targetPath := NewTargetPath(analysis.Target(), sourcePath.Item)
 	tpAttr := slog.Any("path", targetPath)
-	goalAttr := slog.Any("goal", GoalInstall)
+	goalAttr := slog.Any("goal", ia.Goal())
 	indexLogger := l.With(goalAttr, "source", sourceItem, slog.Group("target", tpAttr))
 	indexLogger.Info("start analyzing")
 
-	targetState, err := a.State(targetPath.String(), indexLogger)
+	targetState, err := analysis.State(targetPath.String(), indexLogger)
 	if err != nil {
 		return err
 	}
@@ -149,10 +139,10 @@ func AnalyzeEntry(name string, entry fs.DirEntry, err error, a Analysis, itemFun
 	targetItem := TargetItem{targetPath, targetState}
 
 	itemFuncLogger := indexLogger.With("target", targetItem)
-	newState, err := itemFunc(sourceItem, targetItem, itemFuncLogger)
+	newState, err := ia.AnalyzeItem(sourceItem, targetItem, itemFuncLogger)
 
 	if err == nil || err == fs.SkipDir {
-		a.SetState(targetPath.String(), newState, indexLogger)
+		analysis.SetState(targetPath.String(), newState, indexLogger)
 	}
 
 	return err

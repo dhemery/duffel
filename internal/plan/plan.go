@@ -52,24 +52,24 @@ func Print(w io.Writer) func(p Plan) error {
 }
 
 // NewPlanner returns a planner that plans how to change the tree rooted at target.
-func NewPlanner(fsys fs.ReadLinkFS, target string, ops []*PackageOp, l *slog.Logger) *planner {
+func NewPlanner(fsys fs.ReadLinkFS, target string, goals []PackageGoal, l *slog.Logger) *planner {
 	stater := file.NewStater(fsys)
 	index := NewIndex(stater)
 	analyst := NewAnalyzer(fsys, target, index)
-	return &planner{target, analyst, ops, l}
+	return &planner{target, analyst, goals, l}
 }
 
 type planner struct {
 	target   string
 	analyzer *analyzer
-	ops      []*PackageOp
+	goals    []PackageGoal
 	logger   *slog.Logger
 }
 
 // Plan creates a plan to realize ops in p's target tree.
 func (p planner) Plan() (Plan, error) {
-	for _, op := range p.ops {
-		if err := p.analyzer.Analyze(op, p.logger); err != nil {
+	for _, goal := range p.goals {
+		if err := p.analyzer.Analyze(goal, p.logger); err != nil {
 			return Plan{}, err
 		}
 

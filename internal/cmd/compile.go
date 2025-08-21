@@ -13,7 +13,7 @@ import (
 	"github.com/dhemery/duffel/internal/plan"
 )
 
-// Compile compiles a [Command] that perform the operations requested by args.
+// Compile compiles a [Command] satisfy the goals described by args.
 func Compile(opts Options, args []string, fsys FS, cwd string, wout, werr io.Writer) (Command, error) {
 	target := fullValidPath(cwd, opts.Target)
 	source := fullValidPath(cwd, opts.Source)
@@ -25,11 +25,11 @@ func Compile(opts Options, args []string, fsys FS, cwd string, wout, werr io.Wri
 	}
 
 	var errs []error
-	var ops []*plan.PackageOp
+	var goals []plan.PackageGoal
 	for _, pkg := range args {
-		op := plan.NewInstallOp(source, pkg)
-		ops = append(ops, op)
-		errs = append(errs, validatePackage(fsys, op))
+		goal := plan.InstallGoal(source, pkg)
+		goals = append(goals, goal)
+		errs = append(errs, validateGoal(fsys, goal))
 	}
 
 	if err := errors.Join(errs...); err != nil {
@@ -46,7 +46,7 @@ func Compile(opts Options, args []string, fsys FS, cwd string, wout, werr io.Wri
 	}
 
 	return Command{
-		Planner:  plan.NewPlanner(fsys, target, ops, logger),
+		Planner:  plan.NewPlanner(fsys, target, goals, logger),
 		PlanFunc: planFunc,
 	}, nil
 }
@@ -87,19 +87,19 @@ func validateSource(fsys fs.ReadLinkFS, source string) error {
 	return nil
 }
 
-// validatePackage checks that op's package
+// validateGoal checks that goal's package
 // is a directory and is a child of its source directory.
-func validatePackage(fsys fs.ReadLinkFS, op *plan.PackageOp) error {
-	pname := op.Package()
-	ppath := op.Path()
+func validateGoal(fsys fs.ReadLinkFS, goal plan.PackageGoal) error {
+	pname := goal.Package()
+	ppath := goal.Path()
 	pparent := path.Dir(ppath)
-	source := op.Source()
+	source := goal.Source()
 	if pparent != source {
 		return fmt.Errorf("package %s (%s): %w: not a child of source (%s)",
 			pname, ppath, fs.ErrInvalid, source)
 	}
 
-	return validateDir(fsys, "package", op.Path())
+	return validateDir(fsys, "package", goal.Path())
 }
 
 // fullValidPath returns the relative path from / to name.

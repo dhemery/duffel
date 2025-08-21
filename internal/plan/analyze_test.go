@@ -17,18 +17,18 @@ import (
 	. "github.com/dhemery/duffel/internal/plan"
 )
 
-func TestPackageOp(t *testing.T) {
-	itemFuncSuite.run(t)
+func TestAnalyzeEntry(t *testing.T) {
+	analyzeItemSuite.run(t)
 	earlyExitSuite.run(t)
 }
 
-type packageOpTest struct {
-	desc      string      // Description of the test.
-	index     indexItem   // The state of the item in the index before analyzing.
-	itemState itemState   // The state of the source item to analyze.
-	itemFunc  itemFunc    // The fake itemFunc to call.
-	wantErr   error       // Error result.
-	wantState *file.State // State passed to index.SetState.
+type analyzeEntryTest struct {
+	desc         string           // Description of the test.
+	analysis     testAnalysis     // The result of prior analysis.
+	itemState    itemState        // The state of the source item to analyze.
+	itemAnalyzer testItemAnalyzer // The fake ItemAnalyzer to call.
+	wantErr      error            // Error result.
+	wantState    *file.State      // State passed to analysis.SetState.
 }
 
 var (
@@ -37,108 +37,108 @@ var (
 	errPassedToVisitFunc = errors.New("error passed to visit func")
 )
 
-// Scenarios where PackageOp calls itemFunc.
-var itemFuncSuite = packageOpSuite{
-	name: "ItemFunc",
-	tests: []packageOpTest{
+// Scenarios where AnalyzeEntry calls ItemAnalyzer.AnalyzeItem.
+var analyzeItemSuite = analyzeEntrySuite{
+	name: "AnalyzeItem",
+	tests: []analyzeEntryTest{
 		{
-			desc:      "index has no file, item func returns state",
-			index:     indexNoFile("target", "item"),
-			itemState: fileItem("source", "pkg", "item"),
-			itemFunc:  itemFunc{state: file.LinkState("item/func/dest", file.TypeFile)},
-			wantState: ptr(file.LinkState("item/func/dest", file.TypeFile)),
+			desc:         "index has no file, item func returns state",
+			analysis:     targetDoesNotExist("target", "item"),
+			itemState:    itemIsFile("source", "pkg", "item"),
+			itemAnalyzer: testItemAnalyzer{state: file.LinkState("item/func/dest", file.TypeFile)},
+			wantState:    ptr(file.LinkState("item/func/dest", file.TypeFile)),
 		},
 		{
-			desc:      "index has no file, item func returns state and SkipDir",
-			index:     indexNoFile("target", "item"),
-			itemState: dirItem("source", "pkg", "item"),
-			itemFunc:  itemFunc{state: file.LinkState("item/func/dest", file.TypeFile), err: fs.SkipDir},
-			wantErr:   fs.SkipDir,
-			wantState: ptr(file.LinkState("item/func/dest", file.TypeFile)),
+			desc:         "index has no file, item func returns state and SkipDir",
+			analysis:     targetDoesNotExist("target", "item"),
+			itemState:    itemIsDir("source", "pkg", "item"),
+			itemAnalyzer: testItemAnalyzer{state: file.LinkState("item/func/dest", file.TypeFile), err: fs.SkipDir},
+			wantErr:      fs.SkipDir,
+			wantState:    ptr(file.LinkState("item/func/dest", file.TypeFile)),
 		},
 		{
-			desc:      "index has no file, item func reports error",
-			index:     indexNoFile("target", "item"),
-			itemState: fileItem("source", "pkg", "item"),
-			itemFunc:  itemFunc{err: errFromItemFunc},
-			wantErr:   errFromItemFunc,
-			wantState: nil,
+			desc:         "index has no file, item func reports error",
+			analysis:     targetDoesNotExist("target", "item"),
+			itemState:    itemIsFile("source", "pkg", "item"),
+			itemAnalyzer: testItemAnalyzer{err: errFromItemFunc},
+			wantErr:      errFromItemFunc,
+			wantState:    nil,
 		},
 		{
-			desc:      "index has dir, item func returns state",
-			index:     indexDir("target", "item"),
-			itemState: fileItem("source", "pkg", "item"),
-			itemFunc:  itemFunc{state: file.LinkState("item/func/dest", file.TypeFile)},
-			wantState: ptr(file.LinkState("item/func/dest", file.TypeFile)),
+			desc:         "index has dir, item func returns state",
+			analysis:     targetIsDir("target", "item"),
+			itemState:    itemIsFile("source", "pkg", "item"),
+			itemAnalyzer: testItemAnalyzer{state: file.LinkState("item/func/dest", file.TypeFile)},
+			wantState:    ptr(file.LinkState("item/func/dest", file.TypeFile)),
 		},
 		{
-			desc:      "index state is link, item func returns state",
-			index:     indexLink("target", "item", "index/dest", file.TypeFile),
-			itemState: fileItem("source", "pkg", "item"),
-			itemFunc:  itemFunc{state: file.DirState()},
-			wantState: ptr(file.DirState()),
+			desc:         "index state is link, item func returns state",
+			analysis:     targetIsLink("target", "item", "index/dest", file.TypeFile),
+			itemState:    itemIsFile("source", "pkg", "item"),
+			itemAnalyzer: testItemAnalyzer{state: file.DirState()},
+			wantState:    ptr(file.DirState()),
 		},
 		{
-			desc:      "index state is file, item func reports error",
-			index:     indexFile("target", "item"),
-			itemState: fileItem("source", "pkg", "item"),
-			itemFunc:  itemFunc{err: errFromItemFunc},
-			wantErr:   errFromItemFunc,
-			wantState: nil,
+			desc:         "index state is file, item func reports error",
+			analysis:     targetIsFile("target", "item"),
+			itemState:    itemIsFile("source", "pkg", "item"),
+			itemAnalyzer: testItemAnalyzer{err: errFromItemFunc},
+			wantErr:      errFromItemFunc,
+			wantState:    nil,
 		},
 		{
-			desc:      "index has dir, item func reports error",
-			index:     indexDir("target", "item"),
-			itemState: fileItem("source", "pkg", "item"),
-			itemFunc:  itemFunc{err: errFromItemFunc},
-			wantErr:   errFromItemFunc,
-			wantState: nil,
+			desc:         "index has dir, item func reports error",
+			analysis:     targetIsDir("target", "item"),
+			itemState:    itemIsFile("source", "pkg", "item"),
+			itemAnalyzer: testItemAnalyzer{err: errFromItemFunc},
+			wantErr:      errFromItemFunc,
+			wantState:    nil,
 		},
 		{
-			desc:      "index has link, item func reports error",
-			index:     indexLink("target", "item", "index/dest", file.TypeFile),
-			itemState: fileItem("source", "pkg", "item"),
-			itemFunc:  itemFunc{err: errFromItemFunc},
-			wantErr:   errFromItemFunc,
-			wantState: nil,
+			desc:         "index has link, item func reports error",
+			analysis:     targetIsLink("target", "item", "index/dest", file.TypeFile),
+			itemState:    itemIsFile("source", "pkg", "item"),
+			itemAnalyzer: testItemAnalyzer{err: errFromItemFunc},
+			wantErr:      errFromItemFunc,
+			wantState:    nil,
 		},
 	},
 }
 
-// Scenarios where PackageOp determines the outcome without calling itemFunc.
-var earlyExitSuite = packageOpSuite{
+// Scenarios where AnalyzeEntry determines the outcome without calling ItemAnalyzer.AnalyzeItem.
+var earlyExitSuite = analyzeEntrySuite{
 	name: "EarlyExit",
-	tests: []packageOpTest{
+	tests: []analyzeEntryTest{
 		{
 			desc:      "package directory",
-			itemState: dirItem("source", "pkg", "."),
+			itemState: itemIsDir("source", "pkg", "."),
 			wantErr:   nil,
 		},
 		{
 			desc:      "error arg for package directory",
-			itemState: dirItemWithError("source", "pkg", ".", errPassedToVisitFunc),
+			itemState: itemIsDirWithError("source", "pkg", ".", errPassedToVisitFunc),
 			wantErr:   errPassedToVisitFunc,
 		},
 		{
 			desc:      "error arg for item",
-			itemState: dirItemWithError("source", "pkg", "item", errPassedToVisitFunc),
+			itemState: itemIsDirWithError("source", "pkg", "item", errPassedToVisitFunc),
 			wantErr:   errPassedToVisitFunc,
 		},
 		{
 			desc:      "index error for item",
-			index:     indexError("target", "item", errFromIndexState),
-			itemState: dirItem("source", "pkg", "item"),
+			analysis:  targetHasError("target", "item", errFromIndexState),
+			itemState: itemIsDir("source", "pkg", "item"),
 			wantErr:   errFromIndexState,
 		},
 	},
 }
 
-type packageOpSuite struct {
+type analyzeEntrySuite struct {
 	name  string
-	tests []packageOpTest
+	tests []analyzeEntryTest
 }
 
-func (s packageOpSuite) run(t *testing.T) {
+func (s analyzeEntrySuite) run(t *testing.T) {
 	t.Run(s.name, func(t *testing.T) {
 		for _, test := range s.tests {
 			test.run(t)
@@ -146,59 +146,61 @@ func (s packageOpSuite) run(t *testing.T) {
 	})
 }
 
-func (test packageOpTest) run(t *testing.T) {
+func (test analyzeEntryTest) run(t *testing.T) {
 	t.Run(test.desc, func(t *testing.T) {
 		var logbuf bytes.Buffer
 		logger := log.Logger(&logbuf, duftest.LogLevel)
 		defer duftest.Dump(t, "log", &logbuf)
 
-		pkgOp := NewInstallOp(test.SourceDir(), test.Package())
+		err := AnalyzeEntry(test.NameArg(), test.EntryArg(), test.ErrArg(), test.WalkRoot(),
+			&test.analysis, &test.itemAnalyzer, logger)
 
-		visit := pkgOp.VisitFunc(test.TargetDir(), &test.index, test.itemFunc.Call, logger)
-
-		gotErr := visit(test.NameArg(), test.EntryArg(), test.ErrArg())
-
-		if !errors.Is(gotErr, test.wantErr) {
-			t.Fatalf("error:\n got: %v\nwant: %v", gotErr, test.wantErr)
+		if !errors.Is(err, test.wantErr) {
+			t.Errorf("error:\n got: %v\nwant: %v", err, test.wantErr)
 		}
 
-		test.index.checkSetState(t, test.TargetName(), test.wantState)
-		test.itemFunc.checkCall(t, test.SourceItem(), test.TargetItem())
+		test.analysis.checkSetState(t, test.TargetName(), test.wantState)
+		test.itemAnalyzer.checkCall(t, test.SourceItem(), test.TargetItem())
 	})
 }
 
-func (test packageOpTest) EntryArg() fs.DirEntry {
+func (test analyzeEntryTest) EntryArg() fs.DirEntry {
 	return errfs.DirEntry(test.itemState.item, test.itemState.fmode)
 }
-func (test packageOpTest) ErrArg() error {
+
+func (test analyzeEntryTest) ErrArg() error {
 	return test.itemState.errArg
 }
 
-func (test packageOpTest) NameArg() string {
+func (test analyzeEntryTest) NameArg() string {
 	return path.Join(test.itemState.source, test.itemState.pkg, test.itemState.item)
 }
 
-func (test packageOpTest) Package() string {
+func (test analyzeEntryTest) Package() string {
 	return test.itemState.pkg
 }
 
-func (test packageOpTest) SourceDir() string {
+func (test analyzeEntryTest) SourceDir() string {
 	return test.itemState.source
 }
 
-func (test packageOpTest) TargetItem() TargetItem {
-	return NewTargetItem(test.index.target, test.index.item, test.index.state)
+func (test analyzeEntryTest) WalkRoot() SourcePath {
+	return NewSourcePath(test.itemState.source, test.itemState.pkg, "")
 }
 
-func (test packageOpTest) TargetDir() string {
-	return test.index.target
+func (test analyzeEntryTest) TargetItem() TargetItem {
+	return NewTargetItem(test.analysis.target, test.analysis.item, test.analysis.state)
 }
 
-func (test packageOpTest) TargetName() string {
-	return path.Join(test.index.target, test.index.item)
+func (test analyzeEntryTest) TargetDir() string {
+	return test.analysis.target
 }
 
-func (test packageOpTest) SourceItem() SourceItem {
+func (test analyzeEntryTest) TargetName() string {
+	return path.Join(test.analysis.target, test.analysis.item)
+}
+
+func (test analyzeEntryTest) SourceItem() SourceItem {
 	return NewSourceItem(test.itemState.source, test.itemState.pkg, test.itemState.item, test.itemState.ftype)
 }
 
@@ -211,7 +213,7 @@ type itemState struct {
 	errArg error       // Error passed to PackageOp's visit func.
 }
 
-func dirItem(source, pkg, item string) itemState {
+func itemIsDir(source, pkg, item string) itemState {
 	return itemState{
 		source: source,
 		pkg:    pkg,
@@ -221,7 +223,7 @@ func dirItem(source, pkg, item string) itemState {
 	}
 }
 
-func dirItemWithError(source, pkg, item string, err error) itemState {
+func itemIsDirWithError(source, pkg, item string, err error) itemState {
 	return itemState{
 		source: source,
 		pkg:    pkg,
@@ -232,7 +234,7 @@ func dirItemWithError(source, pkg, item string, err error) itemState {
 	}
 }
 
-func fileItem(source, pkg, item string) itemState {
+func itemIsFile(source, pkg, item string) itemState {
 	return itemState{
 		source: source,
 		pkg:    pkg,
@@ -242,7 +244,7 @@ func fileItem(source, pkg, item string) itemState {
 	}
 }
 
-type indexItem struct {
+type testAnalysis struct {
 	target   string      // The target part of the item's name.
 	item     string      // The item part of the item's name.
 	state    file.State  // State to return from State.
@@ -251,73 +253,81 @@ type indexItem struct {
 	gotState *file.State // State passed to SetState.
 }
 
-func indexNoFile(target, item string) indexItem {
-	return indexItem{target: target, item: item, state: file.NoFileState()}
+func targetDoesNotExist(target, item string) testAnalysis {
+	return testAnalysis{target: target, item: item, state: file.NoFileState()}
 }
 
-func indexFile(target, item string) indexItem {
-	return indexItem{target: target, item: item, state: file.FileState()}
+func targetIsFile(target, item string) testAnalysis {
+	return testAnalysis{target: target, item: item, state: file.FileState()}
 }
 
-func indexDir(target, item string) indexItem {
-	return indexItem{target: target, item: item, state: file.DirState()}
+func targetIsDir(target, item string) testAnalysis {
+	return testAnalysis{target: target, item: item, state: file.DirState()}
 }
 
-func indexLink(target, item, dest string, destType file.Type) indexItem {
-	return indexItem{target: target, item: item, state: file.LinkState(dest, destType)}
+func targetIsLink(target, item, dest string, destType file.Type) testAnalysis {
+	return testAnalysis{target: target, item: item, state: file.LinkState(dest, destType)}
 }
 
-func indexError(target, item string, err error) indexItem {
-	return indexItem{target: target, item: item, err: err}
+func targetHasError(target, item string, err error) testAnalysis {
+	return testAnalysis{target: target, item: item, err: err}
 }
 
-func (s *indexItem) State(string, *slog.Logger) (file.State, error) {
-	return s.state, s.err
+func (ta *testAnalysis) Target() string {
+	return ta.target
+}
+func (ta *testAnalysis) State(name string, _ *slog.Logger) (file.State, error) {
+	ta.gotName = name
+	return ta.state, ta.err
 }
 
-func (s *indexItem) SetState(name string, state file.State, _ *slog.Logger) {
-	s.gotName = name
-	s.gotState = &state
+func (ta *testAnalysis) SetState(name string, state file.State, _ *slog.Logger) {
+	ta.gotName = name
+	ta.gotState = &state
 }
 
-func (s *indexItem) checkSetState(t *testing.T, wantName string, wantState *file.State) {
+func (ta *testAnalysis) checkSetState(t *testing.T, wantName string, wantState *file.State) {
 	t.Helper()
 	if wantState == nil {
-		if s.gotState != nil {
+		if ta.gotState != nil {
 			t.Errorf("unwanted call to index.SetState():\n name: %q\nstate: %s",
-				s.gotName, s.gotState)
+				ta.gotName, ta.gotState)
 		}
 		return
 	}
-	if wantName != s.gotName {
-		t.Errorf("index.SetState() name arg: got %q, want %q", s.gotName, wantName)
+	if wantName != ta.gotName {
+		t.Errorf("index.SetState() name arg: got %q, want %q", ta.gotName, wantName)
 	}
-	if diff := cmp.Diff(wantState, s.gotState); diff != "" {
+	if diff := cmp.Diff(wantState, ta.gotState); diff != "" {
 		t.Errorf("index.SetState() state arg:\n%s", diff)
 	}
 }
 
-type itemFunc struct {
-	state     file.State  // State returned from itemFunc
-	err       error       // Error returned from itemFunc
-	gotSource *SourceItem // SourceItem passed to itemFunc.
-	gotTarget *TargetItem // TargetItem passed to itemFunc.
+type testItemAnalyzer struct {
+	state     file.State  // State to return from AnalyzeItem.
+	err       error       // Error to return from AnalyzeItem.
+	gotSource *SourceItem // SourceItem passed to AnalyzeItem.
+	gotTarget *TargetItem // TargetItem passed to AnalyzeItem.
 }
 
-func (i *itemFunc) Call(gotSource SourceItem, gotTarget TargetItem, l *slog.Logger) (file.State, error) {
-	i.gotSource, i.gotTarget = &gotSource, &gotTarget
-	return i.state, i.err
+func (tia *testItemAnalyzer) Goal() Goal {
+	return GoalInstall
 }
 
-func (i *itemFunc) checkCall(t *testing.T, wantSource SourceItem, wantTarget TargetItem) {
+func (tia *testItemAnalyzer) AnalyzeItem(gotSource SourceItem, gotTarget TargetItem, l *slog.Logger) (file.State, error) {
+	tia.gotSource, tia.gotTarget = &gotSource, &gotTarget
+	return tia.state, tia.err
+}
+
+func (tia *testItemAnalyzer) checkCall(t *testing.T, wantSource SourceItem, wantTarget TargetItem) {
 	t.Helper()
-	if i.gotSource == nil {
+	if tia.gotSource == nil {
 		return
 	}
-	if diff := cmp.Diff(&wantSource, i.gotSource); diff != "" {
+	if diff := cmp.Diff(&wantSource, tia.gotSource); diff != "" {
 		t.Errorf("item func source arg:\n%s", diff)
 	}
-	if diff := cmp.Diff(&wantTarget, i.gotTarget); diff != "" {
+	if diff := cmp.Diff(&wantTarget, tia.gotTarget); diff != "" {
 		t.Errorf("item func target arg:\n%s", diff)
 	}
 }
