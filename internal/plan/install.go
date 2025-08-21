@@ -19,7 +19,7 @@ type installer struct {
 	merger InstallMerger
 }
 
-func (i installer) Goal() Goal {
+func (i installer) Goal() ItemGoal {
 	return GoalInstall
 }
 

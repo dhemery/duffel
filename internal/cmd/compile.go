@@ -27,7 +27,7 @@ func Compile(opts Options, args []string, fsys FS, cwd string, wout, werr io.Wri
 	var errs []error
 	var goals []plan.PackageGoal
 	for _, pkg := range args {
-		goal := plan.InstallGoal(source, pkg)
+		goal := plan.InstallPackage(source, pkg)
 		goals = append(goals, goal)
 		errs = append(errs, validateGoal(fsys, goal))
 	}
