@@ -87,42 +87,73 @@ type Index interface {
 
 func (po *PackageOp) VisitFunc(target string, index Index, itemFunc ItemFunc, logger *slog.Logger) fs.WalkDirFunc {
 	return func(name string, entry fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if name == po.walkRoot.String() {
-			// Skip the dir being walked.
-			return nil
-		}
+		a := &analysis{dir: po.walkRoot, target: target, Index: index}
+		return AnalyzeEntry(name, entry, err, a, itemFunc, logger)
+	}
+}
 
-		sourcePath := po.walkRoot.WithItemFrom(name)
-		targetPath := NewTargetPath(target, sourcePath.Item)
+type analysis struct {
+	Index
+	dir    SourcePath
+	target string
+}
 
-		sourceType, err := file.TypeOf(entry.Type())
-		if err != nil {
-			return fmt.Errorf("%q: %w", sourcePath, err)
-		}
-		sourceItem := SourceItem{sourcePath, sourceType}
+func (a *analysis) WalkDir() string {
+	return a.dir.String()
+}
 
-		tpAttr := slog.Any("path", targetPath)
-		goalAttr := slog.Any("goal", po.goal)
-		indexLogger := logger.With(goalAttr, "source", sourceItem, slog.Group("target", tpAttr))
-		indexLogger.Info("start analyzing")
+type Analysis interface {
+	WalkDir() string
+	TargetPath(name string) TargetPath
+	SourcePath(name string) SourcePath
+	State(name string, l *slog.Logger) (file.State, error)
+	SetState(name string, state file.State, l *slog.Logger)
+}
 
-		targetState, err := index.State(targetPath.String(), indexLogger)
-		if err != nil {
-			return err
-		}
+func (a *analysis) TargetPath(name string) TargetPath {
+	return NewTargetPath(a.target, a.SourcePath(name).Item)
+}
 
-		targetItem := TargetItem{targetPath, targetState}
+func (a *analysis) SourcePath(name string) SourcePath {
+	return a.dir.WithItemFrom(name)
+}
 
-		itemFuncLogger := indexLogger.With("target", targetItem)
-		newState, err := itemFunc(sourceItem, targetItem, itemFuncLogger)
-
-		if err == nil || err == fs.SkipDir {
-			index.SetState(targetPath.String(), newState, indexLogger)
-		}
-
+func AnalyzeEntry(name string, entry fs.DirEntry, err error, a Analysis, itemFunc ItemFunc, l *slog.Logger) error {
+	if err != nil {
 		return err
 	}
+	if name == a.WalkDir() {
+		// Skip the dir being walked, but walk its contents.
+		return nil
+	}
+
+	sourcePath := a.SourcePath(name)
+	targetPath := a.TargetPath(name)
+
+	sourceType, err := file.TypeOf(entry.Type())
+	if err != nil {
+		return fmt.Errorf("%q: %w", sourcePath, err)
+	}
+	sourceItem := SourceItem{sourcePath, sourceType}
+
+	tpAttr := slog.Any("path", targetPath)
+	goalAttr := slog.Any("goal", GoalInstall)
+	indexLogger := l.With(goalAttr, "source", sourceItem, slog.Group("target", tpAttr))
+	indexLogger.Info("start analyzing")
+
+	targetState, err := a.State(targetPath.String(), indexLogger)
+	if err != nil {
+		return err
+	}
+
+	targetItem := TargetItem{targetPath, targetState}
+
+	itemFuncLogger := indexLogger.With("target", targetItem)
+	newState, err := itemFunc(sourceItem, targetItem, itemFuncLogger)
+
+	if err == nil || err == fs.SkipDir {
+		a.SetState(targetPath.String(), newState, indexLogger)
+	}
+
+	return err
 }
