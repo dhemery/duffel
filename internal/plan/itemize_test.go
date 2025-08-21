@@ -2,8 +2,10 @@ package plan_test
 
 import (
 	"errors"
+	"path"
 	"testing"
 
+	"github.com/dhemery/duffel/internal/file"
 	. "github.com/dhemery/duffel/internal/plan"
 
 	"github.com/dhemery/duffel/internal/errfs"
@@ -11,58 +13,56 @@ import (
 
 func TestItemizer(t *testing.T) {
 	tests := map[string]struct {
-		findName        string     // The name of the directory whose path to itemize.
-		duffelFile      string     // The path to the duffel file.
-		wantPackageItem SourcePath // The the package item desired from Itemize.
-		wantErr         error      // The error desired from Itemize.
+		sourceDir      string     // The duffel source dir in the file system.
+		nameArg        string     // The name passed to Itemize.
+		wantSourcePath SourcePath // The SourcePath result from Itemize.
+		wantErr        error      // The error result from Itemize.
 	}{
-		"not in a package": {
-			findName:   "dir1/dir2/dir3/dir4",
-			duffelFile: "",
-			wantErr:    ErrNotInPackage,
+		"not in a source dir": {
+			sourceDir: "elsewhere",
+			nameArg:   "dir1/dir2/dir3/dir4",
+			wantErr:   ErrNotInPackage,
 		},
-		"is a duffel source dir": {
-			findName:   "dir1/dir2/dir3/dir4",
-			duffelFile: "dir1/dir2/dir3/dir4/.duffel",
-			wantErr:    ErrIsSource,
+		"source dir": {
+			sourceDir: "dir1/dir2/dir3/dir4",
+			nameArg:   "dir1/dir2/dir3/dir4",
+			wantErr:   ErrIsSource,
 		},
-		"is a duffel package": {
-			duffelFile: "user/home/source/.duffel",
-			findName:   "user/home/source/pkg",
-			wantErr:    ErrIsPackage,
+		"package": {
+			sourceDir: "user/home/source",
+			nameArg:   "user/home/source/pkg",
+			wantErr:   ErrIsPackage,
 		},
-		"in a duffel dir": {
-			duffelFile:      "user/home/source/.duffel",
-			findName:        "user/home/source/pkg/item",
-			wantPackageItem: NewSourcePath("user/home/source", "pkg", "item"),
-			wantErr:         nil,
+		"child of a package": {
+			sourceDir:      "user/home/source",
+			nameArg:        "user/home/source/pkg/item",
+			wantSourcePath: NewSourcePath("user/home/source", "pkg", "item"),
 		},
-		"deep in a duffel dir": {
-			findName:        "user/home/source/pkg/item1/item2/item3",
-			duffelFile:      "user/home/source/.duffel",
-			wantPackageItem: NewSourcePath("user/home/source", "pkg", "item1/item2/item3"),
-			wantErr:         nil,
+		"deep in a package": {
+			sourceDir:      "user/home/source",
+			nameArg:        "user/home/source/pkg/item1/item2/item3",
+			wantSourcePath: NewSourcePath("user/home/source", "pkg", "item1/item2/item3"),
 		},
 	}
 	for name, test := range tests {
 		t.Run(name, func(t *testing.T) {
 			testFS := errfs.New()
-			errfs.AddDir(testFS, test.findName, 0o755)
-			if test.duffelFile != "" {
-				errfs.AddFile(testFS, test.duffelFile, 0o644)
+			errfs.AddDir(testFS, test.nameArg, 0o755)
+			if test.sourceDir != "" {
+				errfs.AddFile(testFS, path.Join(test.sourceDir, file.SourceMarkerFile), 0o644)
 			}
 
 			itemizer := NewItemizer(testFS)
 
-			gotPackageItem, gotErr := itemizer.Itemize(test.findName)
+			gotPackageItem, gotErr := itemizer.Itemize(test.nameArg)
 
-			if gotPackageItem != test.wantPackageItem {
+			if gotPackageItem != test.wantSourcePath {
 				t.Errorf("Itemize(%q) result:\n got: %v\nwant: %v",
-					test.findName, gotPackageItem, test.wantPackageItem)
+					test.nameArg, gotPackageItem, test.wantSourcePath)
 			}
 			if !errors.Is(gotErr, test.wantErr) {
 				t.Errorf("Itemize(%q) error:\n got: %v\nwant %v",
-					test.findName, gotErr, test.wantErr)
+					test.nameArg, gotErr, test.wantErr)
 			}
 		})
 	}

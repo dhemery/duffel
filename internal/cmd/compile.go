@@ -76,7 +76,8 @@ func validateSource(fsys fs.ReadLinkFS, source string) error {
 	sd, err := file.SourceDir(fsys, source)
 
 	if errors.Is(err, fs.ErrNotExist) || sd != source {
-		return fmt.Errorf("source %s: %w: no .duffel file", source, fs.ErrInvalid)
+		return fmt.Errorf("source %s: %w: no %s file",
+			source, fs.ErrInvalid, file.SourceMarkerFile)
 	}
 
 	if err != nil {

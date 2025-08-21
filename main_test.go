@@ -14,6 +14,7 @@ import (
 	"github.com/google/go-cmp/cmp"
 
 	"github.com/dhemery/duffel/internal/duftest"
+	"github.com/dhemery/duffel/internal/file"
 	"github.com/dhemery/duffel/internal/plan"
 )
 
@@ -81,7 +82,7 @@ func TestDirOptions(t *testing.T) {
 			root := t.TempDir()
 			wd := filepath.Join(root, test.wd)
 			absSource := filepath.Join(wd, Or(test.sourceOpt, defaultSource))
-			absDuffelFile := filepath.Join(absSource, ".duffel")
+			absDuffelFile := filepath.Join(absSource, file.SourceMarkerFile)
 			absTarget := filepath.Join(wd, Or(test.targetOpt, defaultTarget))
 			absSourcePkgItem := filepath.Join(absSource, pkg, item)
 
@@ -126,7 +127,7 @@ func TestDryRun(t *testing.T) {
 	item := "item"
 	absTarget := filepath.Join(root, "home/user")
 	absSource := filepath.Join(absTarget, "source")
-	absDuffelFile := filepath.Join(absSource, ".duffel")
+	absDuffelFile := filepath.Join(absSource, file.SourceMarkerFile)
 	absSourcePkg := filepath.Join(absSource, pkg)
 	absSourcePkgItem := filepath.Join(absSourcePkg, item)
 

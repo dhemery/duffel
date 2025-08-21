@@ -25,7 +25,7 @@ func TestPackageOp(t *testing.T) {
 type packageOpTest struct {
 	desc      string      // Description of the test.
 	index     indexItem   // The state of the item in the index before analyzing.
-	source    sourceState // The state of the source item to analyze.
+	itemState itemState   // The state of the source item to analyze.
 	itemFunc  itemFunc    // The fake itemFunc to call.
 	wantErr   error       // Error result.
 	wantState *file.State // State passed to index.SetState.
@@ -44,14 +44,14 @@ var itemFuncSuite = packageOpSuite{
 		{
 			desc:      "index has no file, item func returns state",
 			index:     indexNoFile("target", "item"),
-			source:    sourceFile("source", "pkg", "item"),
+			itemState: fileItem("source", "pkg", "item"),
 			itemFunc:  itemFunc{state: file.LinkState("item/func/dest", file.TypeFile)},
 			wantState: ptr(file.LinkState("item/func/dest", file.TypeFile)),
 		},
 		{
 			desc:      "index has no file, item func returns state and SkipDir",
 			index:     indexNoFile("target", "item"),
-			source:    sourceDir("source", "pkg", "item"),
+			itemState: dirItem("source", "pkg", "item"),
 			itemFunc:  itemFunc{state: file.LinkState("item/func/dest", file.TypeFile), err: fs.SkipDir},
 			wantErr:   fs.SkipDir,
 			wantState: ptr(file.LinkState("item/func/dest", file.TypeFile)),
@@ -59,7 +59,7 @@ var itemFuncSuite = packageOpSuite{
 		{
 			desc:      "index has no file, item func reports error",
 			index:     indexNoFile("target", "item"),
-			source:    sourceFile("source", "pkg", "item"),
+			itemState: fileItem("source", "pkg", "item"),
 			itemFunc:  itemFunc{err: errFromItemFunc},
 			wantErr:   errFromItemFunc,
 			wantState: nil,
@@ -67,21 +67,21 @@ var itemFuncSuite = packageOpSuite{
 		{
 			desc:      "index has dir, item func returns state",
 			index:     indexDir("target", "item"),
-			source:    sourceFile("source", "pkg", "item"),
+			itemState: fileItem("source", "pkg", "item"),
 			itemFunc:  itemFunc{state: file.LinkState("item/func/dest", file.TypeFile)},
 			wantState: ptr(file.LinkState("item/func/dest", file.TypeFile)),
 		},
 		{
 			desc:      "index state is link, item func returns state",
 			index:     indexLink("target", "item", "index/dest", file.TypeFile),
-			source:    sourceFile("source", "pkg", "item"),
+			itemState: fileItem("source", "pkg", "item"),
 			itemFunc:  itemFunc{state: file.DirState()},
 			wantState: ptr(file.DirState()),
 		},
 		{
 			desc:      "index state is file, item func reports error",
 			index:     indexFile("target", "item"),
-			source:    sourceFile("source", "pkg", "item"),
+			itemState: fileItem("source", "pkg", "item"),
 			itemFunc:  itemFunc{err: errFromItemFunc},
 			wantErr:   errFromItemFunc,
 			wantState: nil,
@@ -89,7 +89,7 @@ var itemFuncSuite = packageOpSuite{
 		{
 			desc:      "index has dir, item func reports error",
 			index:     indexDir("target", "item"),
-			source:    sourceFile("source", "pkg", "item"),
+			itemState: fileItem("source", "pkg", "item"),
 			itemFunc:  itemFunc{err: errFromItemFunc},
 			wantErr:   errFromItemFunc,
 			wantState: nil,
@@ -97,7 +97,7 @@ var itemFuncSuite = packageOpSuite{
 		{
 			desc:      "index has link, item func reports error",
 			index:     indexLink("target", "item", "index/dest", file.TypeFile),
-			source:    sourceFile("source", "pkg", "item"),
+			itemState: fileItem("source", "pkg", "item"),
 			itemFunc:  itemFunc{err: errFromItemFunc},
 			wantErr:   errFromItemFunc,
 			wantState: nil,
@@ -110,25 +110,25 @@ var earlyExitSuite = packageOpSuite{
 	name: "EarlyExit",
 	tests: []packageOpTest{
 		{
-			desc:    "package directory",
-			source:  sourceDir("source", "pkg", "."),
-			wantErr: nil,
+			desc:      "package directory",
+			itemState: dirItem("source", "pkg", "."),
+			wantErr:   nil,
 		},
 		{
-			desc:    "error arg for package directory",
-			source:  sourceDirError("source", "pkg", ".", errPassedToVisitFunc),
-			wantErr: errPassedToVisitFunc,
+			desc:      "error arg for package directory",
+			itemState: dirItemWithError("source", "pkg", ".", errPassedToVisitFunc),
+			wantErr:   errPassedToVisitFunc,
 		},
 		{
-			desc:    "error arg for item",
-			source:  sourceDirError("source", "pkg", "item", errPassedToVisitFunc),
-			wantErr: errPassedToVisitFunc,
+			desc:      "error arg for item",
+			itemState: dirItemWithError("source", "pkg", "item", errPassedToVisitFunc),
+			wantErr:   errPassedToVisitFunc,
 		},
 		{
-			desc:    "index error for item",
-			index:   indexError("target", "item", errFromIndexState),
-			source:  sourceDir("source", "pkg", "item"),
-			wantErr: errFromIndexState,
+			desc:      "index error for item",
+			index:     indexError("target", "item", errFromIndexState),
+			itemState: dirItem("source", "pkg", "item"),
+			wantErr:   errFromIndexState,
 		},
 	},
 }
@@ -168,22 +168,22 @@ func (test packageOpTest) run(t *testing.T) {
 }
 
 func (test packageOpTest) EntryArg() fs.DirEntry {
-	return errfs.DirEntry(test.source.item, test.source.fmode)
+	return errfs.DirEntry(test.itemState.item, test.itemState.fmode)
 }
 func (test packageOpTest) ErrArg() error {
-	return test.source.errArg
+	return test.itemState.errArg
 }
 
 func (test packageOpTest) NameArg() string {
-	return path.Join(test.source.source, test.source.pkg, test.source.item)
+	return path.Join(test.itemState.source, test.itemState.pkg, test.itemState.item)
 }
 
 func (test packageOpTest) Package() string {
-	return test.source.pkg
+	return test.itemState.pkg
 }
 
 func (test packageOpTest) SourceDir() string {
-	return test.source.source
+	return test.itemState.source
 }
 
 func (test packageOpTest) TargetItem() TargetItem {
@@ -199,10 +199,10 @@ func (test packageOpTest) TargetName() string {
 }
 
 func (test packageOpTest) SourceItem() SourceItem {
-	return NewSourceItem(test.source.source, test.source.pkg, test.source.item, test.source.ftype)
+	return NewSourceItem(test.itemState.source, test.itemState.pkg, test.itemState.item, test.itemState.ftype)
 }
 
-type sourceState struct {
+type itemState struct {
 	source string      // The source part of the source item's name.
 	pkg    string      // The package part of the source item's name.
 	item   string      // The item part of the source item's name.
@@ -211,8 +211,8 @@ type sourceState struct {
 	errArg error       // Error passed to PackageOp's visit func.
 }
 
-func sourceDir(source, pkg, item string) sourceState {
-	return sourceState{
+func dirItem(source, pkg, item string) itemState {
+	return itemState{
 		source: source,
 		pkg:    pkg,
 		item:   item,
@@ -221,8 +221,8 @@ func sourceDir(source, pkg, item string) sourceState {
 	}
 }
 
-func sourceDirError(source, pkg, item string, err error) sourceState {
-	return sourceState{
+func dirItemWithError(source, pkg, item string, err error) itemState {
+	return itemState{
 		source: source,
 		pkg:    pkg,
 		item:   item,
@@ -232,8 +232,8 @@ func sourceDirError(source, pkg, item string, err error) sourceState {
 	}
 }
 
-func sourceFile(source, pkg, item string) sourceState {
-	return sourceState{
+func fileItem(source, pkg, item string) itemState {
+	return itemState{
 		source: source,
 		pkg:    pkg,
 		item:   item,

@@ -3,6 +3,7 @@ package file_test
 import (
 	"errors"
 	"io/fs"
+	"path"
 	"testing"
 
 	. "github.com/dhemery/duffel/internal/file"
@@ -20,14 +21,14 @@ func TestSourceDir(t *testing.T) {
 	}{
 		{
 			desc:       "name is source dir",
-			files:      []*errfs.File{errfs.NewFile("a/b/c/name/.duffel", 0o644)},
+			files:      []*errfs.File{sourceDir("a/b/c/name")},
 			name:       "a/b/c/name",
 			wantSource: "a/b/c/name",
 		},
 		{
 			desc: "name is inside source dir",
 			files: []*errfs.File{
-				errfs.NewFile("a/b/c/source/.duffel", 0o644),
+				sourceDir("a/b/c/source"),
 				errfs.NewDir("a/b/c/source/d/e/f/name", 0o755),
 			},
 			name:       "a/b/c/source/d/e/f/name",
@@ -35,7 +36,7 @@ func TestSourceDir(t *testing.T) {
 		},
 		{
 			desc:    "source dir is inside name",
-			files:   []*errfs.File{errfs.NewFile("a/b/c/name/d/e/f/source/.duffel", 0o644)},
+			files:   []*errfs.File{sourceDir("a/b/c/name/d/e/f/source")},
 			name:    "a/b/c/name",
 			wantErr: fs.ErrNotExist,
 		},
@@ -78,4 +79,8 @@ func TestSourceDir(t *testing.T) {
 			}
 		})
 	}
+}
+
+func sourceDir(dir string) *errfs.File {
+	return errfs.NewFile(path.Join(dir, SourceMarkerFile), 0o644)
 }

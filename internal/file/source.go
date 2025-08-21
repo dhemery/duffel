@@ -6,15 +6,17 @@ import (
 	"path"
 )
 
+const SourceMarkerFile = ".duffel"
+
 func SourceDir(fsys fs.ReadLinkFS, name string) (string, error) {
-	dfName := path.Join(name, ".duffel")
+	dfName := path.Join(name, SourceMarkerFile)
 	_, err := fsys.Lstat(dfName)
 
 	if err == nil {
 		return name, nil
 	}
 
-	if dfName == ".duffel" {
+	if dfName == SourceMarkerFile {
 		return "", fs.ErrNotExist
 	}
 
