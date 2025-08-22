@@ -322,10 +322,6 @@ type testItemAnalyzer struct {
 	gotTarget *TargetItem // TargetItem passed to Analyze.
 }
 
-func (tia *testItemAnalyzer) Goal() ItemGoal {
-	return GoalInstall
-}
-
 func (tia *testItemAnalyzer) Analyze(gotSource SourceItem, gotTarget TargetItem, l *slog.Logger) (file.State, error) {
 	tia.gotSource, tia.gotTarget = &gotSource, &gotTarget
 	return tia.state, tia.err

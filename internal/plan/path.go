@@ -49,11 +49,7 @@ func (s SourcePath) WithItemFrom(name string) SourcePath {
 
 // LogValue represents s as a [slog.Value].
 func (s SourcePath) LogValue() slog.Value {
-	return slog.GroupValue(
-		slog.String("source", s.Source),
-		slog.String("package", s.Package),
-		slog.String("item", s.Item),
-	)
+	return slog.StringValue(s.String())
 }
 
 // NewSourceItem returns a [SourceItem] with the given path and file type.
@@ -109,10 +105,7 @@ func (t TargetPath) parent() string {
 
 // LogValue represents t as a [slog.Value].
 func (t TargetPath) LogValue() slog.Value {
-	return slog.GroupValue(
-		slog.String("target", t.Target),
-		slog.String("item", t.Item),
-	)
+	return slog.StringValue(t.String())
 }
 
 // NewTargetItem returns a [TargetItem] with the given path and file state.

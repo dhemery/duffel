@@ -8,7 +8,7 @@ import (
 
 func Logger(w io.Writer, l slog.Leveler) *slog.Logger {
 	opts := &slog.HandlerOptions{Level: l, ReplaceAttr: DiscardTimeAttr}
-	handler := slog.NewTextHandler(w, opts)
+	handler := slog.NewJSONHandler(w, opts)
 	return slog.New(handler)
 }
 

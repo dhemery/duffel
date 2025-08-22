@@ -43,7 +43,7 @@ func (i *index) State(name string, logger *slog.Logger) (file.State, error) {
 		if err != nil {
 			return file.State{}, err
 		}
-		logger.Info("read target file state", "file_state", state)
+		logger.Debug("read target file state", slog.Any("state", state))
 		spec = Spec{state, state}
 		i.specs[name] = spec
 	}
@@ -53,7 +53,7 @@ func (i *index) State(name string, logger *slog.Logger) (file.State, error) {
 // SetState sets the planned state of the named file.
 func (i *index) SetState(name string, state file.State, logger *slog.Logger) {
 	spec := i.specs[name]
-	logger.Info("updated goal state", "goal_state", state)
+	logger.Info("set target file planned state", slog.Any("state", state))
 	spec.Planned = state
 	i.specs[name] = spec
 }

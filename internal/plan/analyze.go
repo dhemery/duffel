@@ -67,8 +67,9 @@ func (a *analyzer) Analyze(goal DirGoal, l *slog.Logger) error {
 	entryAnalyzer := EntryAnalyzer{
 		WalkRoot:     goal.Dir,
 		Target:       a.target,
-		Index:        a.index,
+		Goal:         goal.Goal,
 		ItemAnalyzer: a.install,
+		Index:        a.index,
 		Logger:       l,
 	}
 	return fs.WalkDir(a.fsys, goal.Dir.String(), entryAnalyzer.Analyze)
@@ -76,9 +77,6 @@ func (a *analyzer) Analyze(goal DirGoal, l *slog.Logger) error {
 
 // ItemAnalyzer identifies the goal states for target items.
 type ItemAnalyzer interface {
-	// The [Goal] to achieve for each item.
-	Goal() ItemGoal
-
 	// Analyze analyzes the source and target to identify the goal state for the target item.
 	// If the target was planned by previous operations,
 	// the target item describes the previously planned goal state.
@@ -95,8 +93,9 @@ type Index interface {
 type EntryAnalyzer struct {
 	WalkRoot     SourcePath   // The root dir that contains the items to analyze.
 	Target       string       // The root of the target tree in which to achieve the goal states.
-	Index        Index        // The known or planned states of items in the target tree.
+	Goal         ItemGoal     // The goal to achieve.
 	ItemAnalyzer ItemAnalyzer // Analyzes each item to identify the goal state.
+	Index        Index        // The known or planned states of items in the target tree.
 	Logger       *slog.Logger
 }
 
@@ -114,26 +113,27 @@ func (ea EntryAnalyzer) Analyze(name string, entry fs.DirEntry, err error) error
 	if err != nil {
 		return fmt.Errorf("%q: %w", sourcePath, err)
 	}
+
 	sourceItem := SourceItem{sourcePath, sourceType}
-
 	targetPath := NewTargetPath(ea.Target, sourcePath.Item)
-	tpAttr := slog.Any("path", targetPath)
-	goalAttr := slog.Any("goal", ea.ItemAnalyzer.Goal())
-	indexLogger := ea.Logger.With(goalAttr, "source", sourceItem, slog.Group("target", tpAttr))
-	indexLogger.Info("start analyzing")
 
-	targetState, err := ea.Index.State(targetPath.String(), indexLogger)
+	entryLogger := ea.Logger.With(
+		slog.Any("goal", ea.Goal),
+		slog.Any("source", sourcePath),
+		slog.Any("target", targetPath),
+	)
+
+	targetState, err := ea.Index.State(targetPath.String(), entryLogger)
 	if err != nil {
 		return err
 	}
 
 	targetItem := TargetItem{targetPath, targetState}
 
-	itemFuncLogger := indexLogger.With("target", targetItem)
-	newState, err := ea.ItemAnalyzer.Analyze(sourceItem, targetItem, itemFuncLogger)
+	newState, err := ea.ItemAnalyzer.Analyze(sourceItem, targetItem, ea.Logger)
 
 	if err == nil || err == fs.SkipDir {
-		ea.Index.SetState(targetPath.String(), newState, indexLogger)
+		ea.Index.SetState(targetPath.String(), newState, entryLogger)
 	}
 
 	return err

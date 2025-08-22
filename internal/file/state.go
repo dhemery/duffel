@@ -70,6 +70,10 @@ func (t Type) String() string {
 	return fmt.Sprintf("<unknown file type %o>", t)
 }
 
+func (t Type) LogValue() slog.Value {
+	return slog.StringValue(t.String())
+}
+
 // A State represents the state of an existing or planned file.
 type State struct {
 	Type Type  `json:"type"` // The type of file.
@@ -79,7 +83,7 @@ type State struct {
 // String formats s as a string.
 func (s State) String() string {
 	if s.Type == TypeSymlink {
-		return fmt.Sprintf("%s to %s (%q)", s.Type, s.Dest.Type, s.Dest.Path)
+		return fmt.Sprintf("%s to %s (%s)", s.Type, s.Dest.Type, s.Dest.Path)
 	}
 	return s.Type.String()
 }
@@ -92,10 +96,7 @@ func (s State) Equal(o State) bool {
 
 // LogValue represents s as a [slog.Value].
 func (s State) LogValue() slog.Value {
-	return slog.GroupValue(
-		slog.Any("type", s.Type),
-		slog.Any("dest", s.Dest),
-	)
+	return slog.StringValue(s.String())
 }
 
 // Dest is the destination of a [State] with type [TypeLink].
