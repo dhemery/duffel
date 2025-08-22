@@ -8,13 +8,14 @@ import (
 	"io/fs"
 	"os"
 
+	"github.com/dhemery/duffel/internal/file"
 	"github.com/dhemery/duffel/internal/plan"
 )
 
 // FS is an [fs.FS] that implements all of the methods used by duffel.
 type FS interface {
 	fs.ReadLinkFS
-	plan.ActionFS
+	file.ActionFS
 }
 
 // Execute performs the duffel operations requested by args.

@@ -26,11 +26,11 @@ func (p Plan) Print(w io.Writer) error {
 }
 
 // Execute executes p in afs.
-func (p Plan) Execute(afs ActionFS, l *slog.Logger) error {
+func (p Plan) Execute(fsys file.ActionFS, l *slog.Logger) error {
 	for _, item := range slices.Sorted(maps.Keys(p.Tasks)) {
 		task := p.Tasks[item]
 		name := path.Join(p.Target, item)
-		if err := task.Execute(afs, name); err != nil {
+		if err := task.Execute(fsys, name); err != nil {
 			return err
 		}
 	}
@@ -38,9 +38,9 @@ func (p Plan) Execute(afs ActionFS, l *slog.Logger) error {
 }
 
 // Execute returns a function that executes a plan in afs.
-func Execute(afs ActionFS, l *slog.Logger) func(p Plan) error {
+func Execute(fsys file.ActionFS, l *slog.Logger) func(p Plan) error {
 	return func(p Plan) error {
-		return p.Execute(afs, l)
+		return p.Execute(fsys, l)
 	}
 }
 
@@ -108,7 +108,7 @@ func NewTask(current, planned file.State) Task {
 	switch {
 	case current.Type.IsNoFile(): // No-op
 	case current.Type.IsLink():
-		t = append(t, Action{Action: ActRemove})
+		t = append(t, file.RemoveAction())
 	default:
 		panic("do not know an action to remove " + current.Type.String())
 	}
@@ -116,9 +116,9 @@ func NewTask(current, planned file.State) Task {
 	switch {
 	case planned.Type.IsNoFile(): // No-op
 	case planned.Type.IsDir():
-		t = append(t, Action{Action: ActMkdir})
+		t = append(t, file.MkdirAction())
 	case planned.Type.IsLink():
-		t = append(t, Action{Action: "symlink", Dest: planned.Dest.Path})
+		t = append(t, file.SymlinkAction(planned.Dest.Path))
 	default:
 		panic("do not know an action to create " + planned.Type.String())
 	}
@@ -127,10 +127,10 @@ func NewTask(current, planned file.State) Task {
 }
 
 // A Task is a sequence of actions to bring a file to a desired state.
-type Task []Action
+type Task []file.Action
 
 // Execute executes t's actions on the named file.
-func (t Task) Execute(afs ActionFS, name string) error {
+func (t Task) Execute(afs file.ActionFS, name string) error {
 	for _, op := range t {
 		if err := op.Execute(afs, name); err != nil {
 			return err

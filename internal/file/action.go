@@ -1,4 +1,4 @@
-package plan
+package file
 
 import (
 	"fmt"
@@ -6,9 +6,11 @@ import (
 )
 
 var (
-	ActMkdir   = "mkdir"   // Create a directory with permission 0o755.
-	ActRemove  = "remove"  // Remove a file or (empty) directory.
-	ActSymlink = "symlink" // Create a symlink.
+	actMkdir     = "mkdir"   // Create a directory with permission 0o755.
+	actRemove    = "remove"  // Remove a file or (empty) directory.
+	actSymlink   = "symlink" // Create a symlink.
+	removeAction = Action{Action: actRemove}
+	mkdirAction  = Action{Action: actMkdir}
 )
 
 // ActionFS provides methods to execute actions in a file system.
@@ -33,14 +35,26 @@ type Action struct {
 }
 
 // Execute performs the action on the named file.
-func (a Action) Execute(afs ActionFS, name string) error {
+func (a Action) Execute(fsys ActionFS, name string) error {
 	switch a.Action {
-	case ActMkdir:
-		return afs.Mkdir(name, fs.ModeDir|0o755)
-	case ActRemove:
-		return afs.Remove(name)
-	case ActSymlink:
-		return afs.Symlink(a.Dest, name)
+	case actMkdir:
+		return fsys.Mkdir(name, 0o755)
+	case actRemove:
+		return fsys.Remove(name)
+	case actSymlink:
+		return fsys.Symlink(a.Dest, name)
 	}
 	return fmt.Errorf("unknown file action %q", a.Action)
+}
+
+func MkdirAction() Action {
+	return mkdirAction
+}
+
+func RemoveAction() Action {
+	return removeAction
+}
+
+func SymlinkAction(dest string) Action {
+	return Action{Action: actSymlink, Dest: dest}
 }

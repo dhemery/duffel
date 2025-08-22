@@ -69,9 +69,9 @@ func TestNewPlan(t *testing.T) {
 				},
 			},
 			wantTasks: map[string]plan.Task{
-				"link-to-dir": {{Action: plan.ActRemove}, {Action: plan.ActMkdir}},
-				"new-dir":     {{Action: plan.ActMkdir}},
-				"new-link":    {{Action: "symlink", Dest: "some/dest"}},
+				"link-to-dir": {file.RemoveAction(), file.MkdirAction()},
+				"new-dir":     {file.MkdirAction()},
+				"new-link":    {file.SymlinkAction("some/dest")},
 			},
 		},
 	}
@@ -104,12 +104,12 @@ func TestNewTask(t *testing.T) {
 		"from no file to dir": {
 			current:  file.NoFileState(),
 			planned:  file.DirState(),
-			wantTask: plan.Task{{Action: plan.ActMkdir}},
+			wantTask: plan.Task{file.MkdirAction()},
 		},
 		"from symlink to dir": {
 			current:  file.LinkState("some/dest", file.TypeFile),
 			planned:  file.DirState(),
-			wantTask: plan.Task{{Action: plan.ActRemove}, {Action: plan.ActMkdir}},
+			wantTask: plan.Task{file.RemoveAction(), file.MkdirAction()},
 		},
 	}
 
