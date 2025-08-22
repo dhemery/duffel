@@ -168,7 +168,7 @@ func (test entryAnalyzerTest) run(t *testing.T) {
 			t.Errorf("error:\n got: %v\nwant: %v", err, test.wantErr)
 		}
 
-		test.targetItem.checkSetState(t, test.TargetItemName(), test.wantState)
+		test.targetItem.checkSetState(t, test.TargetPath(), test.wantState)
 		testItemAnalyzer.checkCall(t, test.SourceItem(), test.TargetItem())
 	})
 }
@@ -251,10 +251,10 @@ func sourceFileItem(source, pkg, item string) sourceItem {
 
 // A targetItem is an index with the state of a single target item.
 type targetItem struct {
-	targetItem TargetItem  // The target item.
-	err        error       // Error to return from State.
-	gotName    string      // Name passed to SetState.
-	gotState   *file.State // State passed to SetState.
+	targetItem    TargetItem  // The target item.
+	err           error       // Error to return from State.
+	gotTargetPath TargetPath  // TargetPath passed to SetState.
+	gotState      *file.State // State passed to SetState.
 }
 
 func targetNoFileItem(target, item string) targetItem {
@@ -288,27 +288,27 @@ func targetError(target, item string, err error) targetItem {
 	}
 }
 
-func (ts *targetItem) State(name string, _ *slog.Logger) (file.State, error) {
-	ts.gotName = name
+func (ts *targetItem) State(tp TargetPath, _ *slog.Logger) (file.State, error) {
+	ts.gotTargetPath = tp
 	return ts.targetItem.State, ts.err
 }
 
-func (ts *targetItem) SetState(name string, state file.State, _ *slog.Logger) {
-	ts.gotName = name
-	ts.gotState = &state
+func (ts *targetItem) SetState(tp TargetPath, s file.State, _ *slog.Logger) {
+	ts.gotTargetPath = tp
+	ts.gotState = &s
 }
 
-func (ts *targetItem) checkSetState(t *testing.T, wantName string, wantState file.State) {
+func (ts *targetItem) checkSetState(t *testing.T, wantTargetPath TargetPath, wantState file.State) {
 	t.Helper()
 	if wantState.Type == file.TypeUnknown {
 		if ts.gotState != nil {
 			t.Errorf("unwanted call to index.SetState():\n name: %q\nstate: %s",
-				ts.gotName, ts.gotState)
+				ts.gotTargetPath, ts.gotState)
 		}
 		return
 	}
-	if wantName != ts.gotName {
-		t.Errorf("index.SetState() name arg: got %q, want %q", ts.gotName, wantName)
+	if wantTargetPath != ts.gotTargetPath {
+		t.Errorf("index.SetState() target path arg: got %q, want %q", ts.gotTargetPath, wantTargetPath)
 	}
 	if diff := cmp.Diff(&wantState, ts.gotState); diff != "" {
 		t.Errorf("index.SetState() state arg:\n%s", diff)

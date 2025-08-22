@@ -86,8 +86,8 @@ type ItemAnalyzer interface {
 
 // An Index maintains the planned states of items in the target tree.
 type Index interface {
-	State(string, *slog.Logger) (file.State, error)
-	SetState(string, file.State, *slog.Logger)
+	State(TargetPath, *slog.Logger) (file.State, error)
+	SetState(TargetPath, file.State, *slog.Logger)
 }
 
 type EntryAnalyzer struct {
@@ -95,7 +95,7 @@ type EntryAnalyzer struct {
 	Target       string       // The root of the target tree in which to achieve the goal states.
 	Goal         ItemGoal     // The goal to achieve.
 	ItemAnalyzer ItemAnalyzer // Analyzes each item to identify the goal state.
-	Index        Index        // The known or planned states of items in the target tree.
+	Index        Index        // The known or planned states of target items.
 	Logger       *slog.Logger
 }
 
@@ -117,13 +117,12 @@ func (ea EntryAnalyzer) Analyze(name string, entry fs.DirEntry, err error) error
 	sourceItem := SourceItem{sourcePath, sourceType}
 	targetPath := NewTargetPath(ea.Target, sourcePath.Item)
 
-	entryLogger := ea.Logger.With(
+	indexLogger := ea.Logger.With(
 		slog.Any("goal", ea.Goal),
-		slog.Any("source", sourcePath),
-		slog.Any("target", targetPath),
+		slog.Any("source", sourceItem),
 	)
 
-	targetState, err := ea.Index.State(targetPath.String(), entryLogger)
+	targetState, err := ea.Index.State(targetPath, indexLogger)
 	if err != nil {
 		return err
 	}
@@ -133,7 +132,7 @@ func (ea EntryAnalyzer) Analyze(name string, entry fs.DirEntry, err error) error
 	newState, err := ea.ItemAnalyzer.Analyze(sourceItem, targetItem, ea.Logger)
 
 	if err == nil || err == fs.SkipDir {
-		ea.Index.SetState(targetPath.String(), newState, entryLogger)
+		ea.Index.SetState(targetPath, newState, indexLogger)
 	}
 
 	return err

@@ -108,7 +108,9 @@ func (i installer) Analyze(s SourceItem, t TargetItem, l *slog.Logger) (file.Sta
 
 	// The package item is a dir and the target is a link to a dir.
 	// Try to merge the target item.
-	err := i.merger.Merge(targetPath.Resolve(targetState.Dest.Path), l)
+	mergeDir := targetPath.Resolve(targetState.Dest.Path)
+	l.Debug("merging", slog.Any("source", s), slog.Any("target", t), slog.String("merge_dir", mergeDir))
+	err := i.merger.Merge(mergeDir, l)
 	if err != nil {
 		return state, err
 	}

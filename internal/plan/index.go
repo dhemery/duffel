@@ -36,25 +36,29 @@ type index struct {
 // this method reads the current state of the file,
 // stores it as both the current and planned states,
 // and returns the state.
-func (i *index) State(name string, logger *slog.Logger) (file.State, error) {
+func (i *index) State(t TargetPath, l *slog.Logger) (file.State, error) {
+	name := t.String()
 	spec, ok := i.specs[name]
 	if !ok {
 		state, err := i.stater.State(name)
 		if err != nil {
 			return file.State{}, err
 		}
-		logger.Debug("read target file state", slog.Any("state", state))
+		attrs := slog.GroupAttrs("target", slog.Any("path", t), slog.Any("file_state", state))
+		l.Debug("read target file state", attrs)
 		spec = Spec{state, state}
 		i.specs[name] = spec
 	}
 	return spec.Planned, nil
 }
 
-// SetState sets the planned state of the named file.
-func (i *index) SetState(name string, state file.State, logger *slog.Logger) {
+// SetState sets the planned state of the target file.
+func (i *index) SetState(t TargetPath, s file.State, l *slog.Logger) {
+	name := t.String()
 	spec := i.specs[name]
-	logger.Info("set target file planned state", slog.Any("state", state))
-	spec.Planned = state
+	attrs := slog.GroupAttrs("target", slog.Any("path", t), slog.Any("planned_state", s))
+	l.Info("set target planned state", attrs)
+	spec.Planned = s
 	i.specs[name] = spec
 }
 

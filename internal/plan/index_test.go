@@ -27,10 +27,10 @@ func TestIndex(t *testing.T) {
 			files: []*errfs.File{}, // No files.
 			calls: []indexCall{
 				// Two get calls...
-				get("target/file", file.NoFileState(), nil),
+				get("target", "file", file.NoFileState(), nil),
 				// The second call checks (via oneTimeStater) that the index
 				// has cached the spec and does not call the file stater again.
-				get("target/file", file.NoFileState(), nil),
+				get("target", "file", file.NoFileState(), nil),
 			},
 			wantSpecs: map[string]Spec{
 				"target/file": {Current: file.NoFileState(), Planned: file.NoFileState()},
@@ -41,8 +41,8 @@ func TestIndex(t *testing.T) {
 				errfs.NewFile("target/file", 0o644),
 			},
 			calls: []indexCall{
-				get("target/file", file.FileState(), nil),
-				get("target/file", file.FileState(), nil),
+				get("target", "file", file.FileState(), nil),
+				get("target", "file", file.FileState(), nil),
 			},
 			wantSpecs: map[string]Spec{
 				"target/file": {Current: file.FileState(), Planned: file.FileState()},
@@ -53,8 +53,8 @@ func TestIndex(t *testing.T) {
 				errfs.NewDir("target/dir", 0o755),
 			},
 			calls: []indexCall{
-				get("target/dir", file.DirState(), nil),
-				get("target/dir", file.DirState(), nil),
+				get("target", "dir", file.DirState(), nil),
+				get("target", "dir", file.DirState(), nil),
 			},
 			wantSpecs: map[string]Spec{
 				"target/dir": {Current: file.DirState(), Planned: file.DirState()},
@@ -66,8 +66,8 @@ func TestIndex(t *testing.T) {
 				errfs.NewFile("some/dest/file", 0o644),
 			},
 			calls: []indexCall{
-				get("target/link", file.LinkState("../some/dest/file", file.TypeFile), nil),
-				get("target/link", file.LinkState("../some/dest/file", file.TypeFile), nil),
+				get("target", "link", file.LinkState("../some/dest/file", file.TypeFile), nil),
+				get("target", "link", file.LinkState("../some/dest/file", file.TypeFile), nil),
 			},
 			wantSpecs: map[string]Spec{
 				"target/link": {
@@ -81,7 +81,7 @@ func TestIndex(t *testing.T) {
 				errfs.NewLink("target/link", "../some/dest/file"),
 			},
 			calls: []indexCall{
-				get("target/link", file.LinkState("../some/dest/file", file.TypeNoFile), nil),
+				get("target", "link", file.LinkState("../some/dest/file", file.TypeNoFile), nil),
 			},
 			wantSpecs: map[string]Spec{
 				"target/link": {
@@ -95,15 +95,15 @@ func TestIndex(t *testing.T) {
 				errfs.NewFile("target/file", 0o644, errfs.ErrLstat),
 			},
 			calls: []indexCall{
-				get("target/file", file.State{}, errfs.ErrLstat),
+				get("target", "file", file.State{}, errfs.ErrLstat),
 			},
 			wantSpecs: map[string]Spec{},
 		},
 		"set planned state of non-existent file": {
 			files: []*errfs.File{},
 			calls: []indexCall{
-				get("target/file", file.NoFileState(), nil),
-				set("target/file", file.LinkState("link/to/source/file", file.TypeFile)),
+				get("target", "file", file.NoFileState(), nil),
+				set("target", "file", file.LinkState("link/to/source/file", file.TypeFile)),
 			},
 			wantSpecs: map[string]Spec{
 				"target/file": {
@@ -115,8 +115,8 @@ func TestIndex(t *testing.T) {
 		"set planned state of non-existent dir": {
 			files: []*errfs.File{},
 			calls: []indexCall{
-				get("target/dir", file.NoFileState(), nil),
-				set("target/dir", file.LinkState("link/to/source/dir", file.TypeDir)),
+				get("target", "dir", file.NoFileState(), nil),
+				set("target", "dir", file.LinkState("link/to/source/dir", file.TypeDir)),
 			},
 			wantSpecs: map[string]Spec{
 				"target/dir": {
@@ -158,23 +158,25 @@ func TestIndex(t *testing.T) {
 
 type indexCall func(i Index, t *testing.T, l *slog.Logger)
 
-func get(name string, wantState file.State, wantErr error) indexCall {
+func get(target, item string, wantState file.State, wantErr error) indexCall {
+	tp := NewTargetPath(target, item)
 	return func(i Index, t *testing.T, l *slog.Logger) {
 		t.Helper()
-		state, err := i.State(name, l)
+		state, err := i.State(tp, l)
 		if diff := cmp.Diff(wantState, state); diff != "" {
-			t.Errorf("State(%q) state:\n%s", name, diff)
+			t.Errorf("State(%q) state:\n%s", tp, diff)
 		}
 		if !errors.Is(err, wantErr) {
 			t.Errorf("State(%q) error:\n got: %v\nwant: %v",
-				name, err, wantErr)
+				tp, err, wantErr)
 		}
 	}
 }
 
-func set(name string, state file.State) indexCall {
+func set(target, item string, state file.State) indexCall {
+	tp := NewTargetPath(target, item)
 	return func(i Index, t *testing.T, l *slog.Logger) {
-		i.SetState(name, state, l)
+		i.SetState(tp, state, l)
 	}
 }
 
