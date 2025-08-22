@@ -10,51 +10,38 @@ import (
 	"github.com/dhemery/duffel/internal/file"
 )
 
-// A ItemGoal for a [PackageGoal] to accomplish for each item in the package.
+// A ItemGoal for a [DirGoal] to accomplish for each item in the package.
 type ItemGoal string
 
 const (
-	GoalInstall ItemGoal = "install" // Install the package into the target tree.
-	GoalMerge   ItemGoal = "merge"   // Merge the foreign package into the target tree.
+	// Install the package into the target tree.
+	GoalInstall ItemGoal = "install"
+
+	// Merge a previously installed directory into the directory being installed.
+	GoalMerge ItemGoal = "merge"
 )
 
-// InstallPackage creates a [PackageGoal] to install a package.
-func InstallPackage(source, pkg string) PackageGoal {
-	return PackageGoal{
-		root: NewSourcePath(source, pkg, ""),
-		goal: GoalInstall,
+// InstallPackage creates a [DirGoal] to install the items in a package.
+func InstallPackage(source, pkg string) DirGoal {
+	return DirGoal{
+		Dir:  NewSourcePath(source, pkg, ""),
+		Goal: GoalInstall,
 	}
 }
 
-// MergePackage creates a [PackageGoal] to merge a previously installed package
-// with a package currently being installed.
-func MergePackage(itemPath SourcePath) PackageGoal {
-	return PackageGoal{
-		root: itemPath,
-		goal: GoalMerge,
+// MergeDir creates a [DirGoal] to merge a previously installed directory
+// into the directory being installed.
+func MergeDir(dir SourcePath) DirGoal {
+	return DirGoal{
+		Dir:  dir,
+		Goal: GoalMerge,
 	}
 }
 
-// PackageGoal identifies a goal for the items in a package.
-type PackageGoal struct {
-	root SourcePath
-	goal ItemGoal
-}
-
-func (pg PackageGoal) Source() string {
-	return pg.root.Source
-}
-
-func (pg PackageGoal) Package() string {
-	return pg.root.Package
-}
-
-func (pg PackageGoal) Path() string {
-	return pg.root.String()
-}
-
-func (pg PackageGoal) Goal() ItemGoal {
-	return pg.goal
+// DirGoal identifies a goal for the items in a directory.
+type DirGoal struct {
+	Dir  SourcePath // The directory that contains the items.
+	Goal ItemGoal   // The goal to achieve for the items.
 }
 
 func NewAnalyzer(fsys fs.ReadLinkFS, target string, index *index) *analyzer {
@@ -76,20 +63,20 @@ type analyzer struct {
 	install *installer
 }
 
-func (a *analyzer) Analyze(goal PackageGoal, l *slog.Logger) error {
+func (a *analyzer) Analyze(goal DirGoal, l *slog.Logger) error {
 	entryAnalyzer := EntryAnalyzer{
-		WalkRoot:     goal.root,
+		WalkRoot:     goal.Dir,
 		Target:       a.target,
 		Index:        a.index,
 		ItemAnalyzer: a.install,
 		Logger:       l,
 	}
-	return fs.WalkDir(a.fsys, goal.Path(), entryAnalyzer.AnalyzeEntry)
+	return fs.WalkDir(a.fsys, goal.Dir.String(), entryAnalyzer.AnalyzeEntry)
 }
 
 // ItemAnalyzer identifies the goal states for target items.
 type ItemAnalyzer interface {
-	// The [Goal] to achieve.
+	// The [Goal] to achieve for each item.
 	Goal() ItemGoal
 
 	// AnalyzeItem analyzes the source and target to identify the goal state for the target item.
@@ -99,16 +86,17 @@ type ItemAnalyzer interface {
 	AnalyzeItem(SourceItem, TargetItem, *slog.Logger) (file.State, error)
 }
 
+// An Index maintains the planned states of items in the target tree.
 type Index interface {
 	State(string, *slog.Logger) (file.State, error)
 	SetState(string, file.State, *slog.Logger)
 }
 
 type EntryAnalyzer struct {
-	WalkRoot     SourcePath
-	Target       string
-	Index        Index
-	ItemAnalyzer ItemAnalyzer
+	WalkRoot     SourcePath   // The root dir that contains the items to analyze.
+	Target       string       // The root of the target tree in which to achieve the goal states.
+	Index        Index        // The known or planned states of items in the target tree.
+	ItemAnalyzer ItemAnalyzer // Analyzes each item to identify the goal state.
 	Logger       *slog.Logger
 }
 
@@ -117,7 +105,7 @@ func (ea EntryAnalyzer) AnalyzeEntry(name string, entry fs.DirEntry, err error) 
 		return err
 	}
 	if name == ea.WalkRoot.String() {
-		// Skip the dir being walked, but walk its contents.
+		// Skip the root dir being walked, but walk its contents.
 		return nil
 	}
 

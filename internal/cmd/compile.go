@@ -25,11 +25,11 @@ func Compile(opts Options, args []string, fsys FS, cwd string, wout, werr io.Wri
 	}
 
 	var errs []error
-	var goals []plan.PackageGoal
+	var goals []plan.DirGoal
 	for _, pkg := range args {
+		errs = append(errs, validatePackage(fsys, source, pkg))
 		goal := plan.InstallPackage(source, pkg)
 		goals = append(goals, goal)
-		errs = append(errs, validateGoal(fsys, goal))
 	}
 
 	if err := errors.Join(errs...); err != nil {
@@ -87,19 +87,16 @@ func validateSource(fsys fs.ReadLinkFS, source string) error {
 	return nil
 }
 
-// validateGoal checks that goal's package
-// is a directory and is a child of its source directory.
-func validateGoal(fsys fs.ReadLinkFS, goal plan.PackageGoal) error {
-	pname := goal.Package()
-	ppath := goal.Path()
-	pparent := path.Dir(ppath)
-	source := goal.Source()
-	if pparent != source {
+// validatePackage checks that pkg is a directory child of source.
+func validatePackage(fsys fs.ReadLinkFS, source, pkg string) error {
+	full := path.Join(source, pkg)
+	dir := path.Dir(full)
+	if dir != source {
 		return fmt.Errorf("package %s (%s): %w: not a child of source (%s)",
-			pname, ppath, fs.ErrInvalid, source)
+			pkg, dir, fs.ErrInvalid, source)
 	}
 
-	return validateDir(fsys, "package", goal.Path())
+	return validateDir(fsys, "package", full)
 }
 
 // fullValidPath returns the relative path from / to name.

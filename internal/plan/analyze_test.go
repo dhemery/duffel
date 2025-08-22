@@ -5,7 +5,6 @@ import (
 	"errors"
 	"io/fs"
 	"log/slog"
-	"path"
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
@@ -24,7 +23,7 @@ func TestEntryAnalyzer(t *testing.T) {
 
 type entryAnalyzerTest struct {
 	desc         string           // Description of the test.
-	targetState  targetState      // The state of the target in the index as a result of prior analysis.
+	targetState  targetState      // The state of the target item in the index as a result of prior analysis.
 	itemState    itemState        // The state of the source item to analyze.
 	itemAnalyzer testItemAnalyzer // The ItemAnalyzer to call.
 	wantErr      error            // Error result.
@@ -166,13 +165,13 @@ func (test entryAnalyzerTest) run(t *testing.T) {
 			t.Errorf("error:\n got: %v\nwant: %v", err, test.wantErr)
 		}
 
-		test.targetState.checkSetState(t, test.TargetName(), test.wantState)
+		test.targetState.checkSetState(t, test.TargetItemName(), test.wantState)
 		test.itemAnalyzer.checkCall(t, test.SourceItem(), test.TargetItem())
 	})
 }
 
 func (test entryAnalyzerTest) EntryArg() fs.DirEntry {
-	return errfs.DirEntry(test.itemState.item, test.itemState.fmode)
+	return errfs.DirEntry(test.SourcePath().Item, test.itemState.fmode)
 }
 
 func (test entryAnalyzerTest) ErrArg() error {
@@ -180,109 +179,115 @@ func (test entryAnalyzerTest) ErrArg() error {
 }
 
 func (test entryAnalyzerTest) NameArg() string {
-	return path.Join(test.itemState.source, test.itemState.pkg, test.itemState.item)
+	return test.SourcePath().String()
 }
 
 func (test entryAnalyzerTest) Package() string {
-	return test.itemState.pkg
+	return test.SourcePath().Package
 }
 
 func (test entryAnalyzerTest) SourceDir() string {
-	return test.itemState.source
-}
-
-func (test entryAnalyzerTest) WalkRoot() SourcePath {
-	return NewSourcePath(test.itemState.source, test.itemState.pkg, "")
-}
-
-func (test entryAnalyzerTest) TargetItem() TargetItem {
-	return NewTargetItem(test.targetState.target, test.targetState.item, test.targetState.state)
-}
-
-func (test entryAnalyzerTest) TargetDir() string {
-	return test.targetState.target
-}
-
-func (test entryAnalyzerTest) TargetName() string {
-	return path.Join(test.targetState.target, test.targetState.item)
+	return test.SourcePath().Source
 }
 
 func (test entryAnalyzerTest) SourceItem() SourceItem {
-	return NewSourceItem(test.itemState.source, test.itemState.pkg, test.itemState.item, test.itemState.ftype)
+	return test.itemState.sourceItem
+}
+
+func (test entryAnalyzerTest) SourcePath() SourcePath {
+	return test.SourceItem().Path
+}
+
+func (test entryAnalyzerTest) TargetDir() string {
+	return test.TargetPath().Target
+}
+
+func (test entryAnalyzerTest) TargetPath() TargetPath {
+	return test.TargetItem().Path
+}
+
+func (test entryAnalyzerTest) TargetItem() TargetItem {
+	return test.targetState.targetItem
+}
+
+func (test entryAnalyzerTest) TargetItemName() string {
+	return test.TargetPath().String()
+}
+
+func (test entryAnalyzerTest) WalkRoot() SourcePath {
+	return test.SourcePath().WithItem("")
 }
 
 type itemState struct {
-	source string      // The source part of the source item's name.
-	pkg    string      // The package part of the source item's name.
-	item   string      // The item part of the source item's name.
-	ftype  file.Type   // The source item's file type. Must match fmode.
-	fmode  fs.FileMode // The source item's file mode. Must match ftype.
-	errArg error       // Error passed to PackageOp's visit func.
+	sourceItem SourceItem  // The item path and type.
+	fmode      fs.FileMode // The source item's file mode. Must match ftype.
+	errArg     error       // Error passed to PackageOp's visit func.
 }
 
 func dirItem(source, pkg, item string) itemState {
 	return itemState{
-		source: source,
-		pkg:    pkg,
-		item:   item,
-		ftype:  file.TypeDir,
-		fmode:  fs.ModeDir | 0o755,
+		sourceItem: NewSourceItem(source, pkg, item, file.TypeDir),
+		fmode:      fs.ModeDir | 0o755,
 	}
 }
 
 func dirItemWithError(source, pkg, item string, err error) itemState {
 	return itemState{
-		source: source,
-		pkg:    pkg,
-		item:   item,
-		ftype:  file.TypeDir,
-		fmode:  fs.ModeDir | 0o755,
-		errArg: err,
+		sourceItem: NewSourceItem(source, pkg, item, file.TypeDir),
+		fmode:      fs.ModeDir | 0o755,
+		errArg:     err,
 	}
 }
 
 func fileItem(source, pkg, item string) itemState {
 	return itemState{
-		source: source,
-		pkg:    pkg,
-		item:   item,
-		ftype:  file.TypeFile,
-		fmode:  0o644,
+		sourceItem: NewSourceItem(source, pkg, item, file.TypeFile),
+		fmode:      0o644,
 	}
 }
 
+// A targetState is an index with the state of a single target item.
 type targetState struct {
-	target   string      // The target part of the item's name.
-	item     string      // The item part of the item's name.
-	state    file.State  // State to return from State.
-	err      error       // Error to return from State.
-	gotName  string      // Name passed to SetState.
-	gotState *file.State // State passed to SetState.
+	targetItem TargetItem  // The target item.
+	err        error       // Error to return from State.
+	gotName    string      // Name passed to SetState.
+	gotState   *file.State // State passed to SetState.
 }
 
 func targetNoFile(target, item string) targetState {
-	return targetState{target: target, item: item, state: file.NoFileState()}
+	return targetState{
+		targetItem: NewTargetItem(target, item, file.NoFileState()),
+	}
 }
 
 func targetFile(target, item string) targetState {
-	return targetState{target: target, item: item, state: file.FileState()}
+	return targetState{
+		targetItem: NewTargetItem(target, item, file.FileState()),
+	}
 }
 
 func targetDir(target, item string) targetState {
-	return targetState{target: target, item: item, state: file.DirState()}
+	return targetState{
+		targetItem: NewTargetItem(target, item, file.DirState()),
+	}
 }
 
 func targetLink(target, item, dest string, destType file.Type) targetState {
-	return targetState{target: target, item: item, state: file.LinkState(dest, destType)}
+	return targetState{
+		targetItem: NewTargetItem(target, item, file.LinkState(dest, destType)),
+	}
 }
 
 func targetError(target, item string, err error) targetState {
-	return targetState{target: target, item: item, err: err}
+	return targetState{
+		targetItem: TargetItem{Path: NewTargetPath(target, item)},
+		err:        err,
+	}
 }
 
 func (ts *targetState) State(name string, _ *slog.Logger) (file.State, error) {
 	ts.gotName = name
-	return ts.state, ts.err
+	return ts.targetItem.State, ts.err
 }
 
 func (ts *targetState) SetState(name string, state file.State, _ *slog.Logger) {
