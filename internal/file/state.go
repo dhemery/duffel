@@ -9,11 +9,11 @@ import (
 )
 
 const (
-	TypeInvalid Type = -1 + iota // Unknown file type.
-	TypeNoFile                   // The file does not exist.
-	TypeFile                     // The file is a regular file.
-	TypeDir                      // The file is a directory.
-	TypeSymlink                  // The file is a symbolic link.
+	TypeUnknown Type = iota // Unknown file type.
+	TypeNoFile              // The file does not exist.
+	TypeFile                // The file is a regular file.
+	TypeDir                 // The file is a directory.
+	TypeSymlink             // The file is a symbolic link.
 )
 
 // Type is the type of an existing or planned file.
@@ -29,7 +29,7 @@ func TypeOf(m fs.FileMode) (Type, error) {
 	case fs.ModeSymlink:
 		return TypeSymlink, nil
 	default:
-		return TypeInvalid, fmt.Errorf("unknown file mode %s", m)
+		return TypeUnknown, fmt.Errorf("unknown file mode %s", m)
 	}
 }
 
@@ -64,7 +64,7 @@ func (t Type) String() string {
 		return "directory"
 	case TypeSymlink:
 		return "symlink"
-	case TypeInvalid:
+	case TypeUnknown:
 		return "<invalid file type>"
 	}
 	return fmt.Sprintf("<unknown file type %o>", t)

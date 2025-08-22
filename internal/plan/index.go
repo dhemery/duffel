@@ -41,7 +41,7 @@ func (i *index) State(name string, logger *slog.Logger) (file.State, error) {
 	if !ok {
 		state, err := i.stater.State(name)
 		if err != nil {
-			return state, err
+			return file.State{}, err
 		}
 		logger.Info("read target file state", "file_state", state)
 		spec = Spec{state, state}

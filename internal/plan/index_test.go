@@ -95,7 +95,7 @@ func TestIndex(t *testing.T) {
 				errfs.NewFile("target/file", 0o644, errfs.ErrLstat),
 			},
 			calls: []indexCall{
-				get("target/file", file.NoFileState(), errfs.ErrLstat),
+				get("target/file", file.State{}, errfs.ErrLstat),
 			},
 			wantSpecs: map[string]Spec{},
 		},

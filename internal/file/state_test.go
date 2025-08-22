@@ -61,7 +61,7 @@ func TestStater(t *testing.T) {
 		"no file": {
 			name:      "missing/file",
 			file:      nil,
-			wantState: State{},
+			wantState: NoFileState(),
 			wantError: nil,
 		},
 	}
