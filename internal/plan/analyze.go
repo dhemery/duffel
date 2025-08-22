@@ -71,7 +71,7 @@ func (a *analyzer) Analyze(goal DirGoal, l *slog.Logger) error {
 		ItemAnalyzer: a.install,
 		Logger:       l,
 	}
-	return fs.WalkDir(a.fsys, goal.Dir.String(), entryAnalyzer.AnalyzeEntry)
+	return fs.WalkDir(a.fsys, goal.Dir.String(), entryAnalyzer.Analyze)
 }
 
 // ItemAnalyzer identifies the goal states for target items.
@@ -79,11 +79,11 @@ type ItemAnalyzer interface {
 	// The [Goal] to achieve for each item.
 	Goal() ItemGoal
 
-	// AnalyzeItem analyzes the source and target to identify the goal state for the target item.
+	// Analyze analyzes the source and target to identify the goal state for the target item.
 	// If the target was planned by previous operations,
 	// the target item describes the previously planned goal state.
 	// Otherwise it describes the state of the file in the target tree.
-	AnalyzeItem(SourceItem, TargetItem, *slog.Logger) (file.State, error)
+	Analyze(SourceItem, TargetItem, *slog.Logger) (file.State, error)
 }
 
 // An Index maintains the planned states of items in the target tree.
@@ -100,7 +100,7 @@ type EntryAnalyzer struct {
 	Logger       *slog.Logger
 }
 
-func (ea EntryAnalyzer) AnalyzeEntry(name string, entry fs.DirEntry, err error) error {
+func (ea EntryAnalyzer) Analyze(name string, entry fs.DirEntry, err error) error {
 	if err != nil {
 		return err
 	}
@@ -130,7 +130,7 @@ func (ea EntryAnalyzer) AnalyzeEntry(name string, entry fs.DirEntry, err error) 
 	targetItem := TargetItem{targetPath, targetState}
 
 	itemFuncLogger := indexLogger.With("target", targetItem)
-	newState, err := ea.ItemAnalyzer.AnalyzeItem(sourceItem, targetItem, itemFuncLogger)
+	newState, err := ea.ItemAnalyzer.Analyze(sourceItem, targetItem, itemFuncLogger)
 
 	if err == nil || err == fs.SkipDir {
 		ea.Index.SetState(targetPath.String(), newState, indexLogger)

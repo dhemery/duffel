@@ -17,7 +17,7 @@ import (
 )
 
 func TestEntryAnalyzer(t *testing.T) {
-	analyzeItemSuite.run(t)
+	itemAnalyzerSuite.run(t)
 	earlyExitSuite.run(t)
 }
 
@@ -36,9 +36,9 @@ var (
 	errPassedToVisitFunc = errors.New("error passed to visit func")
 )
 
-// Scenarios where AnalyzeEntry calls ItemAnalyzer.
-var analyzeItemSuite = analyzeEntrySuite{
-	name: "AnalyzeItem",
+// Scenarios where Analyze calls the ItemAnalyzer.
+var itemAnalyzerSuite = entryAnalyzerSuite{
+	name: "ItemAnalyzer",
 	tests: []entryAnalyzerTest{
 		{
 			desc:         "index has no file, item func returns state",
@@ -104,8 +104,8 @@ var analyzeItemSuite = analyzeEntrySuite{
 	},
 }
 
-// Scenarios where AnalyzeEntry determines the outcome without calling ItemAnalyzer.
-var earlyExitSuite = analyzeEntrySuite{
+// Scenarios where Analyze determines the outcome without calling ItemAnalyzer.
+var earlyExitSuite = entryAnalyzerSuite{
 	name: "EarlyExit",
 	tests: []entryAnalyzerTest{
 		{
@@ -132,12 +132,12 @@ var earlyExitSuite = analyzeEntrySuite{
 	},
 }
 
-type analyzeEntrySuite struct {
+type entryAnalyzerSuite struct {
 	name  string
 	tests []entryAnalyzerTest
 }
 
-func (s analyzeEntrySuite) run(t *testing.T) {
+func (s entryAnalyzerSuite) run(t *testing.T) {
 	t.Run(s.name, func(t *testing.T) {
 		for _, test := range s.tests {
 			test.run(t)
@@ -151,7 +151,7 @@ func (test entryAnalyzerTest) run(t *testing.T) {
 		logger := log.Logger(&logbuf, duftest.LogLevel)
 		defer duftest.Dump(t, "log", &logbuf)
 
-		analyzer := EntryAnalyzer{
+		ea := EntryAnalyzer{
 			WalkRoot:     test.WalkRoot(),
 			Target:       test.TargetDir(),
 			Index:        &test.targetState,
@@ -159,7 +159,7 @@ func (test entryAnalyzerTest) run(t *testing.T) {
 			Logger:       logger,
 		}
 
-		err := analyzer.AnalyzeEntry(test.NameArg(), test.EntryArg(), test.ErrArg())
+		err := ea.Analyze(test.NameArg(), test.EntryArg(), test.ErrArg())
 
 		if !errors.Is(err, test.wantErr) {
 			t.Errorf("error:\n got: %v\nwant: %v", err, test.wantErr)
@@ -313,17 +313,17 @@ func (ts *targetState) checkSetState(t *testing.T, wantName string, wantState *f
 }
 
 type testItemAnalyzer struct {
-	state     file.State  // State to return from AnalyzeItem.
-	err       error       // Error to return from AnalyzeItem.
-	gotSource *SourceItem // SourceItem passed to AnalyzeItem.
-	gotTarget *TargetItem // TargetItem passed to AnalyzeItem.
+	state     file.State  // State to return from Analyze.
+	err       error       // Error to return from Analyze.
+	gotSource *SourceItem // SourceItem passed to Analyze.
+	gotTarget *TargetItem // TargetItem passed to Analyze.
 }
 
 func (tia *testItemAnalyzer) Goal() ItemGoal {
 	return GoalInstall
 }
 
-func (tia *testItemAnalyzer) AnalyzeItem(gotSource SourceItem, gotTarget TargetItem, l *slog.Logger) (file.State, error) {
+func (tia *testItemAnalyzer) Analyze(gotSource SourceItem, gotTarget TargetItem, l *slog.Logger) (file.State, error) {
 	tia.gotSource, tia.gotTarget = &gotSource, &gotTarget
 	return tia.state, tia.err
 }
