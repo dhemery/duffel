@@ -67,10 +67,9 @@ func (a *analyzer) Analyze(goal DirGoal, l *slog.Logger) error {
 	entryAnalyzer := EntryAnalyzer{
 		WalkRoot:     goal.Dir,
 		Target:       a.target,
-		Goal:         goal.Goal,
 		ItemAnalyzer: a.install,
 		Index:        a.index,
-		Logger:       l,
+		Logger:       l.With(slog.Any("goal", goal.Goal)),
 	}
 	return fs.WalkDir(a.fsys, goal.Dir.String(), entryAnalyzer.Analyze)
 }
@@ -93,7 +92,6 @@ type Index interface {
 type EntryAnalyzer struct {
 	WalkRoot     SourcePath   // The root dir that contains the items to analyze.
 	Target       string       // The root of the target tree in which to achieve the goal states.
-	Goal         ItemGoal     // The goal to achieve.
 	ItemAnalyzer ItemAnalyzer // Analyzes each item to identify the goal state.
 	Index        Index        // The known or planned states of target items.
 	Logger       *slog.Logger
@@ -115,12 +113,9 @@ func (ea EntryAnalyzer) Analyze(name string, entry fs.DirEntry, err error) error
 	}
 
 	sourceItem := SourceItem{sourcePath, sourceType}
-	targetPath := NewTargetPath(ea.Target, sourcePath.Item)
+	indexLogger := ea.Logger.With(slog.Any("source", sourceItem))
 
-	indexLogger := ea.Logger.With(
-		slog.Any("goal", ea.Goal),
-		slog.Any("source", sourceItem),
-	)
+	targetPath := NewTargetPath(ea.Target, sourcePath.Item)
 
 	targetState, err := ea.Index.State(targetPath, indexLogger)
 	if err != nil {
