@@ -4,6 +4,7 @@ package errfs
 
 import (
 	"errors"
+	"fmt"
 	"io/fs"
 	"maps"
 	"os"
@@ -16,20 +17,55 @@ import (
 const (
 	lstatOp    = "lstat"
 	openOp     = "open"
+	mkdirOp    = "mkdir" // For Error, use writeOp error on parent.
 	readOp     = "read"
 	readDirOp  = "readdir"
 	readLinkOp = "readlink"
+	removeOp   = "remove" // For Error, use writeOp error on parent.
 	statOp     = "stat"
-	symlinkOp  = "symlink" // For Error, use writeOp.
+	symlinkOp  = "symlink" // For Error, use writeOp error on parent.
 
-	fsOp   = "errfs."      // Prefix added FS ops in error messages.
-	fileOp = "errfs.file." // Prefix added to File ops in error messages.
-	addOp  = "add"         // For the Add helper methods.
+	fsOp    = "errfs."      // Prefix added FS ops in error messages.
+	fileOp  = "errfs.file." // Prefix added to File ops in error messages.
+	nodeOp  = "errfs.node." // Prefix added to node ops in error messages.
+	addOp   = "add"         // For the Add helper methods.
+	writeOp = "write"       // General op to add or remove a dir entry.
 )
 
 type node struct {
 	file    *File
 	entries map[string]node
+}
+
+func (n node) remove(name string) error {
+	const op = nodeOp + removeOp
+
+	if _, ok := n.entries[name]; !ok {
+		return &fs.PathError{Op: op, Path: name, Err: fs.ErrNotExist}
+	}
+
+	if opErr, ok := n.file.errors[writeOp]; ok {
+		return &fs.PathError{Op: op, Path: name, Err: fmt.Errorf("parent %s: %w", n.file.name, opErr)}
+	}
+
+	delete(n.entries, name)
+
+	return nil
+}
+
+func (n node) add(file *File) (node, error) {
+	const op = nodeOp + addOp
+	if _, ok := n.entries[file.name]; ok {
+		return node{}, &fs.PathError{Op: op, Path: file.name, Err: fs.ErrExist}
+	}
+
+	if opErr, ok := n.file.errors[writeOp]; ok {
+		return node{}, &fs.PathError{Op: op, Path: file.name, Err: fmt.Errorf("parent %s: %w", n.file.name, opErr)}
+	}
+
+	child := newNode(file)
+	n.entries[file.name] = child
+	return child, nil
 }
 
 func newNode(f *File) node {
@@ -47,14 +83,14 @@ type FS struct {
 	root node
 }
 
-// add adds a node for f to fsys and returns the node.
+// Add adds a node for f to fsys and returns the node.
+// Add bypasses error checks on the parent node.
 func (fsys *FS) add(file *File) (node, error) {
 	const op = fsOp + addOp
-	node := newNode(file)
 
 	name := file.name
 	if name == "." {
-		return node, &fs.PathError{Op: op, Path: name, Err: fs.ErrInvalid}
+		return node{}, &fs.PathError{Op: op, Path: name, Err: fs.ErrInvalid}
 	}
 
 	dir := path.Dir(name)
@@ -63,16 +99,17 @@ func (fsys *FS) add(file *File) (node, error) {
 		parent, err = fsys.add(NewDir(dir, 0o755))
 	}
 	if err != nil {
-		return node, &fs.PathError{Op: op, Path: name, Err: err}
+		return node{}, &fs.PathError{Op: op, Path: name, Err: err}
 	}
 
 	if _, ok := parent.entries[name]; ok {
-		return node, &fs.PathError{Op: op, Path: name, Err: fs.ErrExist}
+		return node{}, &fs.PathError{Op: op, Path: name, Err: fs.ErrExist}
 	}
 
+	node := newNode(file)
 	parent.entries[name] = node
-
 	return node, nil
+
 }
 
 // find returns the node for the named file.
@@ -136,7 +173,23 @@ func (fsys *FS) Lstat(name string) (fs.FileInfo, error) {
 }
 
 func (fsys *FS) Mkdir(name string, perm fs.FileMode) error {
-	panic("unimplemented")
+	const op = fsOp + mkdirOp
+
+	if perm.Perm() != perm {
+		return &fs.PathError{Op: op, Path: name, Err: fmt.Errorf("file mode %s: unupported file mode", perm)}
+	}
+
+	dir := path.Dir(name)
+	parent, err := fsys.find(dir)
+	if err != nil {
+		return &fs.PathError{Op: op, Path: name, Err: fmt.Errorf("parent dir %s: %w", dir, err)}
+	}
+
+	if _, err = parent.add(NewDir(name, perm)); err != nil {
+		return &fs.PathError{Op: op, Path: name, Err: err}
+	}
+
+	return nil
 }
 
 // ReadDir reads the named directory
@@ -190,7 +243,19 @@ func (fsys *FS) ReadLink(name string) (string, error) {
 }
 
 func (fsys *FS) Remove(name string) error {
-	panic("unimplemented")
+	const op = fsOp + removeOp
+
+	dir := path.Dir(name)
+	parent, err := fsys.find(dir)
+	if err != nil {
+		return &fs.PathError{Op: op, Path: name, Err: fmt.Errorf("parent dir %s: %w", dir, err)}
+	}
+
+	if err = parent.remove(name); err != nil {
+		return &fs.PathError{Op: op, Path: name, Err: err}
+	}
+
+	return nil
 }
 
 // Symlink creates a new symlink with the given name and destination.
@@ -198,9 +263,18 @@ func (fsys *FS) Remove(name string) error {
 // TODO: Return an error if the parent was created with a Symlink.
 func (fsys *FS) Symlink(oldname, newname string) error {
 	const op = fsOp + symlinkOp
-	if err := Add(fsys, NewLink(newname, oldname)); err != nil {
+
+	dir := path.Dir(newname)
+	parent, err := fsys.find(dir)
+	if err != nil {
+		return &os.LinkError{Op: op, Old: oldname, New: newname,
+			Err: fmt.Errorf("parent dir %s: %w", dir, err)}
+	}
+
+	if _, err := parent.add(NewLink(oldname, newname)); err != nil {
 		return &os.LinkError{Op: op, Old: oldname, New: newname, Err: err}
 	}
+
 	return nil
 }
 

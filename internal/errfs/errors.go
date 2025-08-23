@@ -1,6 +1,7 @@
 package errfs
 
 import (
+	"errors"
 	"fmt"
 )
 
@@ -10,7 +11,9 @@ var (
 	ErrOpen     = generalOpErr(openOp)     // General error for Open.
 	ErrReadDir  = generalOpErr(readDirOp)  // General error for ReadDir.
 	ErrReadLink = generalOpErr(readLinkOp) // General error for ReadLink.
+	ErrWrite    = generalOpErr(writeOp)    // General error for directory write oprations.
 	ErrStat     = generalOpErr(statOp)     // General error for Stat.
+	errGeneral  = errors.New("general error")
 )
 
 // Error represents an error associated with an errfs operation. To
@@ -51,11 +54,16 @@ func ReadLinkErr(err error) Error {
 	return Error{readLinkOp, err}
 }
 
+// RemoveErr wraps err in an Error for Remove.
+func RemoveErr(err error) Error {
+	return Error{readLinkOp, err}
+}
+
 // StatErr wraps err in an Error for Stat.
 func StatErr(err error) Error {
 	return Error{statOp, err}
 }
 
 func generalOpErr(op string) Error {
-	return Error{op, fmt.Errorf("general %s error", op)}
+	return Error{op, errGeneral}
 }
