@@ -1,203 +1,138 @@
-package plan_test
+package plan
 
 import (
 	"bytes"
 	"errors"
-	"fmt"
-	"log/slog"
 	"maps"
 	"testing"
 
-	"github.com/dhemery/duffel/internal/duftest"
-	"github.com/dhemery/duffel/internal/log"
-	. "github.com/dhemery/duffel/internal/plan"
-
-	"github.com/dhemery/duffel/internal/errfs"
-	"github.com/dhemery/duffel/internal/file"
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
+
+	"github.com/dhemery/duffel/internal/duftest"
+	"github.com/dhemery/duffel/internal/file"
+	"github.com/dhemery/duffel/internal/log"
 )
 
 func TestIndex(t *testing.T) {
-	tests := map[string]struct {
-		files     []*errfs.File   // Files in the file system.
-		calls     []indexCall     // Calls that the test makes to index.
-		wantSpecs map[string]Spec // The resulting specs recorded in the index.
-	}{
-		"get state of non-existent file": {
-			files: []*errfs.File{}, // No files.
-			calls: []indexCall{
-				// Two get calls...
-				get("target", "file", file.NoFileState(), nil),
-				// The second call checks (via oneTimeStater) that the index
-				// has cached the spec and does not call the file stater again.
-				get("target", "file", file.NoFileState(), nil),
-			},
-			wantSpecs: map[string]Spec{
-				"target/file": {Current: file.NoFileState(), Planned: file.NoFileState()},
-			},
-		},
-		"get state of existing file": {
-			files: []*errfs.File{
-				errfs.NewFile("target/file", 0o644),
-			},
-			calls: []indexCall{
-				get("target", "file", file.FileState(), nil),
-				get("target", "file", file.FileState(), nil),
-			},
-			wantSpecs: map[string]Spec{
-				"target/file": {Current: file.FileState(), Planned: file.FileState()},
-			},
-		},
-		"get state of existing dir": {
-			files: []*errfs.File{
-				errfs.NewDir("target/dir", 0o755),
-			},
-			calls: []indexCall{
-				get("target", "dir", file.DirState(), nil),
-				get("target", "dir", file.DirState(), nil),
-			},
-			wantSpecs: map[string]Spec{
-				"target/dir": {Current: file.DirState(), Planned: file.DirState()},
-			},
-		},
-		"get state of existing link to file": {
-			files: []*errfs.File{
-				errfs.NewLink("target/link", "../some/dest/file"),
-				errfs.NewFile("some/dest/file", 0o644),
-			},
-			calls: []indexCall{
-				get("target", "link", file.LinkState("../some/dest/file", file.TypeFile), nil),
-				get("target", "link", file.LinkState("../some/dest/file", file.TypeFile), nil),
-			},
-			wantSpecs: map[string]Spec{
-				"target/link": {
-					Current: file.LinkState("../some/dest/file", file.TypeFile),
-					Planned: file.LinkState("../some/dest/file", file.TypeFile),
-				},
-			},
-		},
-		"get state of existing link to non-existent file": {
-			files: []*errfs.File{
-				errfs.NewLink("target/link", "../some/dest/file"),
-			},
-			calls: []indexCall{
-				get("target", "link", file.LinkState("../some/dest/file", file.TypeNoFile), nil),
-			},
-			wantSpecs: map[string]Spec{
-				"target/link": {
-					Current: file.LinkState("../some/dest/file", file.TypeNoFile),
-					Planned: file.LinkState("../some/dest/file", file.TypeNoFile),
-				},
-			},
-		},
-		"error getting state of existing file": {
-			files: []*errfs.File{
-				errfs.NewFile("target/file", 0o644, errfs.ErrLstat),
-			},
-			calls: []indexCall{
-				get("target", "file", file.State{}, errfs.ErrLstat),
-			},
-			wantSpecs: map[string]Spec{},
-		},
-		"set planned state of non-existent file": {
-			files: []*errfs.File{},
-			calls: []indexCall{
-				get("target", "file", file.NoFileState(), nil),
-				set("target", "file", file.LinkState("link/to/source/file", file.TypeFile)),
-			},
-			wantSpecs: map[string]Spec{
-				"target/file": {
-					Current: file.NoFileState(),
-					Planned: file.LinkState("link/to/source/file", file.TypeFile),
-				},
-			},
-		},
-		"set planned state of non-existent dir": {
-			files: []*errfs.File{},
-			calls: []indexCall{
-				get("target", "dir", file.NoFileState(), nil),
-				set("target", "dir", file.LinkState("link/to/source/dir", file.TypeDir)),
-			},
-			wantSpecs: map[string]Spec{
-				"target/dir": {
-					Current: file.NoFileState(),
-					Planned: file.LinkState("link/to/source/dir", file.TypeDir),
-				},
-			},
-		},
+	var logbuf bytes.Buffer
+	logger := log.Logger(&logbuf, duftest.LogLevel)
+	defer duftest.Dump(t, "log", &logbuf)
+
+	targetPath := NewTargetPath("target", "some/item")
+	targetName := targetPath.String()
+
+	// Index must call stater only once, and cache the result.
+	testStater := oneTimeStater{
+		t:        t,
+		wantName: targetName,
+		state:    file.LinkState("some/dest", file.TypeDir),
+		err:      nil,
 	}
-	for desc, test := range tests {
-		t.Run(desc, func(t *testing.T) {
-			var logbuf bytes.Buffer
-			logger := log.Logger(&logbuf, duftest.LogLevel)
 
-			testFS := errfs.New()
-			for _, f := range test.files {
-				errfs.Add(testFS, f)
-			}
-			testStater := newOneTimeStater(file.NewStater(testFS))
+	index := NewIndex(testStater)
 
-			index := NewIndex(testStater)
+	// First call returns the state from stater.
+	state, err := index.State(targetPath, logger)
+	ctx := "first index.State()"
+	checkState(t, ctx, state, testStater.state)
+	checkErr(t, ctx, err, testStater.err)
+	// Caches a spec with current = planned = state from stater.
+	wantInitialSpecs := map[string]Spec{
+		targetName: {Current: testStater.state, Planned: testStater.state},
+	}
+	checkRecordedSpecs(t, ctx, index, wantInitialSpecs)
 
-			for _, call := range test.calls {
-				call(index, t, logger)
-			}
+	// Second call returns the cached state without calling stater again.
+	state, err = index.State(targetPath, logger)
+	ctx = "second index.State()"
+	checkState(t, ctx, state, testStater.state)
+	checkErr(t, ctx, err, testStater.err)
+	checkRecordedSpecs(t, ctx, index, wantInitialSpecs)
 
-			specs := maps.Collect(index.All())
-			if diff := cmp.Diff(test.wantSpecs, specs); diff != "" {
-				t.Errorf("Specs() after calls: %s", diff)
-			}
+	// SetState sets the planned state and leaves the current state unchanged.
+	newState := file.DirState()
+	ctx = "index.SetState()"
+	index.SetState(targetPath, newState, logger)
+	wantUpdatedSpecs := map[string]Spec{
+		targetName: {Current: testStater.state, Planned: newState},
+	}
+	checkRecordedSpecs(t, ctx, index, wantUpdatedSpecs)
 
-			if t.Failed() || testing.Verbose() {
-				t.Log("files:\n", testFS)
-				t.Log("log:\n", logbuf.String())
-			}
-		})
+	// Third call returns the planned state set by SetState.
+	state, err = index.State(targetPath, logger)
+	ctx = "updated index.State()"
+	checkState(t, ctx, state, newState)
+	checkErr(t, ctx, err, testStater.err)
+	checkRecordedSpecs(t, ctx, index, wantUpdatedSpecs)
+}
+
+func TestIndexStaterError(t *testing.T) {
+	var logbuf bytes.Buffer
+	logger := log.Logger(&logbuf, duftest.LogLevel)
+	defer duftest.Dump(t, "log", &logbuf)
+
+	targetPath := NewTargetPath("target", "some/item")
+	targetName := targetPath.String()
+
+	testStater := oneTimeStater{
+		t:        t,
+		wantName: targetName,
+		err:      errors.New("error from stater"),
+	}
+
+	index := NewIndex(testStater)
+
+	_, err := index.State(targetPath, logger)
+
+	ctx := "index.State()"
+	checkErr(t, ctx, err, testStater.err)
+	wantSpecs := map[string]Spec{} // No specs.
+	checkRecordedSpecs(t, ctx, index, wantSpecs)
+}
+
+func checkErr(t *testing.T, ctx string, got, want error) {
+	t.Helper()
+	if diff := cmp.Diff(want, got, cmpopts.EquateErrors()); diff != "" {
+		t.Errorf("%s: error:\n%s", ctx, diff)
 	}
 }
 
-type indexCall func(i Index, t *testing.T, l *slog.Logger)
-
-func get(target, item string, wantState file.State, wantErr error) indexCall {
-	tp := NewTargetPath(target, item)
-	return func(i Index, t *testing.T, l *slog.Logger) {
-		t.Helper()
-		state, err := i.State(tp, l)
-		if diff := cmp.Diff(wantState, state); diff != "" {
-			t.Errorf("State(%q) state:\n%s", tp, diff)
-		}
-		if !errors.Is(err, wantErr) {
-			t.Errorf("State(%q) error:\n got: %v\nwant: %v",
-				tp, err, wantErr)
-		}
+func checkState(t *testing.T, ctx string, got, want file.State) {
+	t.Helper()
+	if diff := cmp.Diff(want, got); diff != "" {
+		t.Errorf("%s: state:\n%s", ctx, diff)
 	}
 }
 
-func set(target, item string, state file.State) indexCall {
-	tp := NewTargetPath(target, item)
-	return func(i Index, t *testing.T, l *slog.Logger) {
-		i.SetState(tp, state, l)
+func checkRecordedSpecs(t *testing.T, ctx string, got Specs, want map[string]Spec) {
+	t.Helper()
+	gotMap := maps.Collect(got.All())
+	if diff := cmp.Diff(want, gotMap); diff != "" {
+		t.Errorf("%s: Specs():\n%s", ctx, diff)
 	}
 }
 
-func newOneTimeStater(s Stater) Stater {
-	return oneTimeStater{s: s, calls: map[string]int{}}
-}
-
-// oneTimeStater is a Stater that returns an error
-// if State is called more than once with the same name.
+// A oneTimeStater is a Stater that returns an error
+// if State is called more than once.
 type oneTimeStater struct {
-	s     Stater
-	calls map[string]int
+	t        *testing.T
+	wantName string
+	calls    int
+	state    file.State
+	err      error
 }
 
 func (ots oneTimeStater) State(name string) (file.State, error) {
-	called := ots.calls[name]
-	called++
-	ots.calls[name] = called
-
-	if called > 1 {
-		return file.State{}, fmt.Errorf("oneTimeStater.State(%q) called %d times", name, called)
+	ots.t.Helper()
+	ots.calls++
+	if ots.calls > 1 {
+		ots.t.Errorf("oneTimeStater.State() called %d times (name: %s)", ots.calls, name)
 	}
-	return ots.s.State(name)
+
+	if name != ots.wantName {
+		ots.t.Errorf("oneTimeStater.State() name arg:\n got %s\nwant: %s", name, ots.wantName)
+	}
+
+	return ots.state, ots.err
 }
