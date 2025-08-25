@@ -1,4 +1,4 @@
-package cmd_test
+package cmd
 
 import (
 	"bytes"
@@ -8,8 +8,6 @@ import (
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
-
-	"github.com/dhemery/duffel/internal/cmd"
 )
 
 func TestOptions(t *testing.T) {
@@ -82,7 +80,8 @@ func TestOptions(t *testing.T) {
 		},
 		{
 			desc: "options and positional args",
-			args: []string{"-n",
+			args: []string{
+				"-n",
 				"-log", "warn",
 				"-target", "my-target",
 				"-source", "my-source",
@@ -113,7 +112,7 @@ func TestOptions(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.desc, func(t *testing.T) {
 			var werr bytes.Buffer
-			opts, args, err := cmd.ParseArgs(test.args, &werr)
+			opts, args, err := parseArgs(test.args, &werr)
 
 			if test.wantOpts != nil {
 				test.wantOpts(t, opts)
@@ -135,10 +134,10 @@ func TestOptions(t *testing.T) {
 	}
 }
 
-type checkOptsFunc func(t *testing.T, o cmd.Options)
+type checkOptsFunc func(t *testing.T, o options)
 
 func checkOpts(funcs ...checkOptsFunc) checkOptsFunc {
-	return func(t *testing.T, o cmd.Options) {
+	return func(t *testing.T, o options) {
 		for _, f := range funcs {
 			f(t, o)
 		}
@@ -146,33 +145,33 @@ func checkOpts(funcs ...checkOptsFunc) checkOptsFunc {
 }
 
 func checkSource(want string) checkOptsFunc {
-	return func(t *testing.T, o cmd.Options) {
-		if o.Source != want {
-			t.Errorf("source: got %s, want %s", o.Source, want)
+	return func(t *testing.T, o options) {
+		if o.source != want {
+			t.Errorf("source: got %s, want %s", o.source, want)
 		}
 	}
 }
 
 func checkTarget(want string) checkOptsFunc {
-	return func(t *testing.T, o cmd.Options) {
-		if o.Target != want {
-			t.Errorf("target: got %s, want %s", o.Target, want)
+	return func(t *testing.T, o options) {
+		if o.target != want {
+			t.Errorf("target: got %s, want %s", o.target, want)
 		}
 	}
 }
 
 func checkDryRun(want bool) checkOptsFunc {
-	return func(t *testing.T, o cmd.Options) {
-		if o.DryRun != want {
-			t.Errorf("target: got %t want %t", o.DryRun, want)
+	return func(t *testing.T, o options) {
+		if o.dryRun != want {
+			t.Errorf("target: got %t want %t", o.dryRun, want)
 		}
 	}
 }
 
 func checkLogLevel(want slog.Level) checkOptsFunc {
-	return func(t *testing.T, o cmd.Options) {
-		if o.LogLevel != want {
-			t.Errorf("target: got %s, want %s", o.LogLevel, want)
+	return func(t *testing.T, o options) {
+		if o.logLevel != want {
+			t.Errorf("target: got %s, want %s", o.logLevel, want)
 		}
 	}
 }

@@ -39,9 +39,9 @@ func (c command) execute() error {
 }
 
 // newCommand compiles a [command] that satisfes the goals described by args and opts.
-func newCommand(opts Options, args []string, fsys FS, cwd string, wout, werr io.Writer) (command, error) {
-	target := fullValidPath(cwd, opts.Target)
-	source := fullValidPath(cwd, opts.Source)
+func newCommand(opts options, args []string, fsys FS, cwd string, wout, werr io.Writer) (command, error) {
+	target := fullValidPath(cwd, opts.target)
+	source := fullValidPath(cwd, opts.source)
 
 	terr := validateDir(fsys, "target", target)
 	serr := validateSource(fsys, source)
@@ -61,10 +61,10 @@ func newCommand(opts Options, args []string, fsys FS, cwd string, wout, werr io.
 		return command{}, err
 	}
 
-	logger := log.Logger(werr, &opts.LogLevel)
+	logger := log.Logger(werr, &opts.logLevel)
 
 	var planFunc planFunc
-	if opts.DryRun {
+	if opts.dryRun {
 		planFunc = plan.Print(wout)
 	} else {
 		planFunc = plan.Execute(fsys, logger)

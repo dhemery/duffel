@@ -14,7 +14,7 @@ func TestValidate(t *testing.T) {
 	tests := []struct {
 		desc    string        // Description of the test.
 		files   []*errfs.File // Files on the file system.
-		opts    Options       // Options passed to Compile.
+		opts    options       // Options passed to Compile.
 		args    []string      // Args passed to Compile.
 		cwd     string        // Current working directory passed to Compile.
 		wantErr error         // Error result from Compile.
@@ -23,7 +23,7 @@ func TestValidate(t *testing.T) {
 		{
 			desc:    "target does not exist",
 			files:   []*errfs.File{sourceDir("source")},
-			opts:    Options{Target: "target", Source: "source"},
+			opts:    options{target: "target", source: "source"},
 			wantErr: fs.ErrNotExist,
 		},
 		{
@@ -32,37 +32,37 @@ func TestValidate(t *testing.T) {
 				sourceDir("source"),
 				errfs.NewFile("target", 0o644),
 			},
-			opts:    Options{Target: "target", Source: "source"},
+			opts:    options{target: "target", source: "source"},
 			wantErr: fs.ErrInvalid,
 		},
 		{
 			desc:    "root target",
 			files:   []*errfs.File{sourceDir("source")},
-			opts:    Options{Target: "/", Source: "source"},
+			opts:    options{target: "/", source: "source"},
 			wantErr: nil, // Root target is okay.
 		},
 		{
 			desc:    "empty target",
 			files:   []*errfs.File{sourceDir("source")},
-			opts:    Options{Target: "", Source: "source"},
+			opts:    options{target: "", source: "source"},
 			wantErr: nil, // Empty target uses root.
 		},
 		{
 			desc:    "source does not exist",
 			files:   []*errfs.File{},
-			opts:    Options{Source: "source"},
+			opts:    options{source: "source"},
 			wantErr: fs.ErrNotExist,
 		},
 		{
 			desc:    "source is not a dir",
 			files:   []*errfs.File{errfs.NewFile("source", 0o644)},
-			opts:    Options{Source: "source"},
+			opts:    options{source: "source"},
 			wantErr: fs.ErrInvalid,
 		},
 		{
 			desc:    "source is not a duffel source",
 			files:   []*errfs.File{errfs.NewDir("source", 0o755)},
-			opts:    Options{Source: "source"},
+			opts:    options{source: "source"},
 			wantErr: fs.ErrInvalid,
 		},
 		{
@@ -71,26 +71,26 @@ func TestValidate(t *testing.T) {
 				sourceDir("a/b/c/source"),
 				errfs.NewDir("a/b/c/source/sourceopt", 0o755),
 			},
-			opts:    Options{Source: "a/b/c/source/sourceopt"},
+			opts:    options{source: "a/b/c/source/sourceopt"},
 			wantErr: fs.ErrInvalid,
 		},
 		{
 			desc:    "root source",
 			files:   []*errfs.File{sourceDir("")},
-			opts:    Options{Source: "/"},
+			opts:    options{source: "/"},
 			wantErr: nil,
 		},
 		{
 			desc:    "empty source",
 			files:   []*errfs.File{sourceDir("a/b/c/cwd")},
 			cwd:     "a/b/c/cwd",
-			opts:    Options{Source: ""},
+			opts:    options{source: ""},
 			wantErr: nil,
 		},
 		{
 			desc:    "package does not exist",
 			files:   []*errfs.File{sourceDir("source")},
-			opts:    Options{Source: "source"},
+			opts:    options{source: "source"},
 			args:    []string{"pkg"},
 			wantErr: fs.ErrNotExist,
 		},
@@ -100,21 +100,21 @@ func TestValidate(t *testing.T) {
 				sourceDir("source"),
 				errfs.NewFile("source/pkg", 0o644),
 			},
-			opts:    Options{Source: "source"},
+			opts:    options{source: "source"},
 			args:    []string{"pkg"},
 			wantErr: fs.ErrInvalid,
 		},
 		{
 			desc:    "empty package",
 			files:   []*errfs.File{sourceDir("source")},
-			opts:    Options{Source: "source"},
+			opts:    options{source: "source"},
 			args:    []string{""},
 			wantErr: fs.ErrInvalid,
 		},
 		{
 			desc:    "package is .",
 			files:   []*errfs.File{sourceDir("source")},
-			opts:    Options{Source: "source"},
+			opts:    options{source: "source"},
 			args:    []string{"."},
 			wantErr: fs.ErrInvalid,
 		},
@@ -124,7 +124,7 @@ func TestValidate(t *testing.T) {
 				sourceDir("source"),
 				errfs.NewDir("pkg", 0o755),
 			},
-			opts:    Options{Source: "source"},
+			opts:    options{source: "source"},
 			args:    []string{"../pkg"},
 			wantErr: fs.ErrInvalid,
 		},
@@ -134,7 +134,7 @@ func TestValidate(t *testing.T) {
 				sourceDir("source"),
 				errfs.NewDir("source/pkg1/pkg2", 0o755),
 			},
-			opts:    Options{Source: "source"},
+			opts:    options{source: "source"},
 			args:    []string{"pk1/pkg2"},
 			wantErr: fs.ErrInvalid,
 		},

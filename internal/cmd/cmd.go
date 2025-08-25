@@ -19,7 +19,7 @@ type FS interface {
 
 // Execute performs the duffel operations requested by args.
 func Execute(args []string, fsys FS, cwd string, wout, werr io.Writer) {
-	opts, args, err := ParseArgs(args, werr)
+	opts, args, err := parseArgs(args, werr)
 	if err != nil {
 		fatalUsage(werr, err)
 	}
