@@ -30,19 +30,19 @@ func Execute(args []string, fsys FS, cwd string, wout, werr io.Writer) {
 		fatalUsage(werr, err)
 	}
 
-	if err := cmd.Execute(); err != nil {
+	if err := cmd.execute(); err != nil {
 		fatal(werr, err)
 	}
 }
 
-// Command creates a [plan.Plan] and acts on it.
-type Command struct {
-	Planner  Planner  // Creates the plan.
-	PlanFunc PlanFunc // Acts on the plan.
+// A command creates a [plan.Plan] and acts on it.
+type command struct {
+	Planner  planner  // Creates the plan.
+	PlanFunc planFunc // Acts on the plan.
 }
 
-// Execute creates a plan and acts on it.
-func (c Command) Execute() error {
+// execute creates a plan and acts on it.
+func (c command) execute() error {
 	plan, err := c.Planner.Plan()
 	if err != nil {
 		return err
@@ -51,14 +51,14 @@ func (c Command) Execute() error {
 	return c.PlanFunc(plan)
 }
 
-// A Planner creates a [plan.Plan].
-type Planner interface {
+// A planner creates a [plan.Plan].
+type planner interface {
 	// Plan creates a [plan.Plan].
 	Plan() (plan.Plan, error)
 }
 
-// PlanFunc acts on a [plan.Plan].
-type PlanFunc func(p plan.Plan) error
+// planFunc acts on a [plan.Plan].
+type planFunc func(p plan.Plan) error
 
 func fatal(w io.Writer, e error) {
 	fmt.Fprintln(w, e.Error())

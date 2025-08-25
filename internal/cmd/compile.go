@@ -13,15 +13,15 @@ import (
 	"github.com/dhemery/duffel/internal/plan"
 )
 
-// Compile compiles a [Command] satisfy the goals described by args.
-func Compile(opts Options, args []string, fsys FS, cwd string, wout, werr io.Writer) (Command, error) {
+// Compile compiles a [command] satisfy the goals described by args.
+func Compile(opts Options, args []string, fsys FS, cwd string, wout, werr io.Writer) (command, error) {
 	target := fullValidPath(cwd, opts.Target)
 	source := fullValidPath(cwd, opts.Source)
 
 	terr := validateDir(fsys, "target", target)
 	serr := validateSource(fsys, source)
 	if err := errors.Join(serr, terr); err != nil {
-		return Command{}, err
+		return command{}, err
 	}
 
 	var errs []error
@@ -33,19 +33,19 @@ func Compile(opts Options, args []string, fsys FS, cwd string, wout, werr io.Wri
 	}
 
 	if err := errors.Join(errs...); err != nil {
-		return Command{}, err
+		return command{}, err
 	}
 
 	logger := log.Logger(werr, &opts.LogLevel)
 
-	var planFunc PlanFunc
+	var planFunc planFunc
 	if opts.DryRun {
 		planFunc = plan.Print(wout)
 	} else {
 		planFunc = plan.Execute(fsys, logger)
 	}
 
-	return Command{
+	return command{
 		Planner:  plan.NewPlanner(fsys, target, goals, logger),
 		PlanFunc: planFunc,
 	}, nil
