@@ -18,7 +18,7 @@ func main() {
 		fatal(err)
 	}
 
-	fsys := file.RootFS(root)
+	fsys := file.NewRootFS(root)
 
 	cmd.Execute(os.Args[1:], fsys, cwd, os.Stdout, os.Stderr)
 }

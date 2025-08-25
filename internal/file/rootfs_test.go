@@ -19,7 +19,7 @@ func TestRootFSLstat(t *testing.T) {
 	must.WriteFile(filepath.Join(tdir, "sub/file"), []byte{}, 0o644)
 	must.Symlink("../ignored/dest", filepath.Join(tdir, "sub/link"))
 
-	fsys := file.RootFS(must.OpenRoot(tdir))
+	fsys := file.NewRootFS(must.OpenRoot(tdir))
 
 	info, err := fsys.Lstat("sub/dir")
 
@@ -63,7 +63,7 @@ func TestRootFSMkdir(t *testing.T) {
 	newPerm := fs.FileMode(0o700)
 	newDir := "existing-dir/new-dir"
 
-	fsys := file.RootFS(must.OpenRoot(tdir))
+	fsys := file.NewRootFS(must.OpenRoot(tdir))
 
 	err := fsys.Mkdir(newDir, newPerm)
 	if err != nil {
@@ -96,7 +96,7 @@ func TestRootFSReadDir(t *testing.T) {
 	must.WriteFile(filepath.Join(tdir, "sub/file"), []byte{}, filePerm)
 	must.Symlink("../ignored/dest", filepath.Join(tdir, "sub/link"))
 
-	fsys := file.RootFS(must.OpenRoot(tdir))
+	fsys := file.NewRootFS(must.OpenRoot(tdir))
 
 	entries, err := fs.ReadDir(fsys, "sub")
 	if err != nil {
@@ -188,7 +188,7 @@ func TestRootFSRemove(t *testing.T) {
 				test.setup(t, tdir)
 			}
 
-			fsys := file.RootFS(must.OpenRoot(tdir))
+			fsys := file.NewRootFS(must.OpenRoot(tdir))
 
 			err := fsys.Remove(test.remove)
 			gotErr := err != nil
@@ -208,7 +208,7 @@ func TestRootFSRemove(t *testing.T) {
 func TestRootFSSymlink(t *testing.T) {
 	must := duftest.Must(t)
 	tdir := t.TempDir()
-	fsys := file.RootFS(must.OpenRoot(tdir))
+	fsys := file.NewRootFS(must.OpenRoot(tdir))
 
 	must.MkdirAll(filepath.Join(tdir, "sub"), 0o755)
 	linkDest := "../../some/link/dest"

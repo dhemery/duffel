@@ -4,33 +4,22 @@ import (
 	"io/fs"
 )
 
+// A Root implements [ActionFS] and can supply an [fs.FS] that implements [fs.ReadLinkFS].
 type Root interface {
 	FS() fs.FS
-	Mkdir(string, fs.FileMode) error
-	Remove(string) error
-	Symlink(string, string) error
+	ActionFS
 }
 
-type rootFS struct {
+// A RootFS implements [fs.ReadLinkFS] and [ActionFS] by delegating to a [Root].
+type RootFS struct {
 	fs.ReadLinkFS
-	r Root
+	ActionFS
 }
 
-func RootFS(r Root) *rootFS {
-	return &rootFS{
+// NewRootFS returns a [RootFS] that delegates to r.
+func NewRootFS(r Root) RootFS {
+	return RootFS{
+		ActionFS:   r,
 		ReadLinkFS: r.FS().(fs.ReadLinkFS),
-		r:          r,
 	}
-}
-
-func (f *rootFS) Mkdir(name string, perm fs.FileMode) error {
-	return f.r.Mkdir(name, perm)
-}
-
-func (f *rootFS) Remove(name string) error {
-	return f.r.Remove(name)
-}
-
-func (f *rootFS) Symlink(oldname, newname string) error {
-	return f.r.Symlink(oldname, newname)
 }
