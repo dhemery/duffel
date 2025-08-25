@@ -13,8 +13,33 @@ import (
 	"github.com/dhemery/duffel/internal/plan"
 )
 
-// Compile compiles a [command] satisfy the goals described by args.
-func Compile(opts Options, args []string, fsys FS, cwd string, wout, werr io.Writer) (command, error) {
+// A planner creates a [plan.Plan].
+type planner interface {
+	// Plan creates a [plan.Plan].
+	Plan() (plan.Plan, error)
+}
+
+// planFunc acts on a [plan.Plan].
+type planFunc func(p plan.Plan) error
+
+// A command creates a [plan.Plan] and acts on it.
+type command struct {
+	planner  planner  // Creates the plan.
+	planFunc planFunc // Acts on the plan.
+}
+
+// execute creates a plan and acts on it.
+func (c command) execute() error {
+	plan, err := c.planner.Plan()
+	if err != nil {
+		return err
+	}
+
+	return c.planFunc(plan)
+}
+
+// newCommand compiles a [command] that satisfes the goals described by args and opts.
+func newCommand(opts Options, args []string, fsys FS, cwd string, wout, werr io.Writer) (command, error) {
 	target := fullValidPath(cwd, opts.Target)
 	source := fullValidPath(cwd, opts.Source)
 
@@ -46,8 +71,8 @@ func Compile(opts Options, args []string, fsys FS, cwd string, wout, werr io.Wri
 	}
 
 	return command{
-		Planner:  plan.NewPlanner(fsys, target, goals, logger),
-		PlanFunc: planFunc,
+		planner:  plan.NewPlanner(fsys, target, goals, logger),
+		planFunc: planFunc,
 	}, nil
 }
 

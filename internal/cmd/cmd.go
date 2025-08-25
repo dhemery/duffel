@@ -9,7 +9,6 @@ import (
 	"os"
 
 	"github.com/dhemery/duffel/internal/file"
-	"github.com/dhemery/duffel/internal/plan"
 )
 
 // FS is an [fs.FS] that implements all of the methods used by duffel.
@@ -25,7 +24,7 @@ func Execute(args []string, fsys FS, cwd string, wout, werr io.Writer) {
 		fatalUsage(werr, err)
 	}
 
-	cmd, err := Compile(opts, args, fsys, cwd[1:], wout, werr)
+	cmd, err := newCommand(opts, args, fsys, cwd[1:], wout, werr)
 	if err != nil {
 		fatalUsage(werr, err)
 	}
@@ -34,31 +33,6 @@ func Execute(args []string, fsys FS, cwd string, wout, werr io.Writer) {
 		fatal(werr, err)
 	}
 }
-
-// A command creates a [plan.Plan] and acts on it.
-type command struct {
-	Planner  planner  // Creates the plan.
-	PlanFunc planFunc // Acts on the plan.
-}
-
-// execute creates a plan and acts on it.
-func (c command) execute() error {
-	plan, err := c.Planner.Plan()
-	if err != nil {
-		return err
-	}
-
-	return c.PlanFunc(plan)
-}
-
-// A planner creates a [plan.Plan].
-type planner interface {
-	// Plan creates a [plan.Plan].
-	Plan() (plan.Plan, error)
-}
-
-// planFunc acts on a [plan.Plan].
-type planFunc func(p plan.Plan) error
 
 func fatal(w io.Writer, e error) {
 	fmt.Fprintln(w, e.Error())

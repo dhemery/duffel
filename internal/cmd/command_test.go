@@ -150,7 +150,7 @@ func TestValidate(t *testing.T) {
 				errfs.Add(testfs, file)
 			}
 
-			_, err := Compile(test.opts, test.args, testfs, test.cwd, nil, nil)
+			_, err := newCommand(test.opts, test.args, testfs, test.cwd, nil, nil)
 
 			if !errors.Is(err, test.wantErr) {
 				t.Errorf("error result:\n got: %v\nwant: %v", err, test.wantErr)
