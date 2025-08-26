@@ -1,10 +1,10 @@
 package file
 
 import (
+	"encoding/json/jsontext"
 	"errors"
 	"fmt"
 	"io/fs"
-	"log/slog"
 	"path"
 )
 
@@ -14,6 +14,7 @@ const (
 	TypeFile                // The file is a regular file.
 	TypeDir                 // The file is a directory.
 	TypeSymlink             // The file is a symbolic link.
+
 )
 
 // Type is the type of an existing or planned file.
@@ -70,14 +71,10 @@ func (t Type) String() string {
 	return fmt.Sprintf("<unknown file type %o>", t)
 }
 
-func (t Type) LogValue() slog.Value {
-	return slog.StringValue(t.String())
-}
-
 // A State represents the state of an existing or planned file.
 type State struct {
-	Type Type  `json:"type"` // The type of file.
-	Dest *Dest `json:"dest"` // The destination if the file is a symbolic link.
+	Type Type // The type of file.
+	Dest Dest // The destination if the file is a symbolic link.
 }
 
 // String formats s as a string.
@@ -88,46 +85,15 @@ func (s State) String() string {
 	return s.Type.String()
 }
 
-// Equal reports whether s and o are equal.
-func (s State) Equal(o State) bool {
-	return s.Type == o.Type &&
-		s.Dest.Equal(o.Dest)
-}
-
-// LogValue represents s as a [slog.Value].
-func (s State) LogValue() slog.Value {
-	return slog.StringValue(s.String())
+// MarshalJSONTo writes the string value of s to e.
+func (s State) MarshalJSONTo(e *jsontext.Encoder) error {
+	return e.WriteToken(jsontext.String(s.String()))
 }
 
 // Dest is the destination of a [State] with type [TypeLink].
 type Dest struct {
-	Path string `json:"path"` // The path to the link's destination.
-	Type Type   `json:"type"` // The type of file at the link's destination.
-}
-
-// Equal reports whether d and o are equal.
-func (d *Dest) Equal(o *Dest) bool {
-	nilL := d == nil
-	nilO := o == nil
-	if nilL != nilO {
-		return false
-	}
-	if nilL {
-		return true
-	}
-	return d.Path == o.Path &&
-		d.Type == o.Type
-}
-
-// LogValue represents d as a [slog.Value].
-func (d *Dest) LogValue() slog.Value {
-	if d == nil {
-		return slog.Value{}
-	}
-	return slog.GroupValue(
-		slog.String("path", d.Path),
-		slog.Any("type", d.Type),
-	)
+	Path string // The path to the link's destination.
+	Type Type   // The type of file at the link's destination.
 }
 
 // NewStater creates a [Stater] that reads file states from fsys.
@@ -158,7 +124,7 @@ func (s Stater) State(name string) (State, error) {
 		if err != nil {
 			return State{}, err
 		}
-		state.Dest = &Dest{dest, destType}
+		state.Dest = Dest{dest, destType}
 	}
 	return state, nil
 }
@@ -194,7 +160,7 @@ func FileState() State {
 // LinkState returns a [State] with type [TypeLink]
 // and the given destination and destination type.
 func LinkState(dest string, destType Type) State {
-	return State{TypeSymlink, &Dest{dest, destType}}
+	return State{TypeSymlink, Dest{dest, destType}}
 }
 
 // NoFileState returns a [Stete] with type [TypeNoFile].

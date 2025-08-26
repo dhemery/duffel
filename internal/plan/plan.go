@@ -72,7 +72,6 @@ func (p planner) Plan() (Plan, error) {
 		if err := p.analyzer.Analyze(goal, p.logger); err != nil {
 			return Plan{}, err
 		}
-
 	}
 	return NewPlan(p.target, p.analyzer.index), nil
 }
@@ -91,7 +90,7 @@ func NewPlan(target string, specs Specs) Plan {
 	targetLen := len(target) + 1
 	p := Plan{Target: target, Tasks: map[string]Task{}}
 	for name, spec := range specs.All() {
-		if spec.Current.Equal(spec.Planned) {
+		if spec.Current == spec.Planned {
 			continue
 		}
 		item := name[targetLen:]
