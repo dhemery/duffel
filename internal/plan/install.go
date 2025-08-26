@@ -28,7 +28,7 @@ func (i installer) analyze(s sourceItem, t targetItem, l *slog.Logger) (file.Sta
 	sourceType := s.Type
 	itemAsDest := targetPath.PathTo(s.Path.String())
 
-	if targetState.Type.IsNoFile() {
+	if targetState.IsNoFile() {
 		// There is no target file, so we're free to create a link to the source item.
 		var err error
 		if sourceType.IsDir() {
@@ -42,13 +42,12 @@ func (i installer) analyze(s sourceItem, t targetItem, l *slog.Logger) (file.Sta
 	// At this point, we know that the tasks planned earlier (if any)
 	// either create or preserve a file at the target path.
 
-	targetType := targetState.Type
-	if targetType.IsRegular() {
+	if targetState.IsRegular() {
 		// Cannot modify an existing regular target file.
 		return state, &conflictError{Source: s, Target: t}
 	}
 
-	if targetType.IsDir() {
+	if targetState.IsDir() {
 		if sourceType.IsDir() {
 			// The target and source item are both dirs.
 			// Return the target state unchanged,
@@ -61,7 +60,7 @@ func (i installer) analyze(s sourceItem, t targetItem, l *slog.Logger) (file.Sta
 		return state, &conflictError{Source: s, Target: t}
 	}
 
-	if !targetType.IsLink() {
+	if !targetState.IsLink() {
 		// Target item is not file, dir, or link.
 		return state, &conflictError{Source: s, Target: t}
 	}
@@ -81,7 +80,7 @@ func (i installer) analyze(s sourceItem, t targetItem, l *slog.Logger) (file.Sta
 		return targetState, err
 	}
 
-	if targetDest.Type.IsNoFile() {
+	if targetDest.IsNoFile() {
 		// The target links to nothing, so replace it with a link to the source item.
 		var err error
 		if sourceType.IsDir() {
@@ -92,7 +91,7 @@ func (i installer) analyze(s sourceItem, t targetItem, l *slog.Logger) (file.Sta
 		return file.LinkState(itemAsDest, sourceType), err
 	}
 
-	if !targetDest.Type.IsDir() {
+	if !targetDest.IsDir() {
 		// The target item's link destination is not a dir. Cannot merge.
 		return state, &conflictError{Source: s, Target: t}
 	}

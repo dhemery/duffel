@@ -300,7 +300,7 @@ func (ts *testTargetItem) setState(tp targetPath, s file.State, _ *slog.Logger) 
 
 func (ts *testTargetItem) checkSetState(t *testing.T, wantTargetPath targetPath, wantState file.State) {
 	t.Helper()
-	if wantState.Type == file.TypeUnknown {
+	if wantState.IsUnknown() {
 		if ts.gotState != nil {
 			t.Errorf("unwanted call to index.SetState():\n name: %q\nstate: %s",
 				ts.gotTargetPath, ts.gotState)

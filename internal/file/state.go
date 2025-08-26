@@ -54,6 +54,11 @@ func (t Type) IsNoFile() bool {
 	return t == TypeNoFile
 }
 
+// IsUnknown reports whether t is the unknown file type.
+func (t Type) IsUnknown() bool {
+	return t == TypeUnknown
+}
+
 // String formats t as a string.
 func (t Type) String() string {
 	switch t {
@@ -78,7 +83,7 @@ func (t Type) MarshalJSONTo(e *jsontext.Encoder) error {
 
 // A State represents the state of an existing or planned file.
 type State struct {
-	Type Type // The type of file.
+	Type      // The type of file.
 	Dest Dest // The destination if the file is a symbolic link.
 }
 
@@ -98,7 +103,7 @@ func (s State) MarshalJSONTo(e *jsontext.Encoder) error {
 // Dest is the destination of a [State] with type [TypeLink].
 type Dest struct {
 	Path string // The path to the link's destination.
-	Type Type   // The type of file at the link's destination.
+	Type        // The type of file at the link's destination.
 }
 
 // NewStater creates a [Stater] that reads file states from fsys.

@@ -100,21 +100,21 @@ func newTask(current, planned file.State) Task {
 	t := Task{}
 
 	switch {
-	case current.Type.IsNoFile(): // No-op
-	case current.Type.IsLink():
+	case current.IsNoFile(): // No-op
+	case current.IsLink():
 		t = append(t, file.RemoveAction())
 	default:
-		panic("do not know an action to remove " + current.Type.String())
+		panic("do not know an action to remove " + current.String())
 	}
 
 	switch {
-	case planned.Type.IsNoFile(): // No-op
-	case planned.Type.IsDir():
+	case planned.IsNoFile(): // No-op
+	case planned.IsDir():
 		t = append(t, file.MkdirAction())
-	case planned.Type.IsLink():
+	case planned.IsLink():
 		t = append(t, file.SymlinkAction(planned.Dest.Path))
 	default:
-		panic("do not know an action to create " + planned.Type.String())
+		panic("do not know an action to create " + planned.String())
 	}
 
 	return t
