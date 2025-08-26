@@ -21,7 +21,7 @@ type installer struct {
 
 // analyze returns the state of the target item file
 // that would result from installing the source item file.
-func (i installer) analyze(s SourceItem, t TargetItem, l *slog.Logger) (file.State, error) {
+func (i installer) analyze(s sourceItem, t targetItem, l *slog.Logger) (file.State, error) {
 	var state file.State
 	targetPath := t.Path
 	targetState := t.State
@@ -118,8 +118,8 @@ func (i installer) analyze(s SourceItem, t TargetItem, l *slog.Logger) (file.Sta
 }
 
 type ConflictError struct {
-	Source SourceItem
-	Target TargetItem
+	Source sourceItem
+	Target targetItem
 }
 
 func (ce *ConflictError) Error() string {

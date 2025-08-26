@@ -38,7 +38,7 @@ type stater interface {
 // this method reads the current state of the file,
 // stores it as both the current and planned states,
 // and returns the state.
-func (i *specIndex) state(t TargetPath, l *slog.Logger) (file.State, error) {
+func (i *specIndex) state(t targetPath, l *slog.Logger) (file.State, error) {
 	name := t.String()
 	s, ok := i.specs[name]
 	if !ok {
@@ -55,7 +55,7 @@ func (i *specIndex) state(t TargetPath, l *slog.Logger) (file.State, error) {
 }
 
 // setState sets the planned state of the target file.
-func (i *specIndex) setState(t TargetPath, s file.State, l *slog.Logger) {
+func (i *specIndex) setState(t targetPath, s file.State, l *slog.Logger) {
 	name := t.String()
 	spec := i.specs[name]
 	attrs := slog.GroupAttrs("target", slog.Any("path", t), slog.Any("planned_state", s))

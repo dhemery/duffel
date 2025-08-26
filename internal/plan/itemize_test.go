@@ -14,7 +14,7 @@ func TestItemizer(t *testing.T) {
 	tests := map[string]struct {
 		sourceDir      string     // The duffel source dir in the file system.
 		nameArg        string     // The name passed to Itemize.
-		wantSourcePath SourcePath // The SourcePath result from Itemize.
+		wantSourcePath sourcePath // The SourcePath result from Itemize.
 		wantErr        error      // The error result from Itemize.
 	}{
 		"not in a source dir": {

@@ -18,27 +18,27 @@ type itemizer struct {
 	fsys fs.ReadLinkFS
 }
 
-// itemize returns a [SourcePath] describing the named file.
+// itemize returns a [sourcePath] describing the named file.
 // If the file is not in a duffel source directory,
 // the method returns an error.
-func (i itemizer) itemize(name string) (SourcePath, error) {
+func (i itemizer) itemize(name string) (sourcePath, error) {
 	source, err := file.SourceDir(i.fsys, name)
 	if errors.Is(err, fs.ErrNotExist) {
-		return SourcePath{}, errNotInPackage
+		return sourcePath{}, errNotInPackage
 	}
 
 	if err != nil {
-		return SourcePath{}, err
+		return sourcePath{}, err
 	}
 
 	if name == source {
-		return SourcePath{}, errIsSource
+		return sourcePath{}, errIsSource
 	}
 
 	pkgItem := name[len(source)+1:]
 	pkg, item, found := strings.Cut(pkgItem, "/")
 	if !found {
-		return SourcePath{}, errIsPackage
+		return sourcePath{}, errIsPackage
 	}
 
 	return newSourcePath(source, pkg, item), nil

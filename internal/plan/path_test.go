@@ -7,7 +7,7 @@ import (
 
 func TestSourcePath(t *testing.T) {
 	tests := map[string]struct {
-		sourcePath     SourcePath
+		sourcePath     sourcePath
 		wantString     string
 		wantPackageDir string
 	}{

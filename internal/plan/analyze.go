@@ -20,13 +20,13 @@ func InstallPackage(source, pkg string) DirGoal {
 
 // DirGoal identifies a goal for the items in a directory.
 type DirGoal struct {
-	dir  SourcePath // The directory that contains the items.
+	dir  sourcePath // The directory that contains the items.
 	goal itemGoal   // The goal to achieve for the items.
 }
 
 // mergeDir creates a [DirGoal] to merge a previously installed directory
 // into the directory being installed.
-func mergeDir(dir SourcePath) DirGoal {
+func mergeDir(dir sourcePath) DirGoal {
 	return DirGoal{
 		dir:  dir,
 		goal: goalMerge,
@@ -80,17 +80,17 @@ type itemAnalyzer interface {
 	// If the target was planned by previous operations,
 	// the target item describes the previously planned goal state.
 	// Otherwise it describes the state of the file in the target tree.
-	analyze(SourceItem, TargetItem, *slog.Logger) (file.State, error)
+	analyze(sourceItem, targetItem, *slog.Logger) (file.State, error)
 }
 
 // An index maintains the planned states of items in the target tree.
 type index interface {
-	state(TargetPath, *slog.Logger) (file.State, error)
-	setState(TargetPath, file.State, *slog.Logger)
+	state(targetPath, *slog.Logger) (file.State, error)
+	setState(targetPath, file.State, *slog.Logger)
 }
 
 type entryAnalyzer struct {
-	root         SourcePath   // The root dir that contains the items to analyze.
+	root         sourcePath   // The root dir that contains the items to analyze.
 	target       string       // The root of the target tree in which to achieve the goal states.
 	itemAnalyzer itemAnalyzer // Analyzes each item to identify the goal state.
 	index        index        // The known or planned states of target items.
@@ -112,17 +112,17 @@ func (ea entryAnalyzer) analyze(name string, entry fs.DirEntry, err error) error
 		return fmt.Errorf("%q: %w", sourcePath, err)
 	}
 
-	sourceItem := SourceItem{sourcePath, sourceType}
+	sourceItem := sourceItem{sourcePath, sourceType}
 	indexLogger := ea.logger.With(slog.Any("source", sourceItem))
 
-	targetPath := newTargetPath(ea.target, sourcePath.Item)
+	targetPath := newTargetPath(ea.target, sourcePath.item)
 
 	targetState, err := ea.index.state(targetPath, indexLogger)
 	if err != nil {
 		return err
 	}
 
-	targetItem := TargetItem{targetPath, targetState}
+	targetItem := targetItem{targetPath, targetState}
 
 	newState, err := ea.itemAnalyzer.analyze(sourceItem, targetItem, ea.logger)
 

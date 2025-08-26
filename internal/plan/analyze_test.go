@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/google/go-cmp/cmp"
+	"github.com/google/go-cmp/cmp/cmpopts"
 
 	"github.com/dhemery/duffel/internal/duftest"
 	"github.com/dhemery/duffel/internal/errfs"
@@ -21,13 +22,13 @@ func TestEntryAnalyzer(t *testing.T) {
 }
 
 type entryAnalyzerTest struct {
-	desc              string     // Description of the test.
-	targetItem        targetItem // The state of the target item in the index.
-	sourceItem        sourceItem // The source item state passed to Analyze.
-	itemAnalyzerState file.State // The state result from ItemAnalyzer.
-	itemAnalyzerError error      // The error result from ItemAnalyzer.
-	wantErr           error      // Error result.
-	wantState         file.State // State passed to index.SetState.
+	desc              string         // Description of the test.
+	targetItem        testTargetItem // The state of the target item in the index.
+	sourceItem        testSourceItem // The source item state passed to Analyze.
+	itemAnalyzerState file.State     // The state result from ItemAnalyzer.
+	itemAnalyzerError error          // The error result from ItemAnalyzer.
+	wantErr           error          // Error result.
+	wantState         file.State     // State passed to index.SetState.
 }
 
 var (
@@ -173,7 +174,7 @@ func (test entryAnalyzerTest) run(t *testing.T) {
 }
 
 func (test entryAnalyzerTest) EntryArg() fs.DirEntry {
-	return errfs.DirEntry(test.SourcePath().Item, test.sourceItem.fmode)
+	return errfs.DirEntry(test.SourcePath().item, test.sourceItem.fmode)
 }
 
 func (test entryAnalyzerTest) ErrArg() error {
@@ -185,30 +186,30 @@ func (test entryAnalyzerTest) NameArg() string {
 }
 
 func (test entryAnalyzerTest) Package() string {
-	return test.SourcePath().Package
+	return test.SourcePath().pkg
 }
 
 func (test entryAnalyzerTest) SourceDir() string {
-	return test.SourcePath().Source
+	return test.SourcePath().source
 }
 
-func (test entryAnalyzerTest) SourceItem() SourceItem {
+func (test entryAnalyzerTest) SourceItem() sourceItem {
 	return test.sourceItem.sourceItem
 }
 
-func (test entryAnalyzerTest) SourcePath() SourcePath {
+func (test entryAnalyzerTest) SourcePath() sourcePath {
 	return test.SourceItem().Path
 }
 
 func (test entryAnalyzerTest) TargetDir() string {
-	return test.TargetPath().Target
+	return test.TargetPath().target
 }
 
-func (test entryAnalyzerTest) TargetPath() TargetPath {
+func (test entryAnalyzerTest) TargetPath() targetPath {
 	return test.TargetItem().Path
 }
 
-func (test entryAnalyzerTest) TargetItem() TargetItem {
+func (test entryAnalyzerTest) TargetItem() targetItem {
 	return test.targetItem.targetItem
 }
 
@@ -216,88 +217,88 @@ func (test entryAnalyzerTest) TargetItemName() string {
 	return test.TargetPath().String()
 }
 
-func (test entryAnalyzerTest) WalkRoot() SourcePath {
+func (test entryAnalyzerTest) WalkRoot() sourcePath {
 	return test.SourcePath().withItem("")
 }
 
-type sourceItem struct {
-	sourceItem SourceItem  // The item path and type.
+type testSourceItem struct {
+	sourceItem sourceItem  // The item path and type.
 	fmode      fs.FileMode // The source item's file mode. Must match ftype.
 	errArg     error       // Error passed to PackageOp's visit func.
 }
 
-func sourceDirItem(source, pkg, item string) sourceItem {
-	return sourceItem{
+func sourceDirItem(source, pkg, item string) testSourceItem {
+	return testSourceItem{
 		sourceItem: newSourceItem(source, pkg, item, file.TypeDir),
 		fmode:      fs.ModeDir | 0o755,
 	}
 }
 
-func sourceDirErrorItem(source, pkg, item string, err error) sourceItem {
-	return sourceItem{
+func sourceDirErrorItem(source, pkg, item string, err error) testSourceItem {
+	return testSourceItem{
 		sourceItem: newSourceItem(source, pkg, item, file.TypeDir),
 		fmode:      fs.ModeDir | 0o755,
 		errArg:     err,
 	}
 }
 
-func sourceFileItem(source, pkg, item string) sourceItem {
-	return sourceItem{
+func sourceFileItem(source, pkg, item string) testSourceItem {
+	return testSourceItem{
 		sourceItem: newSourceItem(source, pkg, item, file.TypeFile),
 		fmode:      0o644,
 	}
 }
 
-// A targetItem is an index with the state of a single target item.
-type targetItem struct {
-	targetItem    TargetItem  // The target item.
+// A testTargetItem is an index with the state of a single target item.
+type testTargetItem struct {
+	targetItem    targetItem  // The target item.
 	err           error       // Error to return from State.
-	gotTargetPath TargetPath  // TargetPath passed to SetState.
+	gotTargetPath targetPath  // TargetPath passed to SetState.
 	gotState      *file.State // State passed to SetState.
 }
 
-func targetNoFileItem(target, item string) targetItem {
-	return targetItem{
+func targetNoFileItem(target, item string) testTargetItem {
+	return testTargetItem{
 		targetItem: newTargetItem(target, item, file.NoFileState()),
 	}
 }
 
-func targetFileItem(target, item string) targetItem {
-	return targetItem{
+func targetFileItem(target, item string) testTargetItem {
+	return testTargetItem{
 		targetItem: newTargetItem(target, item, file.FileState()),
 	}
 }
 
-func targetDirItem(target, item string) targetItem {
-	return targetItem{
+func targetDirItem(target, item string) testTargetItem {
+	return testTargetItem{
 		targetItem: newTargetItem(target, item, file.DirState()),
 	}
 }
 
-func targetLinkItem(target, item, dest string, destType file.Type) targetItem {
-	return targetItem{
+func targetLinkItem(target, item, dest string, destType file.Type) testTargetItem {
+	return testTargetItem{
 		targetItem: newTargetItem(target, item, file.LinkState(dest, destType)),
 	}
 }
 
-func targetError(target, item string, err error) targetItem {
-	return targetItem{
-		targetItem: TargetItem{Path: newTargetPath(target, item)},
+func targetError(target, item string, err error) testTargetItem {
+	return testTargetItem{
+		targetItem: targetItem{Path: newTargetPath(target, item)},
 		err:        err,
 	}
 }
 
-func (ts *targetItem) state(tp TargetPath, _ *slog.Logger) (file.State, error) {
+func (ts *testTargetItem) state(tp targetPath, _ *slog.Logger) (file.State, error) {
 	ts.gotTargetPath = tp
 	return ts.targetItem.State, ts.err
 }
 
-func (ts *targetItem) setState(tp TargetPath, s file.State, _ *slog.Logger) {
+func (ts *testTargetItem) setState(tp targetPath, s file.State, _ *slog.Logger) {
 	ts.gotTargetPath = tp
 	ts.gotState = &s
 }
 
-func (ts *targetItem) checkSetState(t *testing.T, wantTargetPath TargetPath, wantState file.State) {
+func (ts *testTargetItem) checkSetState(t *testing.T, wantTargetPath targetPath, wantState file.State) {
 	t.Helper()
 	if wantState.Type == file.TypeUnknown {
 		if ts.gotState != nil {
@@ -317,24 +318,24 @@ func (ts *targetItem) checkSetState(t *testing.T, wantTargetPath TargetPath, wan
 type testItemAnalyzer struct {
 	state     file.State  // State to return from Analyze.
 	err       error       // Error to return from Analyze.
-	gotSource *SourceItem // SourceItem passed to Analyze.
-	gotTarget *TargetItem // TargetItem passed to Analyze.
+	gotSource *sourceItem // SourceItem passed to Analyze.
+	gotTarget *targetItem // TargetItem passed to Analyze.
 }
 
-func (tia *testItemAnalyzer) analyze(gotSource SourceItem, gotTarget TargetItem, l *slog.Logger) (file.State, error) {
+func (tia *testItemAnalyzer) analyze(gotSource sourceItem, gotTarget targetItem, l *slog.Logger) (file.State, error) {
 	tia.gotSource, tia.gotTarget = &gotSource, &gotTarget
 	return tia.state, tia.err
 }
 
-func (tia *testItemAnalyzer) checkCall(t *testing.T, wantSource SourceItem, wantTarget TargetItem) {
+func (tia *testItemAnalyzer) checkCall(t *testing.T, wantSource sourceItem, wantTarget targetItem) {
 	t.Helper()
 	if tia.gotSource == nil {
 		return
 	}
-	if diff := cmp.Diff(&wantSource, tia.gotSource); diff != "" {
+	if diff := cmp.Diff(&wantSource, tia.gotSource, cmpopts.EquateComparable(sourceItem{})); diff != "" {
 		t.Errorf("item func source arg:\n%s", diff)
 	}
-	if diff := cmp.Diff(&wantTarget, tia.gotTarget); diff != "" {
+	if diff := cmp.Diff(&wantTarget, tia.gotTarget, cmpopts.EquateComparable(targetItem{})); diff != "" {
 		t.Errorf("item func target arg:\n%s", diff)
 	}
 }

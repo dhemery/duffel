@@ -8,105 +8,105 @@ import (
 	"github.com/dhemery/duffel/internal/file"
 )
 
-// newSourcePath returns a [SourcePath]
+// newSourcePath returns a [sourcePath]
 // for the specified package or item.
 // Source is the full path from the root of the file system to the source directory.
 // Pkg is the name of the package directory.
 // Item is the path from the package directory to the item.
 // If item is empty, the SourcePath represents a package.
-func newSourcePath(source, pkg, item string) SourcePath {
-	return SourcePath{source, pkg, item}
+func newSourcePath(source, pkg, item string) sourcePath {
+	return sourcePath{source, pkg, item}
 }
 
-// SourcePath is the path to a package or item in a duffel source tree.
-type SourcePath struct {
-	Source  string `json:"source"`  // The full path to the source directory.
-	Package string `json:"package"` // The name of the package.
-	Item    string `json:"item"`    // The path from the package directory to the item.
+// A sourcePath is the path to a package or item in a duffel source tree.
+type sourcePath struct {
+	source string // The full path to the source directory.
+	pkg    string // The name of the package.
+	item   string // The path from the package directory to the item.
 }
 
 // String returns the full path to s.
-func (s SourcePath) String() string {
-	return path.Join(s.Source, s.Package, s.Item)
+func (s sourcePath) String() string {
+	return path.Join(s.source, s.pkg, s.item)
 }
 
 // MarshalJSONTo writes the string value of s to e.
-func (s SourcePath) MarshalJSONTo(e *jsontext.Encoder) error {
+func (s sourcePath) MarshalJSONTo(e *jsontext.Encoder) error {
 	return e.WriteToken(jsontext.String(s.String()))
 }
 
 // PackageDir returns the full path to s's package directory.
-func (s SourcePath) PackageDir() string {
-	return path.Join(s.Source, s.Package)
+func (s sourcePath) PackageDir() string {
+	return path.Join(s.source, s.pkg)
 }
 
 // withItem returns a copy of s with its item replaced by item.
-func (s SourcePath) withItem(item string) SourcePath {
-	return SourcePath{s.Source, s.Package, item}
+func (s sourcePath) withItem(item string) sourcePath {
+	return sourcePath{s.source, s.pkg, item}
 }
 
 // withItemFrom returns a copy of s with its item replaced by the item in name.
 // Name must be in the same package as s.
-func (s SourcePath) withItemFrom(name string) SourcePath {
+func (s sourcePath) withItemFrom(name string) sourcePath {
 	item, _ := filepath.Rel(s.PackageDir(), name)
 	return s.withItem(item)
 }
 
-// newSourceItem returns a [SourceItem] with the given path and file type.
-func newSourceItem(source, pkg, item string, t file.Type) SourceItem {
-	return SourceItem{newSourcePath(source, pkg, item), t}
+// newSourceItem returns a [sourceItem] with the given path and file type.
+func newSourceItem(source, pkg, item string, t file.Type) sourceItem {
+	return sourceItem{newSourcePath(source, pkg, item), t}
 }
 
-// SourceItem describes a file in a duffel source tree.
-type SourceItem struct {
-	Path SourcePath `json:"path"` // The path to the file.
+// A sourceItem describes a file in a duffel source tree.
+type sourceItem struct {
+	Path sourcePath `json:"path"` // The path to the file.
 	Type file.Type  `json:"type"` // The type of the file.
 }
 
-// newTargetPath returns a [TargetPath]
+// newTargetPath returns a [targetPath]
 // for the specified item in the target tree.
-func newTargetPath(target, item string) TargetPath {
-	return TargetPath{target, item}
+func newTargetPath(target, item string) targetPath {
+	return targetPath{target, item}
 }
 
-// TargetPath is the path to an existing or planned file in the target tree.
-type TargetPath struct {
-	Target string `json:"target"` // The full path to the target directory.
-	Item   string `json:"item"`   // The path from t to the file.
+// A targetPath is the path to an existing or planned file in the target tree.
+type targetPath struct {
+	target string // The full path to the target directory.
+	item   string // The path from t to the file.
 }
 
 // String returns the full path to the file.
-func (t TargetPath) String() string {
-	return path.Join(t.Target, t.Item)
+func (t targetPath) String() string {
+	return path.Join(t.target, t.item)
 }
 
 // MarshalJSONTo writes the string value of t to e.
-func (t TargetPath) MarshalJSONTo(e *jsontext.Encoder) error {
+func (t targetPath) MarshalJSONTo(e *jsontext.Encoder) error {
 	return e.WriteToken(jsontext.String(t.String()))
 }
 
 // PathTo returns the relative path to full from t's parent directory.
-func (t TargetPath) PathTo(full string) string {
+func (t targetPath) PathTo(full string) string {
 	p, _ := filepath.Rel(t.parent(), full)
 	return p
 }
 
 // Resolve resolves rel with respect to t's parent directory.
-func (t TargetPath) Resolve(rel string) string {
+func (t targetPath) Resolve(rel string) string {
 	return path.Join(t.parent(), rel)
 }
 
-func (t TargetPath) parent() string {
+func (t targetPath) parent() string {
 	return path.Dir(t.String())
 }
 
-// newTargetItem returns a [TargetItem] with the given path and file state.
-func newTargetItem(target, item string, state file.State) TargetItem {
-	return TargetItem{TargetPath{target, item}, state}
+// newTargetItem returns a [targetItem] with the given path and file state.
+func newTargetItem(target, item string, state file.State) targetItem {
+	return targetItem{targetPath{target, item}, state}
 }
 
-// TargetItem describes a planned or existing file in the target tree.
-type TargetItem struct {
-	Path  TargetPath `json:"path"`  // The path to the file.
+// A targetItem describes a planned or existing file in the target tree.
+type targetItem struct {
+	Path  targetPath `json:"path"`  // The path to the file.
 	State file.State `json:"state"` // The state of the file.
 }

@@ -21,8 +21,8 @@ func TestInstall(t *testing.T) {
 
 type installTest struct {
 	desc       string      // Description of the test.
-	sourceItem SourceItem  // The state of the source item.
-	targetItem TargetItem  // The state of the target item as of any earlier planning.
+	sourceItem sourceItem  // The state of the source item.
+	targetItem targetItem  // The state of the target item as of any earlier planning.
 	merger     *testMerger // The merger for the installer to call.
 	wantState  file.State  // State result.
 	wantErr    error       // Error result.
@@ -141,8 +141,8 @@ var conflictSuite = installSuite{
 			sourceItem: newSourceItem("source", "pkg", "item", file.TypeDir),
 			targetItem: newTargetItem("target", "item", file.FileState()),
 			wantErr: &ConflictError{
-				SourceItem{newSourcePath("source", "pkg", "item"), file.TypeDir},
-				TargetItem{newTargetPath("target", "item"), file.FileState()},
+				sourceItem{newSourcePath("source", "pkg", "item"), file.TypeDir},
+				targetItem{newTargetPath("target", "item"), file.FileState()},
 			},
 		},
 		{
@@ -151,8 +151,8 @@ var conflictSuite = installSuite{
 			targetItem: newTargetItem("target", "item",
 				file.LinkState("link/to/file", file.TypeFile)),
 			wantErr: &ConflictError{
-				SourceItem{newSourcePath("source", "pkg", "item"), file.TypeDir},
-				TargetItem{
+				sourceItem{newSourcePath("source", "pkg", "item"), file.TypeDir},
+				targetItem{
 					newTargetPath("target", "item"),
 					file.LinkState("link/to/file", file.TypeFile),
 				},
@@ -163,8 +163,8 @@ var conflictSuite = installSuite{
 			sourceItem: newSourceItem("source", "pkg", "item", file.TypeFile),
 			targetItem: newTargetItem("target", "item", file.DirState()),
 			wantErr: &ConflictError{
-				SourceItem{newSourcePath("source", "pkg", "item"), file.TypeFile},
-				TargetItem{newTargetPath("target", "item"), file.DirState()},
+				sourceItem{newSourcePath("source", "pkg", "item"), file.TypeFile},
+				targetItem{newTargetPath("target", "item"), file.DirState()},
 			},
 		},
 		{
@@ -173,8 +173,8 @@ var conflictSuite = installSuite{
 			targetItem: newTargetItem("target", "item",
 				file.LinkState("target/some/dest", file.TypeDir)),
 			wantErr: &ConflictError{
-				SourceItem{newSourcePath("source", "pkg", "item"), file.TypeFile},
-				TargetItem{
+				sourceItem{newSourcePath("source", "pkg", "item"), file.TypeFile},
+				targetItem{
 					newTargetPath("target", "item"),
 					file.LinkState("target/some/dest", file.TypeDir),
 				},
@@ -212,7 +212,7 @@ func (test installTest) run(t *testing.T) {
 
 		switch want := test.wantErr.(type) {
 		case *ConflictError, *MergeError:
-			if diff := cmp.Diff(want, gotErr); diff != "" {
+			if diff := cmp.Diff(want, gotErr, cmpopts.EquateComparable(sourcePath{}, targetPath{})); diff != "" {
 				t.Errorf("error:\n%s", diff)
 			}
 		default:
