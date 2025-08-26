@@ -71,6 +71,11 @@ func (t Type) String() string {
 	return fmt.Sprintf("<unknown file type %o>", t)
 }
 
+// MarshalJSONTo writes the string value of t to e.
+func (t Type) MarshalJSONTo(e *jsontext.Encoder) error {
+	return e.WriteToken(jsontext.String(t.String()))
+}
+
 // A State represents the state of an existing or planned file.
 type State struct {
 	Type Type // The type of file.

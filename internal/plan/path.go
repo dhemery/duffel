@@ -1,7 +1,7 @@
 package plan
 
 import (
-	"log/slog"
+	"encoding/json/jsontext"
 	"path"
 	"path/filepath"
 
@@ -30,6 +30,11 @@ func (s SourcePath) String() string {
 	return path.Join(s.Source, s.Package, s.Item)
 }
 
+// MarshalJSONTo writes the string value of s to e.
+func (s SourcePath) MarshalJSONTo(e *jsontext.Encoder) error {
+	return e.WriteToken(jsontext.String(s.String()))
+}
+
 // PackageDir returns the full path to s;s package directory.
 func (s SourcePath) PackageDir() string {
 	return path.Join(s.Source, s.Package)
@@ -47,11 +52,6 @@ func (s SourcePath) WithItemFrom(name string) SourcePath {
 	return s.WithItem(item)
 }
 
-// LogValue represents s as a [slog.Value].
-func (s SourcePath) LogValue() slog.Value {
-	return slog.StringValue(s.String())
-}
-
 // NewSourceItem returns a [SourceItem] with the given path and file type.
 func NewSourceItem(source, pkg, item string, t file.Type) SourceItem {
 	return SourceItem{NewSourcePath(source, pkg, item), t}
@@ -61,14 +61,6 @@ func NewSourceItem(source, pkg, item string, t file.Type) SourceItem {
 type SourceItem struct {
 	Path SourcePath `json:"path"` // The path to the file.
 	Type file.Type  `json:"type"` // The type of the file.
-}
-
-// LogValue represents s as a [slog.Value].
-func (s SourceItem) LogValue() slog.Value {
-	return slog.GroupValue(
-		slog.Any("path", s.Path),
-		slog.Any("type", s.Type),
-	)
 }
 
 // NewTargetPath returns a [TargetPath]
@@ -88,6 +80,11 @@ func (t TargetPath) String() string {
 	return path.Join(t.Target, t.Item)
 }
 
+// MarshalJSONTo writes the string value of t to e.
+func (t TargetPath) MarshalJSONTo(e *jsontext.Encoder) error {
+	return e.WriteToken(jsontext.String(t.String()))
+}
+
 // PathTo returns the relative path to full from t's parent directory.
 func (t TargetPath) PathTo(full string) string {
 	p, _ := filepath.Rel(t.parent(), full)
@@ -103,11 +100,6 @@ func (t TargetPath) parent() string {
 	return path.Dir(t.String())
 }
 
-// LogValue represents t as a [slog.Value].
-func (t TargetPath) LogValue() slog.Value {
-	return slog.StringValue(t.String())
-}
-
 // NewTargetItem returns a [TargetItem] with the given path and file state.
 func NewTargetItem(target, item string, state file.State) TargetItem {
 	return TargetItem{TargetPath{target, item}, state}
@@ -117,12 +109,4 @@ func NewTargetItem(target, item string, state file.State) TargetItem {
 type TargetItem struct {
 	Path  TargetPath `json:"path"`  // The path to the file.
 	State file.State `json:"state"` // The state of the file.
-}
-
-// LogValue represents t as a [slog.Value].
-func (t TargetItem) LogValue() slog.Value {
-	return slog.GroupValue(
-		slog.Any("path", t.Path),
-		slog.Any("state", t.State),
-	)
 }
