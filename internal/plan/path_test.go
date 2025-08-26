@@ -1,10 +1,8 @@
-package plan_test
+package plan
 
 import (
 	"path"
 	"testing"
-
-	. "github.com/dhemery/duffel/internal/plan"
 )
 
 func TestSourcePath(t *testing.T) {
@@ -14,12 +12,12 @@ func TestSourcePath(t *testing.T) {
 		wantPackageDir string
 	}{
 		"item path": {
-			sourcePath:     NewSourcePath("s1/s2/s3", "pkg", "i1/i2/i3"),
+			sourcePath:     newSourcePath("s1/s2/s3", "pkg", "i1/i2/i3"),
 			wantString:     "s1/s2/s3/pkg/i1/i2/i3",
 			wantPackageDir: "s1/s2/s3/pkg",
 		},
 		"package path": {
-			sourcePath:     NewSourcePath("s1/s2/s3", "pkg", ""),
+			sourcePath:     newSourcePath("s1/s2/s3", "pkg", ""),
 			wantString:     "s1/s2/s3/pkg",
 			wantPackageDir: "s1/s2/s3/pkg",
 		},
@@ -38,12 +36,12 @@ func TestSourcePath(t *testing.T) {
 			otherItem := "other/item"
 			otherItemFullPath := path.Join(test.wantPackageDir, otherItem)
 
-			if got := test.sourcePath.WithItem(otherItem).String(); got != otherItemFullPath {
+			if got := test.sourcePath.withItem(otherItem).String(); got != otherItemFullPath {
 				t.Errorf("%q.WithItem(%q)=%q, want %q",
 					test.wantString, otherItem, got, otherItemFullPath)
 			}
 
-			if got := test.sourcePath.WithItemFrom(otherItemFullPath); got.String() != otherItemFullPath {
+			if got := test.sourcePath.withItemFrom(otherItemFullPath); got.String() != otherItemFullPath {
 				t.Errorf("%q.WithItemFrom(%q)=%q, want %q",
 					test.wantString, otherItemFullPath, got, otherItem)
 			}
@@ -52,7 +50,7 @@ func TestSourcePath(t *testing.T) {
 }
 
 func TestTargetPath(t *testing.T) {
-	targetPath := NewTargetPath("my/target", "my/item")
+	targetPath := newTargetPath("my/target", "my/item")
 
 	if got, want := targetPath.String(), "my/target/my/item"; got != want {
 		t.Errorf("String()=%q, want %q", got, want)

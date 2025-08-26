@@ -1,4 +1,4 @@
-package plan_test
+package plan
 
 import (
 	"bytes"
@@ -9,7 +9,6 @@ import (
 	"github.com/dhemery/duffel/internal/errfs"
 	"github.com/dhemery/duffel/internal/file"
 	"github.com/dhemery/duffel/internal/log"
-	. "github.com/dhemery/duffel/internal/plan"
 
 	"github.com/google/go-cmp/cmp"
 	"github.com/google/go-cmp/cmp/cmpopts"
@@ -26,21 +25,21 @@ func TestMerge(t *testing.T) {
 		"not in a package": {
 			files:   []*errfs.File{}, // No other files, so no source marker file
 			nameArg: "dir1/dir2/dir3/dir4/dir5/dir6",
-			wantErr: &MergeError{Name: "dir1/dir2/dir3/dir4/dir5/dir6", Err: ErrNotInPackage},
+			wantErr: &MergeError{Name: "dir1/dir2/dir3/dir4/dir5/dir6", Err: errNotInPackage},
 		},
 		"duffel source dir": {
 			files: []*errfs.File{
 				sourceDir("duffel/source-dir"),
 			},
 			nameArg: "duffel/source-dir",
-			wantErr: &MergeError{Name: "duffel/source-dir", Err: ErrIsSource},
+			wantErr: &MergeError{Name: "duffel/source-dir", Err: errIsSource},
 		},
 		"duffel package": {
 			files: []*errfs.File{
 				sourceDir("duffel/source-dir"),
 			},
 			nameArg: "duffel/source-dir/pkg-dir",
-			wantErr: &MergeError{Name: "duffel/source-dir/pkg-dir", Err: ErrIsPackage},
+			wantErr: &MergeError{Name: "duffel/source-dir/pkg-dir", Err: errIsPackage},
 		},
 		"top level item in a package": {
 			target: "target-dir",
@@ -106,13 +105,13 @@ func TestMerge(t *testing.T) {
 			}
 
 			stater := file.NewStater(testFS)
-			index := NewIndex(stater)
-			analyzer := NewAnalyzer(testFS, test.target, index)
-			itemizer := NewItemizer(testFS)
+			index := newIndex(stater)
+			analyzer := newAnalyzer(testFS, test.target, index)
+			itemizer := itemizer{testFS}
 
-			merger := NewMerger(itemizer, analyzer)
+			merger := newMerger(itemizer, analyzer)
 
-			err := merger.Merge(test.nameArg, logger)
+			err := merger.merge(test.nameArg, logger)
 
 			if diff := cmp.Diff(test.wantErr, err); diff != "" {
 				t.Errorf("Merge(%q, %q) error:\n%s",
@@ -120,8 +119,8 @@ func TestMerge(t *testing.T) {
 			}
 
 			gotStates := map[string]file.State{}
-			for n, spec := range index.All() {
-				gotStates[n] = spec.Planned
+			for n, spec := range index.all() {
+				gotStates[n] = spec.planned
 			}
 			if diff := cmp.Diff(test.wantStates, gotStates, cmpopts.EquateEmpty()); diff != "" {
 				t.Errorf("planned states after Merge(%q, %q):\n%s",

@@ -19,7 +19,7 @@ func TestIndex(t *testing.T) {
 	logger := log.Logger(&logbuf, duftest.LogLevel)
 	defer duftest.Dump(t, "log", &logbuf)
 
-	targetPath := NewTargetPath("target", "some/item")
+	targetPath := newTargetPath("target", "some/item")
 	targetName := targetPath.String()
 
 	// Index must call stater only once, and cache the result.
@@ -30,21 +30,21 @@ func TestIndex(t *testing.T) {
 		err:      nil,
 	}
 
-	index := NewIndex(testStater)
+	index := newIndex(testStater)
 
 	// First call returns the state from stater.
-	state, err := index.State(targetPath, logger)
+	state, err := index.state(targetPath, logger)
 	ctx := "first index.State()"
 	checkState(t, ctx, state, testStater.state)
 	checkErr(t, ctx, err, testStater.err)
 	// Caches a spec with current = planned = state from stater.
-	wantInitialSpecs := map[string]Spec{
-		targetName: {Current: testStater.state, Planned: testStater.state},
+	wantInitialSpecs := map[string]spec{
+		targetName: {current: testStater.state, planned: testStater.state},
 	}
 	checkRecordedSpecs(t, ctx, index, wantInitialSpecs)
 
 	// Second call returns the cached state without calling stater again.
-	state, err = index.State(targetPath, logger)
+	state, err = index.state(targetPath, logger)
 	ctx = "second index.State()"
 	checkState(t, ctx, state, testStater.state)
 	checkErr(t, ctx, err, testStater.err)
@@ -53,14 +53,14 @@ func TestIndex(t *testing.T) {
 	// SetState sets the planned state and leaves the current state unchanged.
 	newState := file.DirState()
 	ctx = "index.SetState()"
-	index.SetState(targetPath, newState, logger)
-	wantUpdatedSpecs := map[string]Spec{
-		targetName: {Current: testStater.state, Planned: newState},
+	index.setState(targetPath, newState, logger)
+	wantUpdatedSpecs := map[string]spec{
+		targetName: {current: testStater.state, planned: newState},
 	}
 	checkRecordedSpecs(t, ctx, index, wantUpdatedSpecs)
 
 	// Third call returns the planned state set by SetState.
-	state, err = index.State(targetPath, logger)
+	state, err = index.state(targetPath, logger)
 	ctx = "updated index.State()"
 	checkState(t, ctx, state, newState)
 	checkErr(t, ctx, err, testStater.err)
@@ -72,7 +72,7 @@ func TestIndexStaterError(t *testing.T) {
 	logger := log.Logger(&logbuf, duftest.LogLevel)
 	defer duftest.Dump(t, "log", &logbuf)
 
-	targetPath := NewTargetPath("target", "some/item")
+	targetPath := newTargetPath("target", "some/item")
 	targetName := targetPath.String()
 
 	testStater := oneTimeStater{
@@ -81,13 +81,13 @@ func TestIndexStaterError(t *testing.T) {
 		err:      errors.New("error from stater"),
 	}
 
-	index := NewIndex(testStater)
+	index := newIndex(testStater)
 
-	_, err := index.State(targetPath, logger)
+	_, err := index.state(targetPath, logger)
 
 	ctx := "index.State()"
 	checkErr(t, ctx, err, testStater.err)
-	wantSpecs := map[string]Spec{} // No specs.
+	wantSpecs := map[string]spec{} // No specs.
 	checkRecordedSpecs(t, ctx, index, wantSpecs)
 }
 
@@ -105,10 +105,10 @@ func checkState(t *testing.T, ctx string, got, want file.State) {
 	}
 }
 
-func checkRecordedSpecs(t *testing.T, ctx string, got specs, want map[string]Spec) {
+func checkRecordedSpecs(t *testing.T, ctx string, got specs, want map[string]spec) {
 	t.Helper()
-	gotMap := maps.Collect(got.All())
-	if diff := cmp.Diff(want, gotMap); diff != "" {
+	gotMap := maps.Collect(got.all())
+	if diff := cmp.Diff(want, gotMap, cmpopts.EquateComparable(spec{})); diff != "" {
 		t.Errorf("%s: Specs():\n%s", ctx, diff)
 	}
 }

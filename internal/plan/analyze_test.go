@@ -1,4 +1,4 @@
-package plan_test
+package plan
 
 import (
 	"bytes"
@@ -13,7 +13,6 @@ import (
 	"github.com/dhemery/duffel/internal/errfs"
 	"github.com/dhemery/duffel/internal/file"
 	"github.com/dhemery/duffel/internal/log"
-	. "github.com/dhemery/duffel/internal/plan"
 )
 
 func TestEntryAnalyzer(t *testing.T) {
@@ -154,15 +153,15 @@ func (test entryAnalyzerTest) run(t *testing.T) {
 			err:   test.itemAnalyzerError,
 		}
 
-		ea := EntryAnalyzer{
-			WalkRoot:     test.WalkRoot(),
-			Target:       test.TargetDir(),
-			Index:        &test.targetItem,
-			ItemAnalyzer: testItemAnalyzer,
-			Logger:       logger,
+		ea := entryAnalyzer{
+			root:         test.WalkRoot(),
+			target:       test.TargetDir(),
+			index:        &test.targetItem,
+			itemAnalyzer: testItemAnalyzer,
+			logger:       logger,
 		}
 
-		err := ea.Analyze(test.NameArg(), test.EntryArg(), test.ErrArg())
+		err := ea.analyze(test.NameArg(), test.EntryArg(), test.ErrArg())
 
 		if !errors.Is(err, test.wantErr) {
 			t.Errorf("error:\n got: %v\nwant: %v", err, test.wantErr)
@@ -218,7 +217,7 @@ func (test entryAnalyzerTest) TargetItemName() string {
 }
 
 func (test entryAnalyzerTest) WalkRoot() SourcePath {
-	return test.SourcePath().WithItem("")
+	return test.SourcePath().withItem("")
 }
 
 type sourceItem struct {
@@ -229,14 +228,14 @@ type sourceItem struct {
 
 func sourceDirItem(source, pkg, item string) sourceItem {
 	return sourceItem{
-		sourceItem: NewSourceItem(source, pkg, item, file.TypeDir),
+		sourceItem: newSourceItem(source, pkg, item, file.TypeDir),
 		fmode:      fs.ModeDir | 0o755,
 	}
 }
 
 func sourceDirErrorItem(source, pkg, item string, err error) sourceItem {
 	return sourceItem{
-		sourceItem: NewSourceItem(source, pkg, item, file.TypeDir),
+		sourceItem: newSourceItem(source, pkg, item, file.TypeDir),
 		fmode:      fs.ModeDir | 0o755,
 		errArg:     err,
 	}
@@ -244,7 +243,7 @@ func sourceDirErrorItem(source, pkg, item string, err error) sourceItem {
 
 func sourceFileItem(source, pkg, item string) sourceItem {
 	return sourceItem{
-		sourceItem: NewSourceItem(source, pkg, item, file.TypeFile),
+		sourceItem: newSourceItem(source, pkg, item, file.TypeFile),
 		fmode:      0o644,
 	}
 }
@@ -259,41 +258,41 @@ type targetItem struct {
 
 func targetNoFileItem(target, item string) targetItem {
 	return targetItem{
-		targetItem: NewTargetItem(target, item, file.NoFileState()),
+		targetItem: newTargetItem(target, item, file.NoFileState()),
 	}
 }
 
 func targetFileItem(target, item string) targetItem {
 	return targetItem{
-		targetItem: NewTargetItem(target, item, file.FileState()),
+		targetItem: newTargetItem(target, item, file.FileState()),
 	}
 }
 
 func targetDirItem(target, item string) targetItem {
 	return targetItem{
-		targetItem: NewTargetItem(target, item, file.DirState()),
+		targetItem: newTargetItem(target, item, file.DirState()),
 	}
 }
 
 func targetLinkItem(target, item, dest string, destType file.Type) targetItem {
 	return targetItem{
-		targetItem: NewTargetItem(target, item, file.LinkState(dest, destType)),
+		targetItem: newTargetItem(target, item, file.LinkState(dest, destType)),
 	}
 }
 
 func targetError(target, item string, err error) targetItem {
 	return targetItem{
-		targetItem: TargetItem{Path: NewTargetPath(target, item)},
+		targetItem: TargetItem{Path: newTargetPath(target, item)},
 		err:        err,
 	}
 }
 
-func (ts *targetItem) State(tp TargetPath, _ *slog.Logger) (file.State, error) {
+func (ts *targetItem) state(tp TargetPath, _ *slog.Logger) (file.State, error) {
 	ts.gotTargetPath = tp
 	return ts.targetItem.State, ts.err
 }
 
-func (ts *targetItem) SetState(tp TargetPath, s file.State, _ *slog.Logger) {
+func (ts *targetItem) setState(tp TargetPath, s file.State, _ *slog.Logger) {
 	ts.gotTargetPath = tp
 	ts.gotState = &s
 }
@@ -322,7 +321,7 @@ type testItemAnalyzer struct {
 	gotTarget *TargetItem // TargetItem passed to Analyze.
 }
 
-func (tia *testItemAnalyzer) Analyze(gotSource SourceItem, gotTarget TargetItem, l *slog.Logger) (file.State, error) {
+func (tia *testItemAnalyzer) analyze(gotSource SourceItem, gotTarget TargetItem, l *slog.Logger) (file.State, error) {
 	tia.gotSource, tia.gotTarget = &gotSource, &gotTarget
 	return tia.state, tia.err
 }

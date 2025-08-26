@@ -8,37 +8,39 @@ import (
 	"github.com/dhemery/duffel/internal/file"
 )
 
-type Stater interface {
-	State(name string) (file.State, error)
+// A spec describes the current and planned states of a file in the target tree.
+type spec struct {
+	current file.State
+	planned file.State
 }
 
-// Spec describes the current and planned states of a file in the target tree.
-type Spec struct {
-	Current file.State
-	Planned file.State
-}
-
-// NewIndex returns a new, empty index that reads file system states from s.
-func NewIndex(s Stater) *index {
-	return &index{
-		specs:  map[string]Spec{},
+// newIndex returns a new, empty specIndex that reads file states from s.
+func newIndex(s stater) *specIndex {
+	return &specIndex{
+		specs:  map[string]spec{},
 		stater: s,
 	}
 }
 
-type index struct {
-	specs  map[string]Spec
-	stater Stater
+// A specIndex maintains a spec for each known file.
+type specIndex struct {
+	specs  map[string]spec
+	stater stater
 }
 
-// State returns the planned state of the named file.
+type stater interface {
+	// State returns the state of the named file.
+	State(name string) (file.State, error)
+}
+
+// state returns the planned state of the named file.
 // If i does not already know the planned state,
 // this method reads the current state of the file,
 // stores it as both the current and planned states,
 // and returns the state.
-func (i *index) State(t TargetPath, l *slog.Logger) (file.State, error) {
+func (i *specIndex) state(t TargetPath, l *slog.Logger) (file.State, error) {
 	name := t.String()
-	spec, ok := i.specs[name]
+	s, ok := i.specs[name]
 	if !ok {
 		state, err := i.stater.State(name)
 		if err != nil {
@@ -46,23 +48,23 @@ func (i *index) State(t TargetPath, l *slog.Logger) (file.State, error) {
 		}
 		attrs := slog.GroupAttrs("target", slog.Any("path", t), slog.Any("file_state", state))
 		l.Debug("read target file state", attrs)
-		spec = Spec{state, state}
-		i.specs[name] = spec
+		s = spec{state, state}
+		i.specs[name] = s
 	}
-	return spec.Planned, nil
+	return s.planned, nil
 }
 
-// SetState sets the planned state of the target file.
-func (i *index) SetState(t TargetPath, s file.State, l *slog.Logger) {
+// setState sets the planned state of the target file.
+func (i *specIndex) setState(t TargetPath, s file.State, l *slog.Logger) {
 	name := t.String()
 	spec := i.specs[name]
 	attrs := slog.GroupAttrs("target", slog.Any("path", t), slog.Any("planned_state", s))
 	l.Info("set target planned state", attrs)
-	spec.Planned = s
+	spec.planned = s
 	i.specs[name] = spec
 }
 
-// All returns an iterator over the indexed specs.
-func (i *index) All() iter.Seq2[string, Spec] {
+// all returns an iterator over the indexed specs.
+func (i *specIndex) all() iter.Seq2[string, spec] {
 	return maps.All(i.specs)
 }

@@ -5,20 +5,7 @@ import (
 	"log/slog"
 )
 
-type MergeError struct {
-	Name string
-	Err  error
-}
-
-func (me *MergeError) Error() string {
-	return fmt.Sprintf("cannot merge %q: %s", me.Name, me.Err)
-}
-
-func (me *MergeError) Unwrap() error {
-	return me.Err
-}
-
-func NewMerger(itemizer itemizer, analyst *analyzer) *merger {
+func newMerger(itemizer itemizer, analyst *analyzer) *merger {
 	return &merger{
 		itemizer: itemizer,
 		analyst:  analyst,
@@ -30,12 +17,25 @@ type merger struct {
 	analyst  *analyzer
 }
 
-func (m merger) Merge(name string, logger *slog.Logger) error {
-	mergeItem, err := m.itemizer.Itemize(name)
+func (m merger) merge(name string, logger *slog.Logger) error {
+	mergeItem, err := m.itemizer.itemize(name)
 	if err != nil {
 		return &MergeError{Name: name, Err: err}
 	}
 
-	mergeOp := MergeDir(mergeItem)
-	return m.analyst.Analyze(mergeOp, logger)
+	mergeOp := mergeDir(mergeItem)
+	return m.analyst.analyze(mergeOp, logger)
+}
+
+type MergeError struct {
+	Name string `json:"name"`
+	Err  error  `json:"err"`
+}
+
+func (me *MergeError) Error() string {
+	return fmt.Sprintf("cannot merge %q: %s", me.Name, me.Err)
+}
+
+func (me *MergeError) Unwrap() error {
+	return me.Err
 }

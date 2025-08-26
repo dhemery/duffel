@@ -13,14 +13,30 @@ import (
 	"github.com/dhemery/duffel/internal/file"
 )
 
-// NewPlanner returns a planner that plans how to change the tree rooted at target.
+// NewPlanner returns a new [Planner]
+// that plans how to achieive goals in the file tree rooted at target.
 func NewPlanner(fsys fs.ReadLinkFS, target string, goals []DirGoal, l *slog.Logger) *Planner {
 	stater := file.NewStater(fsys)
-	index := NewIndex(stater)
-	analyst := NewAnalyzer(fsys, target, index)
+	index := newIndex(stater)
+	analyst := newAnalyzer(fsys, target, index)
 	return &Planner{target, analyst, goals, l}
 }
 
+// Execute returns a function that executes its [Plan] argument in the specified file system.
+func Execute(fsys file.ActionFS, l *slog.Logger) func(p Plan) error {
+	return func(p Plan) error {
+		return p.execute(fsys, l)
+	}
+}
+
+// Print returns a function that writes its [Plan] argument to w.
+func Print(w io.Writer) func(p Plan) error {
+	return func(p Plan) error {
+		return p.print(w)
+	}
+}
+
+// A Planner plans how to realize a set of goals in a target tree.
 type Planner struct {
 	target   string
 	analyzer *analyzer
@@ -28,14 +44,14 @@ type Planner struct {
 	logger   *slog.Logger
 }
 
-// Plan creates a plan to realize ops in p's target tree.
+// Plan creates a plan to realize p's goals in its target tree.
 func (p Planner) Plan() (Plan, error) {
 	for _, goal := range p.goals {
-		if err := p.analyzer.Analyze(goal, p.logger); err != nil {
+		if err := p.analyzer.analyze(goal, p.logger); err != nil {
 			return Plan{}, err
 		}
 	}
-	return NewPlan(p.target, p.analyzer.index), nil
+	return newPlan(p.target, p.analyzer.index), nil
 }
 
 // A Plan is a sequence of tasks
@@ -43,20 +59,6 @@ func (p Planner) Plan() (Plan, error) {
 type Plan struct {
 	Target string          `json:"target"`
 	Tasks  map[string]Task `json:"tasks"`
-}
-
-// Execute returns a function that executes its Plan argument in the specified file system.
-func Execute(fsys file.ActionFS, l *slog.Logger) func(p Plan) error {
-	return func(p Plan) error {
-		return p.execute(fsys, l)
-	}
-}
-
-// Print returns a function that writes its Plan argument to the specified [io.Writer].
-func Print(w io.Writer) func(p Plan) error {
-	return func(p Plan) error {
-		return p.print(w)
-	}
 }
 
 // print writes the JSON encoding of the Plan to [io.Writer] w.
@@ -76,25 +78,25 @@ func (p Plan) execute(fsys file.ActionFS, _ *slog.Logger) error {
 	return nil
 }
 
-// NewPlan returns a [Plan] to bring the target tree
+// newPlan returns a [Plan] to bring the target tree
 // to its planned state.
 // Specs describes the current and planned state of each file.
-func NewPlan(target string, specs specs) Plan {
+func newPlan(target string, specs specs) Plan {
 	targetLen := len(target) + 1
 	p := Plan{Target: target, Tasks: map[string]Task{}}
-	for name, spec := range specs.All() {
-		if spec.Current == spec.Planned {
+	for name, spec := range specs.all() {
+		if spec.current == spec.planned {
 			continue
 		}
 		item := name[targetLen:]
-		p.Tasks[item] = NewTask(spec.Current, spec.Planned)
+		p.Tasks[item] = newTask(spec.current, spec.planned)
 	}
 	return p
 }
 
-// NewTask creates a [Task] with the actions to bring file
+// newTask creates a [Task] with the actions to bring file
 // from the current state to the planned state.
-func NewTask(current, planned file.State) Task {
+func newTask(current, planned file.State) Task {
 	t := Task{}
 
 	switch {
@@ -133,7 +135,7 @@ func (t Task) Execute(afs file.ActionFS, name string) error {
 
 // specs is a collection that maps a file name to the Spec for the file.
 type specs interface {
-	// All returns an iterator over the item name and [analyze.Spec]
+	// all returns an iterator over the item name and [analyze.Spec]
 	// for each file in the target tree that is not in its planned state.
-	All() iter.Seq2[string, Spec]
+	all() iter.Seq2[string, spec]
 }

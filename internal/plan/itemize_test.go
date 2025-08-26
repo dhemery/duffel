@@ -1,4 +1,4 @@
-package plan_test
+package plan
 
 import (
 	"errors"
@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/dhemery/duffel/internal/file"
-	. "github.com/dhemery/duffel/internal/plan"
 
 	"github.com/dhemery/duffel/internal/errfs"
 )
@@ -21,27 +20,27 @@ func TestItemizer(t *testing.T) {
 		"not in a source dir": {
 			sourceDir: "elsewhere",
 			nameArg:   "dir1/dir2/dir3/dir4",
-			wantErr:   ErrNotInPackage,
+			wantErr:   errNotInPackage,
 		},
 		"source dir": {
 			sourceDir: "dir1/dir2/dir3/dir4",
 			nameArg:   "dir1/dir2/dir3/dir4",
-			wantErr:   ErrIsSource,
+			wantErr:   errIsSource,
 		},
 		"package": {
 			sourceDir: "user/home/source",
 			nameArg:   "user/home/source/pkg",
-			wantErr:   ErrIsPackage,
+			wantErr:   errIsPackage,
 		},
 		"child of a package": {
 			sourceDir:      "user/home/source",
 			nameArg:        "user/home/source/pkg/item",
-			wantSourcePath: NewSourcePath("user/home/source", "pkg", "item"),
+			wantSourcePath: newSourcePath("user/home/source", "pkg", "item"),
 		},
 		"deep in a package": {
 			sourceDir:      "user/home/source",
 			nameArg:        "user/home/source/pkg/item1/item2/item3",
-			wantSourcePath: NewSourcePath("user/home/source", "pkg", "item1/item2/item3"),
+			wantSourcePath: newSourcePath("user/home/source", "pkg", "item1/item2/item3"),
 		},
 	}
 	for name, test := range tests {
@@ -52,9 +51,9 @@ func TestItemizer(t *testing.T) {
 				errfs.AddFile(testFS, path.Join(test.sourceDir, file.SourceMarkerFile), 0o644)
 			}
 
-			itemizer := NewItemizer(testFS)
+			itemizer := itemizer{testFS}
 
-			gotPackageItem, gotErr := itemizer.Itemize(test.nameArg)
+			gotPackageItem, gotErr := itemizer.itemize(test.nameArg)
 
 			if gotPackageItem != test.wantSourcePath {
 				t.Errorf("Itemize(%q) result:\n got: %v\nwant: %v",

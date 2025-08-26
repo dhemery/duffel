@@ -9,26 +9,22 @@ import (
 )
 
 var (
-	ErrIsPackage    = errors.New("is a duffel package")
-	ErrIsSource     = errors.New("is a duffel source")
-	ErrNotInPackage = errors.New("not in a duffel package")
+	errIsPackage    = errors.New("is a duffel package")
+	errIsSource     = errors.New("is a duffel source")
+	errNotInPackage = errors.New("not in a duffel package")
 )
-
-func NewItemizer(fsys fs.ReadLinkFS) itemizer {
-	return itemizer{fsys}
-}
 
 type itemizer struct {
 	fsys fs.ReadLinkFS
 }
 
-// Itemize returns a [SourcePath] describing the named file.
+// itemize returns a [SourcePath] describing the named file.
 // If the file is not in a duffel source directory,
 // the method returns an error.
-func (i itemizer) Itemize(name string) (SourcePath, error) {
+func (i itemizer) itemize(name string) (SourcePath, error) {
 	source, err := file.SourceDir(i.fsys, name)
 	if errors.Is(err, fs.ErrNotExist) {
-		return SourcePath{}, ErrNotInPackage
+		return SourcePath{}, errNotInPackage
 	}
 
 	if err != nil {
@@ -36,14 +32,14 @@ func (i itemizer) Itemize(name string) (SourcePath, error) {
 	}
 
 	if name == source {
-		return SourcePath{}, ErrIsSource
+		return SourcePath{}, errIsSource
 	}
 
 	pkgItem := name[len(source)+1:]
 	pkg, item, found := strings.Cut(pkgItem, "/")
 	if !found {
-		return SourcePath{}, ErrIsPackage
+		return SourcePath{}, errIsPackage
 	}
 
-	return NewSourcePath(source, pkg, item), nil
+	return newSourcePath(source, pkg, item), nil
 }

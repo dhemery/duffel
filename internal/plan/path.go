@@ -8,13 +8,13 @@ import (
 	"github.com/dhemery/duffel/internal/file"
 )
 
-// NewSourcePath returns a [SourcePath]
+// newSourcePath returns a [SourcePath]
 // for the specified package or item.
-// Source is the full path to the source directory.
+// Source is the full path from the root of the file system to the source directory.
 // Pkg is the name of the package directory.
 // Item is the path from the package directory to the item.
 // If item is empty, the SourcePath represents a package.
-func NewSourcePath(source, pkg, item string) SourcePath {
+func newSourcePath(source, pkg, item string) SourcePath {
 	return SourcePath{source, pkg, item}
 }
 
@@ -35,26 +35,26 @@ func (s SourcePath) MarshalJSONTo(e *jsontext.Encoder) error {
 	return e.WriteToken(jsontext.String(s.String()))
 }
 
-// PackageDir returns the full path to s;s package directory.
+// PackageDir returns the full path to s's package directory.
 func (s SourcePath) PackageDir() string {
 	return path.Join(s.Source, s.Package)
 }
 
-// WithItem returns a copy of s with its item replaced by item.
-func (s SourcePath) WithItem(item string) SourcePath {
+// withItem returns a copy of s with its item replaced by item.
+func (s SourcePath) withItem(item string) SourcePath {
 	return SourcePath{s.Source, s.Package, item}
 }
 
-// WithItemFrom returns a copy of s with its item replaced by the item in name.
+// withItemFrom returns a copy of s with its item replaced by the item in name.
 // Name must be in the same package as s.
-func (s SourcePath) WithItemFrom(name string) SourcePath {
+func (s SourcePath) withItemFrom(name string) SourcePath {
 	item, _ := filepath.Rel(s.PackageDir(), name)
-	return s.WithItem(item)
+	return s.withItem(item)
 }
 
-// NewSourceItem returns a [SourceItem] with the given path and file type.
-func NewSourceItem(source, pkg, item string, t file.Type) SourceItem {
-	return SourceItem{NewSourcePath(source, pkg, item), t}
+// newSourceItem returns a [SourceItem] with the given path and file type.
+func newSourceItem(source, pkg, item string, t file.Type) SourceItem {
+	return SourceItem{newSourcePath(source, pkg, item), t}
 }
 
 // SourceItem describes a file in a duffel source tree.
@@ -63,9 +63,9 @@ type SourceItem struct {
 	Type file.Type  `json:"type"` // The type of the file.
 }
 
-// NewTargetPath returns a [TargetPath]
+// newTargetPath returns a [TargetPath]
 // for the specified item in the target tree.
-func NewTargetPath(target, item string) TargetPath {
+func newTargetPath(target, item string) TargetPath {
 	return TargetPath{target, item}
 }
 
@@ -100,8 +100,8 @@ func (t TargetPath) parent() string {
 	return path.Dir(t.String())
 }
 
-// NewTargetItem returns a [TargetItem] with the given path and file state.
-func NewTargetItem(target, item string, state file.State) TargetItem {
+// newTargetItem returns a [TargetItem] with the given path and file state.
+func newTargetItem(target, item string, state file.State) TargetItem {
 	return TargetItem{TargetPath{target, item}, state}
 }
 

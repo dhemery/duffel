@@ -8,24 +8,20 @@ import (
 	"github.com/dhemery/duffel/internal/file"
 )
 
-type InstallMerger interface {
-	Merge(name string, l *slog.Logger) error
+type installMerger interface {
+	merge(name string, l *slog.Logger) error
 }
 
 // installer describes the installed state
 // of the target item file that corresponds
 // to each given source item file.
 type installer struct {
-	merger InstallMerger
+	merger installMerger
 }
 
-func (i installer) Goal() ItemGoal {
-	return GoalInstall
-}
-
-// Analyze returns the state of the target item file
+// analyze returns the state of the target item file
 // that would result from installing the source item file.
-func (i installer) Analyze(s SourceItem, t TargetItem, l *slog.Logger) (file.State, error) {
+func (i installer) analyze(s SourceItem, t TargetItem, l *slog.Logger) (file.State, error) {
 	var state file.State
 	targetPath := t.Path
 	targetState := t.State
@@ -110,7 +106,7 @@ func (i installer) Analyze(s SourceItem, t TargetItem, l *slog.Logger) (file.Sta
 	// Try to merge the target item.
 	mergeDir := targetPath.Resolve(targetState.Dest.Path)
 	l.Info("merging", slog.Any("source", s), slog.Any("target", t), slog.String("merge_dir", mergeDir))
-	err := i.merger.Merge(mergeDir, l)
+	err := i.merger.merge(mergeDir, l)
 	if err != nil {
 		return state, err
 	}

@@ -34,63 +34,63 @@ var entryAndStateSuite = installSuite{
 	tests: []installTest{
 		{
 			desc:       "create new target link to file item",
-			sourceItem: NewSourceItem("source", "pkg", "item", file.TypeFile),
-			targetItem: NewTargetItem("target", "item", file.NoFileState()),
+			sourceItem: newSourceItem("source", "pkg", "item", file.TypeFile),
+			targetItem: newTargetItem("target", "item", file.NoFileState()),
 			wantState:  file.LinkState("../source/pkg/item", file.TypeFile),
 		},
 		{
 			desc:       "create new target link to dir item",
-			sourceItem: NewSourceItem("source", "pkg", "item", file.TypeDir),
-			targetItem: NewTargetItem("target", "item", file.NoFileState()),
+			sourceItem: newSourceItem("source", "pkg", "item", file.TypeDir),
+			targetItem: newTargetItem("target", "item", file.NoFileState()),
 			wantState:  file.LinkState("../source/pkg/item", file.TypeDir),
 			wantErr:    fs.SkipDir, // Do not walk the dir. Linking to it suffices.
 		},
 		{
 			desc:       "create new target link to symlink item",
-			sourceItem: NewSourceItem("source", "pkg", "item", file.TypeSymlink),
-			targetItem: NewTargetItem("target", "item", file.NoFileState()),
+			sourceItem: newSourceItem("source", "pkg", "item", file.TypeSymlink),
+			targetItem: newTargetItem("target", "item", file.NoFileState()),
 			wantState:  file.LinkState("../source/pkg/item", file.TypeSymlink),
 		},
 		{
 			desc:       "create new target link to sub-item",
-			sourceItem: NewSourceItem("source", "pkg", "dir/sub1/sub2/item", file.TypeFile),
-			targetItem: NewTargetItem("target", "dir/sub1/sub2/item", file.NoFileState()),
+			sourceItem: newSourceItem("source", "pkg", "dir/sub1/sub2/item", file.TypeFile),
+			targetItem: newTargetItem("target", "dir/sub1/sub2/item", file.NoFileState()),
 			wantState:  file.LinkState("../../../../source/pkg/dir/sub1/sub2/item", file.TypeFile),
 		},
 		{
 			desc:       "existing target is link to nowhere",
-			sourceItem: NewSourceItem("source", "pkg", "item", file.TypeFile),
-			targetItem: NewTargetItem("target", "item",
+			sourceItem: newSourceItem("source", "pkg", "item", file.TypeFile),
+			targetItem: newTargetItem("target", "item",
 				file.LinkState("link/to/nowhere", file.TypeNoFile)),
 			wantState: file.LinkState("../source/pkg/item", file.TypeFile),
 		},
 		{
 			desc:       "install dir item contents to existing target dir",
-			sourceItem: NewSourceItem("source", "pkg", "item", file.TypeDir),
-			targetItem: NewTargetItem("target", "item", file.DirState()),
+			sourceItem: newSourceItem("source", "pkg", "item", file.TypeDir),
+			targetItem: newTargetItem("target", "item", file.DirState()),
 			wantState:  file.DirState(), // No change in state.
 			wantErr:    nil,             // No error: Continue walking to install the item's contents.
 		},
 		{
 			desc:       "target already links to current dir item",
-			sourceItem: NewSourceItem("source", "pkg", "item", file.TypeDir),
-			targetItem: NewTargetItem("target", "item",
+			sourceItem: newSourceItem("source", "pkg", "item", file.TypeDir),
+			targetItem: newTargetItem("target", "item",
 				file.LinkState("../source/pkg/item", file.TypeDir)),
 			wantState: file.LinkState("../source/pkg/item", file.TypeDir),
 			wantErr:   fs.SkipDir, // Do not walk the dir item. It's already linked.
 		},
 		{
 			desc:       "target already links to current non-dir item",
-			sourceItem: NewSourceItem("source", "pkg", "item", file.TypeFile),
-			targetItem: NewTargetItem("target", "item",
+			sourceItem: newSourceItem("source", "pkg", "item", file.TypeFile),
+			targetItem: newTargetItem("target", "item",
 				file.LinkState("../source/pkg/item", file.TypeFile)),
 			wantState: file.LinkState("../source/pkg/item", file.TypeFile),
 			wantErr:   nil,
 		},
 		{
 			desc:       "target already links to current sub-item",
-			sourceItem: NewSourceItem("source", "pkg", "dir/sub1/sub2/item", file.TypeFile),
-			targetItem: NewTargetItem("target", "dir/sub1/sub2/item",
+			sourceItem: newSourceItem("source", "pkg", "dir/sub1/sub2/item", file.TypeFile),
+			targetItem: newTargetItem("target", "dir/sub1/sub2/item",
 				file.LinkState("../../../../source/pkg/dir/sub1/sub2/item", file.TypeFile)),
 			wantState: file.LinkState("../../../../source/pkg/dir/sub1/sub2/item", file.TypeFile),
 			wantErr:   nil,
@@ -105,8 +105,8 @@ var mergeSuite = installSuite{
 	tests: []installTest{
 		{
 			desc:       "merge succeeds",
-			sourceItem: NewSourceItem("source", "pkg", "item", file.TypeDir),
-			targetItem: NewTargetItem("target", "item",
+			sourceItem: newSourceItem("source", "pkg", "item", file.TypeDir),
+			targetItem: newTargetItem("target", "item",
 				file.LinkState("../duffel/source-dir", file.TypeDir)),
 			merger:    mergeNoError("duffel/source-dir"),
 			wantState: file.DirState(),
@@ -114,11 +114,11 @@ var mergeSuite = installSuite{
 		},
 		{
 			desc:       "merge fails",
-			sourceItem: NewSourceItem("source", "pkg", "item", file.TypeDir),
-			targetItem: NewTargetItem("target", "item",
+			sourceItem: newSourceItem("source", "pkg", "item", file.TypeDir),
+			targetItem: newTargetItem("target", "item",
 				file.LinkState("../duffel/source-dir", file.TypeDir)),
-			merger:  mergeError(&MergeError{Name: "duffel/source-dir", Err: ErrIsSource}),
-			wantErr: &MergeError{Name: "duffel/source-dir", Err: ErrIsSource},
+			merger:  mergeError(&MergeError{Name: "duffel/source-dir", Err: errIsSource}),
+			wantErr: &MergeError{Name: "duffel/source-dir", Err: errIsSource},
 		},
 	},
 }
@@ -138,44 +138,44 @@ var conflictSuite = installSuite{
 	tests: []installTest{
 		{
 			desc:       "target is a file, source is a dir",
-			sourceItem: NewSourceItem("source", "pkg", "item", file.TypeDir),
-			targetItem: NewTargetItem("target", "item", file.FileState()),
+			sourceItem: newSourceItem("source", "pkg", "item", file.TypeDir),
+			targetItem: newTargetItem("target", "item", file.FileState()),
 			wantErr: &ConflictError{
-				SourceItem{NewSourcePath("source", "pkg", "item"), file.TypeDir},
-				TargetItem{NewTargetPath("target", "item"), file.FileState()},
+				SourceItem{newSourcePath("source", "pkg", "item"), file.TypeDir},
+				TargetItem{newTargetPath("target", "item"), file.FileState()},
 			},
 		},
 		{
 			desc:       "target links to a non-dir, source is a dir",
-			sourceItem: NewSourceItem("source", "pkg", "item", file.TypeDir),
-			targetItem: NewTargetItem("target", "item",
+			sourceItem: newSourceItem("source", "pkg", "item", file.TypeDir),
+			targetItem: newTargetItem("target", "item",
 				file.LinkState("link/to/file", file.TypeFile)),
 			wantErr: &ConflictError{
-				SourceItem{NewSourcePath("source", "pkg", "item"), file.TypeDir},
+				SourceItem{newSourcePath("source", "pkg", "item"), file.TypeDir},
 				TargetItem{
-					NewTargetPath("target", "item"),
+					newTargetPath("target", "item"),
 					file.LinkState("link/to/file", file.TypeFile),
 				},
 			},
 		},
 		{
 			desc:       "target is a dir, source is not a dir",
-			sourceItem: NewSourceItem("source", "pkg", "item", file.TypeFile),
-			targetItem: NewTargetItem("target", "item", file.DirState()),
+			sourceItem: newSourceItem("source", "pkg", "item", file.TypeFile),
+			targetItem: newTargetItem("target", "item", file.DirState()),
 			wantErr: &ConflictError{
-				SourceItem{NewSourcePath("source", "pkg", "item"), file.TypeFile},
-				TargetItem{NewTargetPath("target", "item"), file.DirState()},
+				SourceItem{newSourcePath("source", "pkg", "item"), file.TypeFile},
+				TargetItem{newTargetPath("target", "item"), file.DirState()},
 			},
 		},
 		{
 			desc:       "target links to a dir, source is not a dir",
-			sourceItem: NewSourceItem("source", "pkg", "item", file.TypeFile),
-			targetItem: NewTargetItem("target", "item",
+			sourceItem: newSourceItem("source", "pkg", "item", file.TypeFile),
+			targetItem: newTargetItem("target", "item",
 				file.LinkState("target/some/dest", file.TypeDir)),
 			wantErr: &ConflictError{
-				SourceItem{NewSourcePath("source", "pkg", "item"), file.TypeFile},
+				SourceItem{newSourcePath("source", "pkg", "item"), file.TypeFile},
 				TargetItem{
-					NewTargetPath("target", "item"),
+					newTargetPath("target", "item"),
 					file.LinkState("target/some/dest", file.TypeDir),
 				},
 			},
@@ -204,7 +204,7 @@ func (test installTest) run(t *testing.T) {
 
 		install := &installer{test.merger}
 
-		gotState, gotErr := install.Analyze(test.sourceItem, test.targetItem, logger)
+		gotState, gotErr := install.analyze(test.sourceItem, test.targetItem, logger)
 
 		if diff := cmp.Diff(test.wantState, gotState); diff != "" {
 			t.Errorf("state:\n%s", diff)
@@ -236,7 +236,7 @@ type testMerger struct {
 	gotName  string
 }
 
-func (m *testMerger) Merge(gotName string, _ *slog.Logger) error {
+func (m *testMerger) merge(gotName string, _ *slog.Logger) error {
 	m.gotCall = true
 	m.gotName = gotName
 	if m.wantCall != nil {
