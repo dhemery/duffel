@@ -109,7 +109,7 @@ func checkRecordedSpecs(t *testing.T, ctx string, got specs, want map[string]spe
 	t.Helper()
 	gotMap := maps.Collect(got.all())
 	if diff := cmp.Diff(want, gotMap, cmpopts.EquateComparable(spec{})); diff != "" {
-		t.Errorf("%s: Specs():\n%s", ctx, diff)
+		t.Errorf("%s: recorded specs:\n%s", ctx, diff)
 	}
 }
 

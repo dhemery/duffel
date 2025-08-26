@@ -124,16 +124,16 @@ func newTask(current, planned file.State) Task {
 type Task []file.Action
 
 // Execute executes t's actions on the named file.
-func (t Task) Execute(afs file.ActionFS, name string) error {
-	for _, op := range t {
-		if err := op.Execute(afs, name); err != nil {
+func (t Task) Execute(fsys file.ActionFS, name string) error {
+	for _, a := range t {
+		if err := a.Execute(fsys, name); err != nil {
 			return err
 		}
 	}
 	return nil
 }
 
-// specs is a collection that maps a file name to the Spec for the file.
+// specs is a collection that maps a file name to the spec for the file.
 type specs interface {
 	// all returns an iterator over the item name and [analyze.Spec]
 	// for each file in the target tree that is not in its planned state.
