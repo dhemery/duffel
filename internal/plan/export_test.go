@@ -4,14 +4,14 @@ import (
 	"errors"
 )
 
-func (me *MergeError) Equal(o *MergeError) bool {
+func (me *mergeError) Equal(o *mergeError) bool {
 	if !sameNullity(me, o) {
 		return false
 	}
 	if me == nil {
 		return true
 	}
-	return me.Name == o.Name &&
+	return me.Dir == o.Dir &&
 		errors.Is(me.Err, o.Err)
 }
 

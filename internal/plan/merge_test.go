@@ -25,21 +25,21 @@ func TestMerge(t *testing.T) {
 		"not in a package": {
 			files:   []*errfs.File{}, // No other files, so no source marker file
 			nameArg: "dir1/dir2/dir3/dir4/dir5/dir6",
-			wantErr: &MergeError{Name: "dir1/dir2/dir3/dir4/dir5/dir6", Err: errNotInPackage},
+			wantErr: &mergeError{Dir: "dir1/dir2/dir3/dir4/dir5/dir6", Err: errNotInPackage},
 		},
 		"duffel source dir": {
 			files: []*errfs.File{
 				sourceDir("duffel/source-dir"),
 			},
 			nameArg: "duffel/source-dir",
-			wantErr: &MergeError{Name: "duffel/source-dir", Err: errIsSource},
+			wantErr: &mergeError{Dir: "duffel/source-dir", Err: errIsSource},
 		},
 		"duffel package": {
 			files: []*errfs.File{
 				sourceDir("duffel/source-dir"),
 			},
 			nameArg: "duffel/source-dir/pkg-dir",
-			wantErr: &MergeError{Name: "duffel/source-dir/pkg-dir", Err: errIsPackage},
+			wantErr: &mergeError{Dir: "duffel/source-dir/pkg-dir", Err: errIsPackage},
 		},
 		"top level item in a package": {
 			target: "target-dir",

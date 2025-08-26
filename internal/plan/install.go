@@ -45,7 +45,7 @@ func (i installer) analyze(s sourceItem, t targetItem, l *slog.Logger) (file.Sta
 	targetType := targetState.Type
 	if targetType.IsRegular() {
 		// Cannot modify an existing regular target file.
-		return state, &ConflictError{Source: s, Target: t}
+		return state, &conflictError{Source: s, Target: t}
 	}
 
 	if targetType.IsDir() {
@@ -58,12 +58,12 @@ func (i installer) analyze(s sourceItem, t targetItem, l *slog.Logger) (file.Sta
 
 		// The target item is a dir, but the source item is not.
 		// Cannot merge the target dir with a non-dir source item.
-		return state, &ConflictError{Source: s, Target: t}
+		return state, &conflictError{Source: s, Target: t}
 	}
 
 	if !targetType.IsLink() {
 		// Target item is not file, dir, or link.
-		return state, &ConflictError{Source: s, Target: t}
+		return state, &conflictError{Source: s, Target: t}
 	}
 
 	// At this point, we know that the target is a symlink.
@@ -94,17 +94,17 @@ func (i installer) analyze(s sourceItem, t targetItem, l *slog.Logger) (file.Sta
 
 	if !targetDest.Type.IsDir() {
 		// The target item's link destination is not a dir. Cannot merge.
-		return state, &ConflictError{Source: s, Target: t}
+		return state, &conflictError{Source: s, Target: t}
 	}
 
 	if !sourceType.IsDir() {
 		// Tne entry is not a dir. Cannot merge.
-		return state, &ConflictError{Source: s, Target: t}
+		return state, &conflictError{Source: s, Target: t}
 	}
 
 	// The package item is a dir and the target is a link to a dir.
 	// Try to merge the target item.
-	mergeDir := targetPath.Resolve(targetState.Dest.Path)
+	mergeDir := targetPath.resolve(targetState.Dest.Path)
 	l.Info("merging", slog.Any("source", s), slog.Any("target", t), slog.String("merge_dir", mergeDir))
 	err := i.merger.merge(mergeDir, l)
 	if err != nil {
@@ -117,12 +117,14 @@ func (i installer) analyze(s sourceItem, t targetItem, l *slog.Logger) (file.Sta
 	return file.DirState(), nil
 }
 
-type ConflictError struct {
-	Source sourceItem
-	Target targetItem
+// A conflict error indicates that a source item conflicts with a target item
+// and cannot be installed.
+type conflictError struct {
+	Source sourceItem // The conflicting source item.
+	Target targetItem // The conflicting target item.
 }
 
-func (ce *ConflictError) Error() string {
+func (ce *conflictError) Error() string {
 	return fmt.Sprintf("install conflict: source item %q is %s, target item %q is %s",
 		ce.Source.Path, ce.Source.Type, ce.Target.Path, ce.Target.State)
 }

@@ -55,15 +55,15 @@ func (p Planner) Plan() (Plan, error) {
 }
 
 // A Plan is a sequence of tasks
-// to bring the file tree rooted at Target to the desired state.
+// to bring the file tree rooted at target to the desired state.
 type Plan struct {
-	Target string          `json:"target"`
-	Tasks  map[string]Task `json:"tasks"`
+	Target string          `json:"target"` // The root of the target file tree for the tasks to change.
+	Tasks  map[string]Task `json:"tasks"`  // The file tasks to apply to the target.
 }
 
 // print writes the JSON encoding of the Plan to [io.Writer] w.
 func (p Plan) print(w io.Writer) error {
-	return json.MarshalWrite(w, p, json.Deterministic(true))
+	return json.MarshalWrite(w, &p, json.Deterministic(true))
 }
 
 // execute executes the Plan in [file.ActionFS] fsys.

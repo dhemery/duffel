@@ -108,7 +108,7 @@ var mergeSuite = installSuite{
 			sourceItem: newSourceItem("source", "pkg", "item", file.TypeDir),
 			targetItem: newTargetItem("target", "item",
 				file.LinkState("../duffel/source-dir", file.TypeDir)),
-			merger:    mergeNoError("duffel/source-dir"),
+			merger:    mergeSucceeds("duffel/source-dir"),
 			wantState: file.DirState(),
 			wantErr:   nil,
 		},
@@ -117,18 +117,10 @@ var mergeSuite = installSuite{
 			sourceItem: newSourceItem("source", "pkg", "item", file.TypeDir),
 			targetItem: newTargetItem("target", "item",
 				file.LinkState("../duffel/source-dir", file.TypeDir)),
-			merger:  mergeError(&MergeError{Name: "duffel/source-dir", Err: errIsSource}),
-			wantErr: &MergeError{Name: "duffel/source-dir", Err: errIsSource},
+			merger:  mergeFails(&mergeError{Dir: "duffel/source-dir", Err: errIsSource}),
+			wantErr: &mergeError{Dir: "duffel/source-dir", Err: errIsSource},
 		},
 	},
-}
-
-func mergeNoError(name string) *testMerger {
-	return &testMerger{wantCall: &mergeArgs{name: name}}
-}
-
-func mergeError(e *MergeError) *testMerger {
-	return &testMerger{wantCall: &mergeArgs{name: e.Name, err: e}}
 }
 
 // Scenarios where the source file conflicts
@@ -140,7 +132,7 @@ var conflictSuite = installSuite{
 			desc:       "target is a file, source is a dir",
 			sourceItem: newSourceItem("source", "pkg", "item", file.TypeDir),
 			targetItem: newTargetItem("target", "item", file.FileState()),
-			wantErr: &ConflictError{
+			wantErr: &conflictError{
 				sourceItem{newSourcePath("source", "pkg", "item"), file.TypeDir},
 				targetItem{newTargetPath("target", "item"), file.FileState()},
 			},
@@ -150,7 +142,7 @@ var conflictSuite = installSuite{
 			sourceItem: newSourceItem("source", "pkg", "item", file.TypeDir),
 			targetItem: newTargetItem("target", "item",
 				file.LinkState("link/to/file", file.TypeFile)),
-			wantErr: &ConflictError{
+			wantErr: &conflictError{
 				sourceItem{newSourcePath("source", "pkg", "item"), file.TypeDir},
 				targetItem{
 					newTargetPath("target", "item"),
@@ -162,7 +154,7 @@ var conflictSuite = installSuite{
 			desc:       "target is a dir, source is not a dir",
 			sourceItem: newSourceItem("source", "pkg", "item", file.TypeFile),
 			targetItem: newTargetItem("target", "item", file.DirState()),
-			wantErr: &ConflictError{
+			wantErr: &conflictError{
 				sourceItem{newSourcePath("source", "pkg", "item"), file.TypeFile},
 				targetItem{newTargetPath("target", "item"), file.DirState()},
 			},
@@ -172,7 +164,7 @@ var conflictSuite = installSuite{
 			sourceItem: newSourceItem("source", "pkg", "item", file.TypeFile),
 			targetItem: newTargetItem("target", "item",
 				file.LinkState("target/some/dest", file.TypeDir)),
-			wantErr: &ConflictError{
+			wantErr: &conflictError{
 				sourceItem{newSourcePath("source", "pkg", "item"), file.TypeFile},
 				targetItem{
 					newTargetPath("target", "item"),
@@ -211,7 +203,7 @@ func (test installTest) run(t *testing.T) {
 		}
 
 		switch want := test.wantErr.(type) {
-		case *ConflictError, *MergeError:
+		case *conflictError, *mergeError:
 			if diff := cmp.Diff(want, gotErr, cmpopts.EquateComparable(sourcePath{}, targetPath{})); diff != "" {
 				t.Errorf("error:\n%s", diff)
 			}
@@ -234,6 +226,14 @@ type testMerger struct {
 	wantCall *mergeArgs
 	gotCall  bool
 	gotName  string
+}
+
+func mergeSucceeds(name string) *testMerger {
+	return &testMerger{wantCall: &mergeArgs{name, nil}}
+}
+
+func mergeFails(e *mergeError) *testMerger {
+	return &testMerger{wantCall: &mergeArgs{e.Dir, e}}
 }
 
 func (m *testMerger) merge(gotName string, _ *slog.Logger) error {

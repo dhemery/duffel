@@ -35,8 +35,8 @@ func (s sourcePath) MarshalJSONTo(e *jsontext.Encoder) error {
 	return e.WriteToken(jsontext.String(s.String()))
 }
 
-// PackageDir returns the full path to s's package directory.
-func (s sourcePath) PackageDir() string {
+// packageDir returns the full path to s's package directory.
+func (s sourcePath) packageDir() string {
 	return path.Join(s.source, s.pkg)
 }
 
@@ -48,7 +48,7 @@ func (s sourcePath) withItem(item string) sourcePath {
 // withItemFrom returns a copy of s with its item replaced by the item in name.
 // Name must be in the same package as s.
 func (s sourcePath) withItemFrom(name string) sourcePath {
-	item, _ := filepath.Rel(s.PackageDir(), name)
+	item, _ := filepath.Rel(s.packageDir(), name)
 	return s.withItem(item)
 }
 
@@ -91,8 +91,8 @@ func (t targetPath) PathTo(full string) string {
 	return p
 }
 
-// Resolve resolves rel with respect to t's parent directory.
-func (t targetPath) Resolve(rel string) string {
+// resolve resolves rel with respect to t's parent directory.
+func (t targetPath) resolve(rel string) string {
 	return path.Join(t.parent(), rel)
 }
 

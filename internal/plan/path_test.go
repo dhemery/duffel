@@ -28,7 +28,7 @@ func TestSourcePath(t *testing.T) {
 				t.Errorf("String()=%q, want %q",
 					got, test.wantString)
 			}
-			if got := test.sourcePath.PackageDir(); got != test.wantPackageDir {
+			if got := test.sourcePath.packageDir(); got != test.wantPackageDir {
 				t.Errorf("PackageDir()=%q, want %q",
 					got, test.wantPackageDir)
 			}
@@ -64,7 +64,7 @@ func TestTargetPath(t *testing.T) {
 		t.Errorf("PathTo()=%q, want %q", got, rel)
 	}
 
-	if got := targetPath.Resolve(rel); got != full {
+	if got := targetPath.resolve(rel); got != full {
 		t.Errorf("Resolve()=%q, want %q", got, full)
 	}
 }
