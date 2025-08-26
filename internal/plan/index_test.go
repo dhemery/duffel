@@ -105,7 +105,7 @@ func checkState(t *testing.T, ctx string, got, want file.State) {
 	}
 }
 
-func checkRecordedSpecs(t *testing.T, ctx string, got Specs, want map[string]Spec) {
+func checkRecordedSpecs(t *testing.T, ctx string, got specs, want map[string]Spec) {
 	t.Helper()
 	gotMap := maps.Collect(got.All())
 	if diff := cmp.Diff(want, gotMap); diff != "" {

@@ -13,6 +13,31 @@ import (
 	"github.com/dhemery/duffel/internal/file"
 )
 
+// NewPlanner returns a planner that plans how to change the tree rooted at target.
+func NewPlanner(fsys fs.ReadLinkFS, target string, goals []DirGoal, l *slog.Logger) *Planner {
+	stater := file.NewStater(fsys)
+	index := NewIndex(stater)
+	analyst := NewAnalyzer(fsys, target, index)
+	return &Planner{target, analyst, goals, l}
+}
+
+type Planner struct {
+	target   string
+	analyzer *analyzer
+	goals    []DirGoal
+	logger   *slog.Logger
+}
+
+// Plan creates a plan to realize ops in p's target tree.
+func (p Planner) Plan() (Plan, error) {
+	for _, goal := range p.goals {
+		if err := p.analyzer.Analyze(goal, p.logger); err != nil {
+			return Plan{}, err
+		}
+	}
+	return NewPlan(p.target, p.analyzer.index), nil
+}
+
 // A Plan is a sequence of tasks
 // to bring the file tree rooted at Target to the desired state.
 type Plan struct {
@@ -20,13 +45,27 @@ type Plan struct {
 	Tasks  map[string]Task `json:"tasks"`
 }
 
-// Print prints p to w.
-func (p Plan) Print(w io.Writer) error {
+// Execute returns a function that executes its Plan argument in the specified file system.
+func Execute(fsys file.ActionFS, l *slog.Logger) func(p Plan) error {
+	return func(p Plan) error {
+		return p.execute(fsys, l)
+	}
+}
+
+// Print returns a function that writes its Plan argument to the specified [io.Writer].
+func Print(w io.Writer) func(p Plan) error {
+	return func(p Plan) error {
+		return p.print(w)
+	}
+}
+
+// print writes the JSON encoding of the Plan to [io.Writer] w.
+func (p Plan) print(w io.Writer) error {
 	return json.MarshalWrite(w, p, json.Deterministic(true))
 }
 
-// Execute executes p in afs.
-func (p Plan) Execute(fsys file.ActionFS, l *slog.Logger) error {
+// execute executes the Plan in [file.ActionFS] fsys.
+func (p Plan) execute(fsys file.ActionFS, _ *slog.Logger) error {
 	for _, item := range slices.Sorted(maps.Keys(p.Tasks)) {
 		task := p.Tasks[item]
 		name := path.Join(p.Target, item)
@@ -37,56 +76,10 @@ func (p Plan) Execute(fsys file.ActionFS, l *slog.Logger) error {
 	return nil
 }
 
-// Execute returns a function that executes a plan in afs.
-func Execute(fsys file.ActionFS, l *slog.Logger) func(p Plan) error {
-	return func(p Plan) error {
-		return p.Execute(fsys, l)
-	}
-}
-
-// Print returns a function that writes a plan to w.
-func Print(w io.Writer) func(p Plan) error {
-	return func(p Plan) error {
-		return p.Print(w)
-	}
-}
-
-// NewPlanner returns a planner that plans how to change the tree rooted at target.
-func NewPlanner(fsys fs.ReadLinkFS, target string, goals []DirGoal, l *slog.Logger) *planner {
-	stater := file.NewStater(fsys)
-	index := NewIndex(stater)
-	analyst := NewAnalyzer(fsys, target, index)
-	return &planner{target, analyst, goals, l}
-}
-
-type planner struct {
-	target   string
-	analyzer *analyzer
-	goals    []DirGoal
-	logger   *slog.Logger
-}
-
-// Plan creates a plan to realize ops in p's target tree.
-func (p planner) Plan() (Plan, error) {
-	for _, goal := range p.goals {
-		if err := p.analyzer.Analyze(goal, p.logger); err != nil {
-			return Plan{}, err
-		}
-	}
-	return NewPlan(p.target, p.analyzer.index), nil
-}
-
-type Specs interface {
-	// All returns an iterator over the item name and [analyze.Spec]
-	// for each file in the target tree that is not in its planned state.
-	All() iter.Seq2[string, Spec]
-}
-
 // NewPlan returns a [Plan] to bring the target tree
 // to its planned state.
-// Specs describes the current and planned state of each file
-// that is not in its planned state.
-func NewPlan(target string, specs Specs) Plan {
+// Specs describes the current and planned state of each file.
+func NewPlan(target string, specs specs) Plan {
 	targetLen := len(target) + 1
 	p := Plan{Target: target, Tasks: map[string]Task{}}
 	for name, spec := range specs.All() {
@@ -136,4 +129,11 @@ func (t Task) Execute(afs file.ActionFS, name string) error {
 		}
 	}
 	return nil
+}
+
+// specs is a collection that maps a file name to the Spec for the file.
+type specs interface {
+	// All returns an iterator over the item name and [analyze.Spec]
+	// for each file in the target tree that is not in its planned state.
+	All() iter.Seq2[string, Spec]
 }
